@@ -3,51 +3,11 @@ use crate::api::question::{
     QuestionUploadResp,
 };
 use crate::constant::meta;
-use crate::util::md;
-use crate::util::{file, string, time};
+use crate::service::index;
+use crate::util::{file, string};
+use crate::util::{md, time};
 use log::{error, warn};
-use serde::{Deserialize, Serialize};
 use std::io::{Error, ErrorKind};
-
-#[derive(Serialize, Deserialize)]
-pub struct QuestionIndex {
-    pub id: u64, // 建立题目关联的索引, 后续搜索题目等均读取该文件，然后再根据题目寻找他的内容
-    pub left: String, // 对标题进行处理出一个前缀, 题目真实的路径为 id_left, 这样就不关心 id 重复的问题了
-    pub question_type: String,
-    pub tags: Option<Vec<String>>,
-    pub rate_val: Option<String>,
-    pub image_names: Option<Vec<String>>,
-    pub show_image_val: Option<String>,
-    pub show_select_val: Option<String>,
-    pub create_time: Option<i64>,
-    pub update_time: Option<i64>,
-    pub author: Option<String>,
-}
-
-fn read_question_index(textbook_key: &str, catalog_key: &str) -> Result<Vec<QuestionIndex>, Error> {
-    let index_path = format!(
-        "{}/{}/{}/{}",
-        meta::META_PATH,
-        string::underline_to_slash(textbook_key),
-        string::underline_to_slash(catalog_key),
-        meta::QUESTION_INDEX_NAME
-    );
-    // 读取索引文件时如果文件不存在则返回空数组, 写入时才主动创建文件
-    let index_content =
-        file::read_small_file(index_path, true).unwrap_or_else(|_| "[]".to_string());
-    let index_list: Vec<QuestionIndex> = serde_json::from_str(&index_content)?;
-    Ok(index_list)
-}
-
-fn get_question_index_max_id(index_list: &Vec<QuestionIndex>) -> u64 {
-    let mut max_id: u64 = 0;
-    for index in index_list {
-        if index.id > max_id {
-            max_id = index.id;
-        }
-    }
-    max_id
-}
 
 fn get_question_left(title: &str, n: usize) -> String {
     (&format!("{:x}", md5::compute(title))[..n]).to_string()
@@ -58,12 +18,12 @@ pub async fn upload_question(req: QuestionUploadReq) -> Result<QuestionUploadRes
     let catalog_key = req.catalog_key.clone();
 
     // init base info
-    let mut question_index_list = read_question_index(&req.textbook_key, &req.catalog_key)?;
-    let max_id = get_question_index_max_id(&question_index_list);
+    let mut question_index_list = index::read_question_index(&req.textbook_key, &req.catalog_key)?;
+    let max_id = index::get_question_index_max_id(&question_index_list);
     let next_max_id = max_id + 1;
     let question_left = get_question_left(&req.title_val, meta::QUESTION_INDEX_LENGTH);
 
-    let mut question_index = QuestionIndex {
+    let mut question_index = index::QuestionIndex {
         id: next_max_id,
         left: question_left.clone(),
         question_type: req.question_type.clone(),
@@ -89,60 +49,30 @@ pub async fn upload_question(req: QuestionUploadReq) -> Result<QuestionUploadRes
     let current_time = time::get_beijing_time_info();
     question_index.create_time = Some(current_time.0);
     question_index.update_time = Some(current_time.0);
-    question_index_list.push(question_index);
-
-    // write questio index file
-    let index_path = format!(
-        "{}/{}/{}/{}",
-        meta::META_PATH,
-        string::underline_to_slash(&textbook_key),
-        string::underline_to_slash(&catalog_key),
-        meta::QUESTION_INDEX_NAME
-    );
-
-    match serde_json::to_string(&question_index_list) {
-        Ok(content) => match file::write_small_file(&index_path, &content) {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Failed to save question index to json file: {}", e);
-                Err(Error::new(ErrorKind::Other, "题目上传成功但是索引失败"))?
-            }
-        },
-        Err(e) => {
-            error!("Failed to serialize question index to json str: {}", e);
-            Err(Error::new(ErrorKind::Other, "题目上传成功但是索引常异"))?
-        }
-    }
+    let id = index::append_write_index(
+        &textbook_key,
+        &catalog_key,
+        &mut question_index_list,
+        question_index,
+    )?;
 
     Ok(QuestionUploadResp {
-        id: format!("{}_{}", next_max_id, question_left),
+        id: format!("{}", id),
     })
-}
-
-fn get_question_index(
-    id: &str,
-    question_index_list: Vec<QuestionIndex>,
-) -> Result<QuestionIndex, Error> {
-    for index in question_index_list {
-        if format!("{}_{}", index.id, index.left) == id {
-            return Ok(index);
-        }
-    }
-    Err(Error::new(ErrorKind::Other, "index not found"))
 }
 
 pub fn get_question_info(req: QuestionInfoReq) -> Result<QuestionInfoResp, Error> {
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
-    let question_index_list = read_question_index(&textbook_key, &catalog_key)?;
-    let question_index = get_question_index(&req.id, question_index_list)?;
+    let question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
+    let question_index = index::get_question_index(&req.id, question_index_list)?;
 
     read_question_info(req, &question_index)
 }
 
 fn read_question_info(
     req: QuestionInfoReq,
-    index: &QuestionIndex,
+    index: &index::QuestionIndex,
 ) -> Result<QuestionInfoResp, Error> {
     let question_path = req.id.clone();
     let textbook_key = req.textbook_key.clone();
@@ -306,7 +236,7 @@ fn read_ext_list_content(
 pub fn get_question_list(req: QuestionListReq) -> Result<QuestionListResp, Error> {
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
-    let question_index_list = read_question_index(&textbook_key, &catalog_key)?;
+    let question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
     // 本期不考虑排序, 正常默认就是升序
 
     let total = question_index_list.len();

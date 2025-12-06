@@ -1,6 +1,6 @@
 use crate::api::question::QuestionUploadReq;
 use crate::constant::meta;
-use crate::service::question::QuestionIndex;
+use crate::service::index::QuestionIndex;
 use crate::util::string;
 use log::{error, info, warn};
 use std::fs;

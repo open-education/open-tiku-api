@@ -8,7 +8,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
-pub struct RespUploadImage {
+pub struct UploadImageResp {
     pub original_name: String,
     pub size: usize,
     pub name: String,
@@ -86,10 +86,10 @@ pub fn get_read_image_url(req_upload_file: &UploadImageReq, safe_name: &str) -> 
 }
 
 /// 处理文件上传
-pub async fn upload_small_file(
+pub async fn upload_small_image(
     mut payload: Multipart,
     req_upload_file: UploadImageReq,
-) -> Result<Vec<RespUploadImage>, Error> {
+) -> Result<Vec<UploadImageResp>, Error> {
     let upload_path = format!(
         "{}/{}/{}/{}",
         meta::META_PATH,
@@ -118,7 +118,7 @@ pub async fn upload_small_file(
                 // 保存文件
                 let file_size = save_file(&mut field, &file_path).await?;
 
-                uploaded_files.push(RespUploadImage {
+                uploaded_files.push(UploadImageResp {
                     original_name: original_filename,
                     name: safe_filename.clone(),
                     size: file_size,

@@ -1,4 +1,3 @@
-use crate::api::file::DeleteImageReq;
 use crate::constant::meta;
 use crate::util::string;
 use actix_web::HttpResponse;
@@ -73,13 +72,14 @@ pub fn write_small_file(path: &str, content: &str) -> Result<bool, Error> {
     Ok(true)
 }
 
-pub struct LocalImageRead {
+pub struct LocalImageInfo {
     pub textbook_key: String,
     pub catalog_key: String,
+    pub id: Option<String>,
     pub filename: String,
 }
 
-pub fn read_small_image(local_image_read: LocalImageRead) -> actix_web::Result<HttpResponse> {
+pub fn read_small_image(local_image_read: LocalImageInfo) -> actix_web::Result<HttpResponse> {
     let filename = local_image_read.filename;
     let image_path = format!(
         "{}/{}/{}/{}/{}",
@@ -122,7 +122,15 @@ fn get_content_type(filename: &str) -> &'static str {
     }
 }
 
-pub async fn delete_file(req_delete_file: DeleteImageReq) -> Result<bool, Error> {
-    let _ = tokio::fs::remove_file(req_delete_file.file_path).await?;
+pub async fn delete_image(local_image_info: LocalImageInfo) -> Result<bool, Error> {
+    let image_path = format!(
+        "{}/{}/{}/{}/{}",
+        meta::META_PATH,
+        string::underline_to_slash(&local_image_info.textbook_key),
+        string::underline_to_slash(&local_image_info.catalog_key),
+        meta::IMAGE_NAME,
+        local_image_info.filename
+    );
+    let _ = tokio::fs::remove_file(image_path).await?;
     Ok(true)
 }
