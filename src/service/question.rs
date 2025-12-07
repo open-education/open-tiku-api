@@ -4,8 +4,7 @@ use crate::api::question::{
 };
 use crate::constant::meta;
 use crate::service::index;
-use crate::util::{file, string};
-use crate::util::{md, time};
+use crate::util::{file, md, string, time};
 use log::{error, warn};
 use std::io::{Error, ErrorKind};
 

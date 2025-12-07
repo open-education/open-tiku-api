@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/config").configure(route::config))
             .service(web::scope("/file").configure(route::file))
             .service(web::scope("/question").configure(route::question))
+            .service(web::scope("/edit").configure(route::edit))
     })
     .bind(("0.0.0.0", 8080))?
     .run()
