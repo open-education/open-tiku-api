@@ -77,6 +77,23 @@ pub async fn edit_title(req: web::Json<EditTitleReq>) -> ApiResponse<bool> {
 }
 
 #[derive(Deserialize)]
+pub struct EditSelectReq {
+    #[serde(rename(deserialize = "textbookKey"))]
+    pub textbook_key: String,
+    #[serde(rename(deserialize = "catalogKey"))]
+    pub catalog_key: String,
+    pub id: String,
+
+    #[serde(rename(deserialize = "select"))]
+    pub select: String,
+}
+
+#[post("/select")]
+pub async fn edit_select(req: web::Json<EditSelectReq>) -> ApiResponse<bool> {
+    ApiResponse::response(edit::edit_select(req.into_inner()))
+}
+
+#[derive(Deserialize)]
 pub struct EditMentionReq {
     #[serde(rename(deserialize = "textbookKey"))]
     pub textbook_key: String,

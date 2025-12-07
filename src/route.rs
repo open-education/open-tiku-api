@@ -30,6 +30,7 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
     cfg.service(edit::edit_question_type)
         .service(edit::edit_tags)
         .service(edit::edit_rate)
+        .service(edit::edit_select)
         .service(edit::edit_title)
         .service(edit::edit_mention)
         .service(edit::edit_a)
