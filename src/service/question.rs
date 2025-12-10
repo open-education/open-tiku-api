@@ -3,7 +3,7 @@ use crate::api::question::{
     QuestionUploadResp,
 };
 use crate::constant::meta;
-use crate::service::index;
+use crate::service::{index, similar};
 use crate::util::{file, md, string, time};
 use log::{error, warn};
 use std::io::{Error, ErrorKind};
@@ -12,12 +12,17 @@ fn get_question_left(title: &str, n: usize) -> String {
     (&format!("{:x}", md5::compute(title))[..n]).to_string()
 }
 
-pub async fn upload_question(req: QuestionUploadReq) -> Result<QuestionUploadResp, Error> {
+pub async fn upload_question(
+    meta_path: &str,
+    req: QuestionUploadReq,
+) -> Result<QuestionUploadResp, Error> {
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
+    let source_id = req.source_id.clone();
 
     // init base info
-    let mut question_index_list = index::read_question_index(&req.textbook_key, &req.catalog_key)?;
+    let mut question_index_list =
+        index::read_question_index(meta_path, &req.textbook_key, &req.catalog_key)?;
     let max_id = index::get_question_index_max_id(&question_index_list);
     let next_max_id = max_id + 1;
     let question_left = get_question_left(&req.title_val, meta::QUESTION_INDEX_LENGTH);
@@ -37,7 +42,7 @@ pub async fn upload_question(req: QuestionUploadReq) -> Result<QuestionUploadRes
     };
 
     // upload question file
-    match md::write_markdown_files(req, &question_index).await {
+    match md::write_markdown_files(meta_path, req, &question_index).await {
         Ok(_) => {}
         Err(e) => {
             error!("Failed to upload question to markdown file: {}", e);
@@ -49,27 +54,60 @@ pub async fn upload_question(req: QuestionUploadReq) -> Result<QuestionUploadRes
     question_index.create_time = Some(current_time.0);
     question_index.update_time = Some(current_time.0);
     let id = index::append_write_index(
+        meta_path,
         &textbook_key,
         &catalog_key,
         &mut question_index_list,
         question_index,
     )?;
 
+    // related source_id
+    match source_id {
+        Some(source_id) => {
+            let _ = related_source_id(meta_path, &textbook_key, &catalog_key, &source_id, &id)?;
+        }
+        None => {}
+    }
+
     Ok(QuestionUploadResp {
         id: format!("{}", id),
     })
 }
 
-pub fn get_question_info(req: QuestionInfoReq) -> Result<QuestionInfoResp, Error> {
+pub fn related_source_id(
+    meta_path: &str,
+    textbook_key: &str,
+    catalog_key: &str,
+    source_id: &str,
+    target_id: &str,
+) -> Result<bool, Error> {
+    if !string::has_content(source_id) {
+        return Ok(true);
+    }
+
+    let mut similar_index_map =
+        similar::read_question_similar_index(meta_path, textbook_key, catalog_key)?;
+    let mut index_list = match similar_index_map.get(source_id) {
+        Some(index_list) => index_list.clone(),
+        _ => vec![],
+    };
+    index_list.push(target_id.to_string());
+    similar_index_map.insert(source_id.to_string(), index_list);
+
+    similar::write_similar_index(meta_path, textbook_key, catalog_key, &similar_index_map)
+}
+
+pub fn get_question_info(meta_path: &str, req: QuestionInfoReq) -> Result<QuestionInfoResp, Error> {
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
-    let question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
+    let question_index_list = index::read_question_index(meta_path, &textbook_key, &catalog_key)?;
     let question_index = index::get_question_index(&req.id, question_index_list)?;
 
-    read_question_info(req, &question_index)
+    read_question_info(meta_path, req, &question_index)
 }
 
 fn read_question_info(
+    meta_path: &str,
     req: QuestionInfoReq,
     index: &index::QuestionIndex,
 ) -> Result<QuestionInfoResp, Error> {
@@ -128,7 +166,7 @@ fn read_question_info(
     match read_ext_list_content(
         &format!(
             "{}/{}/{}/{}",
-            meta::META_PATH,
+            meta_path,
             string::underline_to_slash(&textbook_key),
             string::underline_to_slash(&catalog_key),
             question_path
@@ -232,10 +270,10 @@ fn read_ext_list_content(
     Ok(true)
 }
 
-pub fn get_question_list(req: QuestionListReq) -> Result<QuestionListResp, Error> {
+pub fn get_question_list(meta_path: &str, req: QuestionListReq) -> Result<QuestionListResp, Error> {
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
-    let question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
+    let question_index_list = index::read_question_index(meta_path, &textbook_key, &catalog_key)?;
     // 本期不考虑排序, 正常默认就是升序
 
     let total = question_index_list.len();
@@ -256,6 +294,7 @@ pub fn get_question_list(req: QuestionListReq) -> Result<QuestionListResp, Error
     let mut question_info_list: Vec<QuestionInfoResp> = Vec::new();
     for question_index in get_question_index_list {
         let question_info = read_question_info(
+            meta_path,
             QuestionInfoReq {
                 textbook_key: textbook_key.clone(),
                 catalog_key: catalog_key.clone(),

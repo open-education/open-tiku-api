@@ -87,12 +87,13 @@ pub fn get_read_image_url(req_upload_file: &UploadImageReq, safe_name: &str) -> 
 
 /// 处理文件上传
 pub async fn upload_small_image(
+    meta_path: &str,
     mut payload: Multipart,
     req_upload_file: UploadImageReq,
 ) -> Result<Vec<UploadImageResp>, Error> {
     let upload_path = format!(
         "{}/{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(&req_upload_file.textbook_key),
         string::underline_to_slash(&req_upload_file.catalog_key),
         meta::IMAGE_NAME

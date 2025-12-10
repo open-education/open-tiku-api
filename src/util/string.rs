@@ -6,10 +6,17 @@ pub fn underline_to_slash(input: &str) -> String {
     input.replace("_", "/")
 }
 
-pub fn get_first_part(input: &str) -> Result<&str, Error> {
-    match input.splitn(2, '_').next() {
-        Some(part) => Ok(part),
-        None => Err(Error::new(ErrorKind::Other, "Empty string")),
+// pub fn get_first_part(input: &str) -> Result<&str, Error> {
+//     match input.splitn(2, '_').next() {
+//         Some(part) => Ok(part),
+//         None => Err(Error::new(ErrorKind::Other, "Empty string")),
+//     }
+// }
+
+pub fn get_last_part(s: &str) -> &str {
+    match s.rfind('_') {
+        Some(pos) => &s[pos + 1..],
+        None => s,
     }
 }
 

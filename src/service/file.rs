@@ -5,6 +5,7 @@ use actix_multipart::Multipart;
 use std::io::Error;
 
 pub async fn upload_small_image(
+    meta_path: &str,
     payload: Multipart,
     req_upload_file: api::file::UploadImageReq,
 ) -> Result<Vec<util::upload::UploadImageResp>, Error> {
@@ -12,13 +13,15 @@ pub async fn upload_small_image(
     let catalog_key = req_upload_file.catalog_key.clone();
     let id_opt = req_upload_file.id.clone();
 
-    let upload_image_resp_list = util::upload::upload_small_image(payload, req_upload_file).await?;
+    let upload_image_resp_list =
+        util::upload::upload_small_image(meta_path, payload, req_upload_file).await?;
 
     match id_opt {
         Some(id) => {
             let mut find = false;
 
-            let mut question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
+            let mut question_index_list =
+                index::read_question_index(meta_path, &textbook_key, &catalog_key)?;
             for question_index in question_index_list.iter_mut() {
                 if format!("{}_{}", question_index.id, question_index.left) == id {
                     find = true;
@@ -33,7 +36,12 @@ pub async fn upload_small_image(
             }
 
             if find {
-                _ = index::write_index(&textbook_key, &catalog_key, &question_index_list)?;
+                _ = index::write_index(
+                    meta_path,
+                    &textbook_key,
+                    &catalog_key,
+                    &question_index_list,
+                )?;
             }
 
             Ok(upload_image_resp_list)
@@ -42,19 +50,23 @@ pub async fn upload_small_image(
     }
 }
 
-pub async fn delete_image(local_image_info: util::file::LocalImageInfo) -> Result<bool, Error> {
+pub async fn delete_image(
+    meta_path: &str,
+    local_image_info: util::file::LocalImageInfo,
+) -> Result<bool, Error> {
     let textbook_key = local_image_info.textbook_key.clone();
     let catalog_key = local_image_info.catalog_key.clone();
     let id_opt = local_image_info.id.clone();
     let filename = local_image_info.filename.clone();
 
-    util::file::delete_image(local_image_info).await?;
+    util::file::delete_image(meta_path, local_image_info).await?;
 
     match id_opt {
         Some(id) => {
             let mut find = false;
 
-            let mut question_index_list = index::read_question_index(&textbook_key, &catalog_key)?;
+            let mut question_index_list =
+                index::read_question_index(meta_path, &textbook_key, &catalog_key)?;
             for question_index in question_index_list.iter_mut() {
                 if format!("{}_{}", question_index.id, question_index.left) == id {
                     find = true;
@@ -71,7 +83,12 @@ pub async fn delete_image(local_image_info: util::file::LocalImageInfo) -> Resul
             }
 
             if find {
-                _ = index::write_index(&textbook_key, &catalog_key, &question_index_list)?;
+                _ = index::write_index(
+                    meta_path,
+                    &textbook_key,
+                    &catalog_key,
+                    &question_index_list,
+                )?;
             }
 
             Ok(true)

@@ -20,12 +20,13 @@ pub struct QuestionIndex {
 }
 
 pub fn read_question_index(
+    meta_path: &str,
     textbook_key: &str,
     catalog_key: &str,
 ) -> Result<Vec<QuestionIndex>, Error> {
     let index_path = format!(
         "{}/{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(textbook_key),
         string::underline_to_slash(catalog_key),
         meta::QUESTION_INDEX_NAME
@@ -48,6 +49,7 @@ pub fn get_question_index_max_id(index_list: &Vec<QuestionIndex>) -> u64 {
 }
 
 pub fn append_write_index(
+    meta_path: &str,
     textbook_key: &str,
     catalog_key: &str,
     question_index_list: &mut Vec<QuestionIndex>,
@@ -57,12 +59,13 @@ pub fn append_write_index(
 
     question_index_list.push(question_index);
 
-    _ = write_index(textbook_key, catalog_key, question_index_list)?;
+    _ = write_index(meta_path, textbook_key, catalog_key, question_index_list)?;
 
     Ok(id)
 }
 
 pub fn write_index(
+    meta_path: &str,
     textbook_key: &str,
     catalog_key: &str,
     question_index_list: &Vec<QuestionIndex>,
@@ -70,7 +73,7 @@ pub fn write_index(
     // write questio index file
     let index_path = format!(
         "{}/{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(&textbook_key),
         string::underline_to_slash(&catalog_key),
         meta::QUESTION_INDEX_NAME

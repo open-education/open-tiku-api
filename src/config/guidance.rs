@@ -1,37 +1,25 @@
-use crate::config::publisher::{Publisher, Subject, get_publisher_by_key, get_publishers};
+use crate::config::knowledge::get_knowledge;
+use crate::config::publisher::get_publishers;
 use crate::config::stage::get_stages;
+use crate::config::subject::{get_subjects, Subject};
 use crate::config::textbook::get_textbooks;
-use crate::util::string;
 use std::io::Error;
 
-pub fn get_guidance() -> Result<Vec<Publisher>, Error> {
-    let mut publishers = get_publishers()?;
+pub fn get_guidance(meta_path: &str) -> Result<Vec<Subject>, Error> {
+    let mut subjects = get_subjects(meta_path)?;
 
-    for publisher in publishers.iter_mut() {
-        for subject in publisher.children.iter_mut() {
-            let stages = get_stages(&subject.key)?;
-            subject.children = stages;
-
-            for subject in subject.children.iter_mut() {
-                let textbooks = get_textbooks(&subject.key)?;
-                subject.children = textbooks;
-            }
-        }
-    }
-
-    Ok(publishers)
-}
-
-pub fn get_guidance_by_publisher(key: &str) -> Result<Vec<Subject>, Error> {
-    let publisher_name = string::get_first_part(key)?;
-    let publisher = get_publisher_by_key(publisher_name)?;
-    let mut subjects = publisher.children;
     for subject in subjects.iter_mut() {
-        let stages = get_stages(&subject.key)?;
-        subject.children = stages;
-        for stage in subject.children.iter_mut() {
-            let textbooks = get_textbooks(&stage.key)?;
-            stage.children = textbooks;
+        let publishers = get_publishers(meta_path, &subject.key)?;
+        subject.children = publishers;
+        for publisher in subject.children.iter_mut() {
+            let stages = get_stages(meta_path, &publisher.key)?;
+            publisher.children = stages;
+            for stage in publisher.children.iter_mut() {
+                let textbooks = get_textbooks(meta_path, &stage.key)?;
+                stage.textbook_list = textbooks;
+                let knowledge_list = get_knowledge(meta_path, &stage.key)?;
+                stage.knowledge_list = knowledge_list;
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+use crate::AppConfig;
 use crate::service::question;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
@@ -9,6 +10,8 @@ pub struct QuestionUploadReq {
     pub textbook_key: String,
     #[serde(rename(deserialize = "catalogKey"))]
     pub catalog_key: String,
+    #[serde(rename(deserialize = "sourceId"))]
+    pub source_id: Option<String>,
     #[serde(rename(deserialize = "questionType"))]
     pub question_type: String,
     pub tags: Option<Vec<String>>,
@@ -52,8 +55,13 @@ pub struct QuestionUploadResp {
 }
 
 #[post("/upload")]
-pub async fn upload_question(req: web::Json<QuestionUploadReq>) -> ApiResponse<QuestionUploadResp> {
-    ApiResponse::response(question::upload_question(req.into_inner()).await)
+pub async fn upload_question(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<QuestionUploadReq>,
+) -> ApiResponse<QuestionUploadResp> {
+    ApiResponse::response(
+        question::upload_question(app_conf.meta_path.to_str().unwrap(), req.into_inner()).await,
+    )
 }
 
 #[derive(Deserialize)]
@@ -111,8 +119,14 @@ pub struct QuestionInfoResp {
 }
 
 #[post("/info")]
-pub async fn get_question_info(req: web::Json<QuestionInfoReq>) -> ApiResponse<QuestionInfoResp> {
-    ApiResponse::response(question::get_question_info(req.into_inner()))
+pub async fn get_question_info(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<QuestionInfoReq>,
+) -> ApiResponse<QuestionInfoResp> {
+    ApiResponse::response(question::get_question_info(
+        app_conf.meta_path.to_str().unwrap(),
+        req.into_inner(),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -139,6 +153,12 @@ pub struct QuestionListResp {
 
 /// 当前仅支持小节目录的题目列表查询, 后续如果有要求查看父级目录下的题目时看索引文件如何设计更适合后在提供
 #[post("/list")]
-pub async fn get_question_list(req: web::Json<QuestionListReq>) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::get_question_list(req.into_inner()))
+pub async fn get_question_list(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<QuestionListReq>,
+) -> ApiResponse<QuestionListResp> {
+    ApiResponse::response(question::get_question_list(
+        app_conf.meta_path.to_str().unwrap(),
+        req.into_inner(),
+    ))
 }

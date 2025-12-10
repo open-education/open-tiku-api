@@ -5,10 +5,10 @@ use crate::api::{config, edit, file, question};
 // config related
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(config::get_guidance)
-        .service(config::get_guidance_by_publisher)
         .service(config::get_catalogs)
         .service(config::get_questions)
-        .service(config::get_tags);
+        .service(config::get_tags)
+        .service(config::get_knowledge_info);
 }
 
 // file related

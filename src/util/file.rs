@@ -79,11 +79,14 @@ pub struct LocalImageInfo {
     pub filename: String,
 }
 
-pub fn read_small_image(local_image_read: LocalImageInfo) -> actix_web::Result<HttpResponse> {
+pub fn read_small_image(
+    meta_path: &str,
+    local_image_read: LocalImageInfo,
+) -> actix_web::Result<HttpResponse> {
     let filename = local_image_read.filename;
     let image_path = format!(
         "{}/{}/{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(&local_image_read.textbook_key),
         string::underline_to_slash(&local_image_read.catalog_key),
         meta::IMAGE_NAME,
@@ -122,10 +125,13 @@ fn get_content_type(filename: &str) -> &'static str {
     }
 }
 
-pub async fn delete_image(local_image_info: LocalImageInfo) -> Result<bool, Error> {
+pub async fn delete_image(
+    meta_path: &str,
+    local_image_info: LocalImageInfo,
+) -> Result<bool, Error> {
     let image_path = format!(
         "{}/{}/{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(&local_image_info.textbook_key),
         string::underline_to_slash(&local_image_info.catalog_key),
         meta::IMAGE_NAME,

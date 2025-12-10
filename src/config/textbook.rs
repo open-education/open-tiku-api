@@ -11,14 +11,14 @@ pub struct Textbook {
     pub order: i8,
 }
 
-pub fn get_textbooks(subject_name: &str) -> Result<Vec<Textbook>, Error> {
+pub fn get_textbooks(meta_path: &str, subject_name: &str) -> Result<Vec<Textbook>, Error> {
     let key_path: String = format!(
         "{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(subject_name),
         meta::TEXTBOOK_NAME
     );
-    let contents = file::read_small_file(key_path, true)?;
+    let contents = file::read_small_file(key_path, true).unwrap_or("[]".to_string());
     let textbooks: Vec<Textbook> = serde_json::from_str(&contents)?;
     Ok(textbooks)
 }

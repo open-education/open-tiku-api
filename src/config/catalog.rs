@@ -12,14 +12,14 @@ pub struct Catalog {
 }
 
 // key: pip_chinese_senior_1
-pub fn get_catalogs(key: &str) -> Result<Vec<Catalog>, Error> {
+pub fn get_catalogs(meta_path: &str, key: &str) -> Result<Vec<Catalog>, Error> {
     let key_path: String = format!(
         "{}/{}/{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(key),
         meta::CATALOG_NAME
     );
-    let contents = file::read_small_file(key_path, true)?;
+    let contents = file::read_small_file(key_path, true).unwrap_or("[]".to_string());
     let catalogs: Vec<Catalog> = serde_json::from_str(&contents)?;
     Ok(catalogs)
 }

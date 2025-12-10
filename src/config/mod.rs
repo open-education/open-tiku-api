@@ -5,3 +5,5 @@ pub mod question;
 mod stage;
 pub mod tag;
 mod textbook;
+pub mod knowledge;
+pub mod subject;

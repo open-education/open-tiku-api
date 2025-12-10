@@ -285,13 +285,14 @@ fn write_remark_md(
 /// 原子性并发写入 Markdown 文件
 /// 如果任何文件写入失败，会取消所有任务并清理已创建的文件
 pub async fn write_markdown_files(
+    meta_path: &str,
     req: QuestionUploadReq,
     index: &QuestionIndex,
 ) -> Result<bool, Error> {
     // md directory: id_left
     let file_path = format!(
         "{}/{}/{}/{}_{}",
-        meta::META_PATH,
+        meta_path,
         string::underline_to_slash(&req.textbook_key),
         string::underline_to_slash(&req.catalog_key),
         index.id,
