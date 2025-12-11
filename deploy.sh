@@ -4,31 +4,33 @@ set -e
 
 # 配置
 APP_NAME="open-tiku-api"
-DEFAULT_VERSION="1.0.0"
-META_PATH="/home/abc/"
+META_PATH=""
+PORT=8082
 LOG_DIR="log"
-PID_FILE="/var/run/${APP_NAME}.pid"
+PID_FILE="${APP_NAME}.pid"
 
 # 显示帮助信息
 show_help() {
-    echo "使用方法: $0 {start|stop|restart|status} [选项]"
+    echo "使用方法: sh $0 {start|stop|restart|status} [选项]"
     echo ""
     echo "命令:"
-    echo "  start     启动应用程序 (默认)"
+    echo "  start     启动应用程序"
     echo "  stop      停止应用程序"
     echo "  restart   重启应用程序"
     echo "  status    查看应用程序状态"
     echo ""
     echo "选项:"
-    echo "  -v, --version <版本号>  指定部署版本 (默认: $DEFAULT_VERSION)"
-    echo "  -p, --path <路径>       指定 meta-path 参数 (默认: $META_PATH)"
-    echo "  -h, --help             显示帮助信息"
+    echo "  --version <版本号>  指定部署版本, 版本号为空或者不提供直接操作现有文件, 如需下载文件请提供对应的版本号"
+    echo "  --meta-path <路径>  指定 meta-path 参数 (默认: $META_PATH)"
+    echo "  --port <端口>       指定 port 参数 (默认: $PORT)"
+    echo "  --help             显示帮助信息"
     echo ""
     echo "示例:"
     echo "  $0 start -v 2.1.0          # 启动版本 2.1.0"
     echo "  $0 stop                    # 停止应用程序"
     echo "  $0 restart -v 1.5.0        # 重启并升级到版本 1.5.0"
     echo "  $0 status                  # 查看状态"
+    echo "  $0 sh deploy.sh restart -p 8082 -v v0.0.1-beta -m /home/.../open-tiku-meta # 常用完整命令名称, 端口因为要配置 nginx 代理转发调整需要对应调整 nginx 配置"
 }
 
 # 检查进程是否运行
@@ -42,10 +44,12 @@ check_pid() {
         else
             # 进程不存在，清理 PID 文件
             rm -f "$PID_FILE"
+            echo ""
             return 1
         fi
     fi
-    return 1
+    # 没有进程文件返回空
+    echo ""
 }
 
 # 显示状态
@@ -139,14 +143,23 @@ stop_app() {
 # 准备应用程序
 prepare_app() {
     _version="$1"
-    _app_file="${APP_NAME}-${_version}"
-    _url="https://github.com/aaa/${_app_file}.tgz"
+    # 版本号为空则认为不寻找新文件, 直接操作现有文件
+    # 方法2：检查并去除首尾空格
+    _version_trimmed=$(echo "$_version" | xargs)
+    if [ -z "$_version_trimmed" ]; then
+        echo "版本号为空或者不提供, 直接操作现有文件, 如需下载文件请提供对应的版本号"
+        return 0
+    fi
+
+    _app_file="${APP_NAME}"
+    # https://github.com/open-education/open-tiku-api/releases/download/v0.0.1-beta/open-tiku-api.tgz
+    _url="https://github.com/open-education/open-tiku-api/releases/download/${_version}/open-tiku-api.tgz"
 
     echo "准备版本 $_version..."
     echo "下载地址: $_url"
 
     # 清理旧文件
-    rm -rf "${_app_file}.tgz" "$APP_NAME"
+    rm -rf "${_app_file}.tgz" "${APP_NAME}"
 
     # 下载
     if command -v curl >/dev/null 2>&1; then
@@ -172,28 +185,20 @@ prepare_app() {
 
     # 解压
     echo "解压..."
-    mkdir -p "$APP_NAME"
-    if ! tar -xzf "${_app_file}.tgz" -C "$APP_NAME"; then
+    if ! tar -xzf "${_app_file}.tgz"; then
         echo "错误: 解压失败"
         exit 1
     fi
 
     # 查找可执行文件
-    _exec_file=""
-    _exec_file=$(find "$APP_NAME" -type f \( -name "$APP_NAME" -o -name "$_app_file" \) | head -1)
-
-    if [ -z "$_exec_file" ]; then
+    if [ -z "${APP_NAME}" ]; then
         echo "错误: 未找到可执行文件"
         echo "解压内容:"
-        find "$APP_NAME" -type f | head -10
         exit 1
     fi
 
-    chmod +x "$_exec_file"
-    echo "找到可执行文件: $_exec_file"
-
-    # 返回可执行文件路径
-    echo "$_exec_file"
+    chmod +x "${APP_NAME}"
+    echo "找到可执行文件: ${APP_NAME}"
 }
 
 # 启动应用程序
@@ -203,8 +208,7 @@ start_app() {
     echo "启动应用程序 (版本: $_version)..."
 
     # 准备应用程序
-    _exec_file=""
-    _exec_file=$(prepare_app "$_version")
+    prepare_app "$_version"
 
     # 检查是否已在运行
     _pid=""
@@ -217,14 +221,14 @@ start_app() {
 
     # 准备日志目录
     mkdir -p "$LOG_DIR"
-    _log_file="$LOG_DIR/${APP_NAME}_${_version}_$(date '+%Y%m%d_%H%M%S').log"
+    _log_file="$LOG_DIR/${APP_NAME}_$(date '+%Y%m%d_%H%M%S').log"
 
     # 启动
-    echo "启动命令: $_exec_file --meta-path=$META_PATH"
+    echo "启动命令: $APP_NAME --port=${PORT} --meta-path=$META_PATH"
     echo "日志文件: $_log_file"
 
     # 使用 nohup 启动
-    nohup "$_exec_file" "--meta-path=$META_PATH" > "$_log_file" 2>&1 &
+    nohup "./$APP_NAME" "--port=${PORT}" "--meta-path=${META_PATH}" > "$_log_file" 2>&1 &
     _app_pid=$!
 
     # 保存 PID
@@ -278,8 +282,8 @@ restart_app() {
 }
 
 # 解析参数
-ACTION="start"
-VERSION="$DEFAULT_VERSION"
+ACTION=""
+VERSION=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -287,11 +291,15 @@ while [ $# -gt 0 ]; do
             ACTION="$1"
             shift
             ;;
+        -p|--port)
+            PORT="$2"
+            shift 2
+            ;;
         -v|--version)
             VERSION="$2"
             shift 2
             ;;
-        -p|--path)
+        -m|--meta-path)
             META_PATH="$2"
             shift 2
             ;;
@@ -300,17 +308,9 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            # 如果第一个参数不是已知命令，尝试作为版本号
-            if [ "$ACTION" = "start" ] && [ "$1" != "${1#-}" ]; then
-                echo "错误: 未知选项 $1"
-                exit 1
-            elif [ "$ACTION" = "start" ]; then
-                VERSION="$1"
-                shift
-            else
-                echo "错误: 未知参数 $1"
-                exit 1
-            fi
+            echo "错误: 未知参数 $1"
+            show_help
+            exit 1
             ;;
     esac
 done
