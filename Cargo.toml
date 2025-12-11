@@ -3,6 +3,21 @@ name = "open-tiku-api"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+# 自动从二进制文件去除符号信息
+strip = true
+# Cargo 发布模式默认优化级别为 3, 这会优化二进制文件的执行速度
+# 要指示 Cargo 针对二进制大小进行优化, 请在 Cargo.toml 使用 z 优化级别
+opt-level = 'z'
+# 默认情况下, Cargo 指示编译单元进行单独编译和优化
+# LTO指示链接器在 link 阶段进行优化
+# 例如, 这可以删除无用代码, 并且通常可以减小二进制大小
+lto = true
+# 默认情况下, Cargo 为发布版本指定 16 个并行代码生成单元
+# 这缩短了编译时间, 但会阻止某些优化
+# Cargo.toml 中将其设置为 1 以允许最大尺寸缩减优化
+codegen-units = 1
+
 [dependencies]
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }

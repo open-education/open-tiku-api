@@ -6,7 +6,7 @@
 
 ## 启动
 
-阅读 main.rs 方法中的命令行参数部分: 
+阅读 [main.rs](src/main.rs) 方法中的命令行参数部分: 
 
 ```
 /// 命令行参数结构
@@ -35,6 +35,10 @@ struct Args {
 $ ./target/debug/open-tiku-api --meta-path /home/zhangguangxun/Public/open-tiku-meta
 ```
 
+## 构建
+
+生产环境包构建脚本细节查看 [build.sh](build.sh).
+
 ## 部署
 
-目前仅提供了基于 Debian 的部署脚本 deploy.sh, 详情可查看该文件内容.
+目前仅提供了基于 Debian 的部署脚本 [deploy.sh](deploy.sh), 详情可查看该文件内容.
