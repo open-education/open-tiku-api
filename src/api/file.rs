@@ -24,7 +24,7 @@ pub async fn upload(
 ) -> ApiResponse<Vec<UploadImageResp>> {
     ApiResponse::response(
         service::file::upload_small_image(
-            app_conf.meta_path.to_str().unwrap(),
+            app_conf.meta_path.to_str().unwrap_or(""),
             payload,
             req.into_inner(),
         )
@@ -44,7 +44,7 @@ pub async fn read(
         id: None,
         filename: path_into.2,
     };
-    file::read_small_image(app_conf.meta_path.to_str().unwrap(), read_small_file)
+    file::read_small_image(app_conf.meta_path.to_str().unwrap_or(""), read_small_file)
 }
 
 #[derive(Deserialize)]
@@ -70,6 +70,7 @@ pub async fn delete(
         filename: path_into.filename,
     };
     ApiResponse::response(
-        service::file::delete_image(app_conf.meta_path.to_str().unwrap(), delete_small_file).await,
+        service::file::delete_image(app_conf.meta_path.to_str().unwrap_or(""), delete_small_file)
+            .await,
     )
 }

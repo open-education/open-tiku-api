@@ -398,7 +398,7 @@ pub async fn write_markdown_files(
 
         return Err(Error::new(
             ErrorKind::Interrupted,
-            format!("题目上传失败: {}", error_message.unwrap()),
+            format!("题目上传失败: {}", error_message.unwrap_or("".to_string())),
         ));
     }
 

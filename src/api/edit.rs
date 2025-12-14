@@ -27,7 +27,7 @@ pub async fn edit_question_type(
     req: web::Json<EditQuestionTypeReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_question_type(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -50,7 +50,7 @@ pub async fn edit_tags(
     req: web::Json<EditTagsReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_tags(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -73,7 +73,7 @@ pub async fn edit_rate(
     req: web::Json<EditRateReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_rate(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -96,7 +96,7 @@ pub async fn edit_title(
     req: web::Json<EditTitleReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_title(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -119,7 +119,7 @@ pub async fn edit_select(
     req: web::Json<EditSelectReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_select(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -142,7 +142,7 @@ pub async fn edit_mention(
     req: web::Json<EditMentionReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_mention(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -162,7 +162,7 @@ pub struct EditAReq {
 #[post("/a")]
 pub async fn edit_a(app_conf: web::Data<AppConfig>, req: web::Json<EditAReq>) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_a(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -182,7 +182,7 @@ pub struct EditBReq {
 #[post("/b")]
 pub async fn edit_b(app_conf: web::Data<AppConfig>, req: web::Json<EditBReq>) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_b(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -202,7 +202,7 @@ pub struct EditCReq {
 #[post("/c")]
 pub async fn edit_c(app_conf: web::Data<AppConfig>, req: web::Json<EditCReq>) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_c(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -222,7 +222,7 @@ pub struct EditDReq {
 #[post("/d")]
 pub async fn edit_d(app_conf: web::Data<AppConfig>, req: web::Json<EditDReq>) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_d(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -242,7 +242,7 @@ pub struct EditEReq {
 #[post("/e")]
 pub async fn edit_e(app_conf: web::Data<AppConfig>, req: web::Json<EditEReq>) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_e(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -265,7 +265,7 @@ pub async fn edit_answer(
     req: web::Json<EditAnswerReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_answer(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -288,7 +288,7 @@ pub async fn edit_knowledge(
     req: web::Json<EditKnowledgeReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_knowledge(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -311,7 +311,7 @@ pub async fn edit_analyze(
     req: web::Json<EditAnalyzeReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_analyze(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -334,7 +334,7 @@ pub async fn edit_process(
     req: web::Json<EditProcessReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_process(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -357,7 +357,7 @@ pub async fn edit_remark(
     req: web::Json<EditRemarkReq>,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::edit_remark(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }

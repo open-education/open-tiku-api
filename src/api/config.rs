@@ -9,7 +9,9 @@ use actix_web::{get, web};
 
 #[get("/get-guidance")]
 pub async fn get_guidance(app_conf: web::Data<AppConfig>) -> ApiResponse<Vec<subject::Subject>> {
-    ApiResponse::response(guidance::get_guidance(app_conf.meta_path.to_str().unwrap()))
+    ApiResponse::response(guidance::get_guidance(
+        app_conf.meta_path.to_str().unwrap_or(""),
+    ))
 }
 
 #[get("/get-catalogs/{key}")]
@@ -18,7 +20,7 @@ pub async fn get_catalogs(
     path: web::Path<(String,)>,
 ) -> ApiResponse<Vec<catalog::Catalog>> {
     ApiResponse::response(catalog::get_catalogs(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         &path.into_inner().0,
     ))
 }
@@ -29,7 +31,7 @@ pub async fn get_questions(
     path: web::Path<(String,)>,
 ) -> ApiResponse<Vec<question::QuestionType>> {
     ApiResponse::response(question::get_question_types(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         &path.into_inner().0,
     ))
 }
@@ -40,7 +42,7 @@ pub async fn get_tags(
     path: web::Path<(String,)>,
 ) -> ApiResponse<Vec<tag::Tag>> {
     ApiResponse::response(tag::get_tags(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         &path.into_inner().0,
     ))
 }
@@ -51,7 +53,7 @@ pub async fn get_knowledge_info(
     path: web::Path<(String,)>,
 ) -> ApiResponse<Vec<knowledge::KnowledgeInfo>> {
     ApiResponse::response(knowledge::get_knowledge_info(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         &path.into_inner().0,
     ))
 }

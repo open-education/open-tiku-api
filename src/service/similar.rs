@@ -17,8 +17,7 @@ pub fn read_question_similar_index(
         meta::QUESTION_SIMILAR_INDEX_NAME
     );
     // 读取索引文件时如果文件不存在则返回空, 写入时才主动创建文件
-    let index_content =
-        file::read_small_file(index_path, true).unwrap_or_else(|_| "{}".to_string());
+    let index_content = file::read_small_file(index_path, true).unwrap_or("{}".to_string());
     let index_list: HashMap<String, Vec<String>> = serde_json::from_str(&index_content)?;
     Ok(index_list)
 }

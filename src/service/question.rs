@@ -16,6 +16,10 @@ pub async fn upload_question(
     meta_path: &str,
     req: QuestionUploadReq,
 ) -> Result<QuestionUploadResp, Error> {
+    if !string::has_content(&req.title_val) {
+        return Err(Error::new(ErrorKind::Other, "标题不能为空"));
+    }
+
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
     let source_id = req.source_id.clone();
@@ -26,6 +30,13 @@ pub async fn upload_question(
     let max_id = index::get_question_index_max_id(&question_index_list);
     let next_max_id = max_id + 1;
     let question_left = get_question_left(&req.title_val, meta::QUESTION_INDEX_LENGTH);
+
+    if let Some(_find_index) = question_index_list
+        .iter()
+        .find(|item| item.left == question_left)
+    {
+        return Err(Error::new(ErrorKind::Other, "这个标题已被添加过"));
+    }
 
     let mut question_index = index::QuestionIndex {
         id: next_max_id,

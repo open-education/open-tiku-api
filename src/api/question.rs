@@ -1,6 +1,6 @@
-use crate::AppConfig;
 use crate::service::question;
 use crate::util::response::ApiResponse;
+use crate::AppConfig;
 use actix_web::{post, web};
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +60,8 @@ pub async fn upload_question(
     req: web::Json<QuestionUploadReq>,
 ) -> ApiResponse<QuestionUploadResp> {
     ApiResponse::response(
-        question::upload_question(app_conf.meta_path.to_str().unwrap(), req.into_inner()).await,
+        question::upload_question(app_conf.meta_path.to_str().unwrap_or(""), req.into_inner())
+            .await,
     )
 }
 
@@ -124,7 +125,7 @@ pub async fn get_question_info(
     req: web::Json<QuestionInfoReq>,
 ) -> ApiResponse<QuestionInfoResp> {
     ApiResponse::response(question::get_question_info(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }
@@ -158,7 +159,7 @@ pub async fn get_question_list(
     req: web::Json<QuestionListReq>,
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::get_question_list(
-        app_conf.meta_path.to_str().unwrap(),
+        app_conf.meta_path.to_str().unwrap_or(""),
         req.into_inner(),
     ))
 }

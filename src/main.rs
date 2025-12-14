@@ -23,7 +23,7 @@ struct Args {
     host: String,
 
     /// 监听端口
-    #[clap(long, default_value = "8080")]
+    #[clap(long, default_value = "8082")]
     port: u16,
 }
 
