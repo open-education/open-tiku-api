@@ -1,9 +1,9 @@
-use crate::AppConfig;
 /// 编辑
 /// 目前涉及到索引文件的几个选项 问题类型, 标签, 评分和图片在同一章节下面同时更新存在并发问题最后更新的会最终写入文件暂时不处理
 /// 其它片段是单独的文件不存在冲突, 仅涉及多个人同时修改同一片段内容时存在覆盖问题
 /// 后续将索引文件细化后能有效避免这类问题
 ///
+use crate::AppConfig;
 use crate::service::edit;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};

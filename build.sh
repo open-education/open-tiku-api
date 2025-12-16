@@ -53,9 +53,9 @@ if [ -z "$size_bytes" ] || [ "$size_bytes" -eq 0 ]; then
     exit 1
 fi
 
-echo "文件大小: ${size_bytes}/1024/1024 M"
+echo "文件大小: ${size_bytes} kb"
 if [ "$size_bytes" -lt 1024 ]; then
-    echo "检查失败: 编译后的目标文件较小: ${size_bytes} 字节, 不足1k"
+    echo "检查失败: 编译后的目标文件较小: ${size_bytes} 字节, 不足1kb"
     exit 1
 fi
 

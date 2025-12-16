@@ -285,6 +285,17 @@ pub fn get_question_list(meta_path: &str, req: QuestionListReq) -> Result<Questi
     let textbook_key = req.textbook_key.clone();
     let catalog_key = req.catalog_key.clone();
     let question_index_list = index::read_question_index(meta_path, &textbook_key, &catalog_key)?;
+
+    // 按题型过滤
+    let question_index_list = if let Some(question_type_val) = req.question_type_val {
+        question_index_list
+            .into_iter()
+            .filter(|index| index.question_type == question_type_val)
+            .collect()
+    } else {
+        question_index_list
+    };
+
     // 本期不考虑排序, 正常默认就是升序
 
     let total = question_index_list.len();

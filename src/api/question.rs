@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::service::question;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{post, web};
 use serde::{Deserialize, Serialize};
 
@@ -136,6 +136,8 @@ pub struct QuestionListReq {
     pub textbook_key: String,
     #[serde(rename(deserialize = "catalogKey"))]
     pub catalog_key: String,
+    #[serde(rename(deserialize = "questionTypeVal"))]
+    pub question_type_val: Option<String>,
     #[serde(rename(deserialize = "pageNo"))]
     pub page_no: usize,
     #[serde(rename(deserialize = "pageSize"))]
