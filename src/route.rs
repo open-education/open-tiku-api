@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::api::{config, edit, file, question};
+use crate::api::{chapter_knowledge, config, edit, file, question, question_cate, textbook};
 
 // config related
 pub fn config(cfg: &mut web::ServiceConfig) {
@@ -43,4 +43,27 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
         .service(edit::edit_analyze)
         .service(edit::edit_process)
         .service(edit::edit_remark);
+}
+
+pub fn textbook(cfg: &mut web::ServiceConfig) {
+    cfg.service(textbook::list_all)
+        .service(textbook::list_part)
+        .service(textbook::add)
+        .service(textbook::edit)
+        .service(textbook::info)
+        .service(textbook::delete);
+}
+
+pub fn chapter_knowledge(cfg: &mut web::ServiceConfig) {
+    cfg.service(chapter_knowledge::add)
+        .service(chapter_knowledge::edit)
+        .service(chapter_knowledge::knowledge)
+        .service(chapter_knowledge::chapter)
+        .service(chapter_knowledge::info);
+}
+
+pub fn question_cate(cfg: &mut web::ServiceConfig) {
+    cfg.service(question_cate::list)
+        .service(question_cate::add)
+        .service(question_cate::remove);
 }
