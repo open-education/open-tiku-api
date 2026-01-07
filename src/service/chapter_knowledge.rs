@@ -12,6 +12,7 @@ use log::error;
 use sqlx::PgPool;
 use std::io::{Error, ErrorKind};
 
+// 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), Error> {
     match ChapterKnowledge::find_unique(&pool, req.chapter_id, req.knowledge_id).await {
         Ok(res) => {
@@ -75,6 +76,7 @@ pub async fn add(
     }
 }
 
+// 通过章节小节获取知识点类信息
 pub async fn get_by_chapter(
     app_conf: web::Data<AppConfig>,
     req: ChapterKnowledgeIdsReq,
@@ -96,6 +98,7 @@ pub async fn get_by_chapter(
     }
 }
 
+// 通过知识点小类获取章节信息
 pub async fn get_by_knowledge(
     app_conf: web::Data<AppConfig>,
     req: ChapterKnowledgeIdsReq,
@@ -117,7 +120,7 @@ pub async fn get_by_knowledge(
     }
 }
 
-// 更新关联关系
+// 解除关联关系
 pub async fn remove(
     app_conf: web::Data<AppConfig>,
     req: RemoveChapterKnowledgeReq,

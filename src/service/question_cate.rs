@@ -15,6 +15,7 @@ fn to_resp(row: QuestionCate) -> QuestionCateResp {
     }
 }
 
+// 题型列表
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     related_id: i32,
@@ -34,6 +35,7 @@ pub async fn list(
     }
 }
 
+// 添加题型
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateQuestionCateReq,
@@ -47,7 +49,10 @@ pub async fn add(
     }
 }
 
+// 删除题型
 pub async fn remove(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
+    //todo 关联题目后就不允许删除了
+
     match QuestionCate::delete(&app_conf.get_ref().db, id).await {
         Ok(row) => Ok(row > 0),
         Err(err) => {

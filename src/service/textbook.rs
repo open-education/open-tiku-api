@@ -1,20 +1,12 @@
 use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
+use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::textbook::Textbook;
-use crate::util::string;
 use crate::{constant, AppConfig};
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-
-fn get_label_key(parent_id: Option<i32>, label: &str) -> String {
-    if let Some(parent_id) = parent_id {
-        (&format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10]).to_string()
-    } else {
-        (&format!("{:x}", md5::compute(label))[..10]).to_string()
-    }
-}
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
 fn get_levels_by_parent_id(
@@ -54,6 +46,7 @@ fn get_levels_by_parent_id(
     res
 }
 
+// 将教材字典类表变更为字典类型
 fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
     let mut map: HashMap<i32, Vec<Textbook>> = HashMap::with_capacity(rows.len());
     for row in rows {
@@ -64,6 +57,7 @@ fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
     map
 }
 
+// 根据深度获取菜单列表, 待数据稳定后该接口需要缓存, 暂时因为表比较小可以不关注
 pub async fn list_all(
     app_conf: web::Data<AppConfig>,
     depth: u32,
@@ -86,6 +80,7 @@ pub async fn list_all(
     }
 }
 
+// 根据父级标识获取子菜单列表
 pub async fn list_part(
     app_conf: web::Data<AppConfig>,
     parent_id: u32,
@@ -99,7 +94,7 @@ pub async fn list_part(
             Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
         }
         Err(e) => {
-            error!("Database list query error: {:?}", e);
+            error!("Database list part query error: {:?}", e);
             Err(Error::new(ErrorKind::Other, "查询失败"))
         }
     }
@@ -124,7 +119,7 @@ async fn check_parent_and_label_is_exists(
             }
         }
         Err(e) => {
-            error!("Database check_parent_and_label_is_exists error: {:?}", e);
+            error!("Database check parent and label is exists error: {:?}", e);
             Err(Error::new(ErrorKind::Other, "查询失败"))
         }
     }
@@ -133,7 +128,7 @@ async fn check_parent_and_label_is_exists(
 // 添加
 pub async fn add(
     app_conf: web::Data<AppConfig>,
-    mut req: CreateTextbookReq,
+    req: CreateTextbookReq,
 ) -> Result<TextbookResp, Error> {
     check_parent_and_label_is_exists(
         &app_conf.get_ref().db,
@@ -142,10 +137,6 @@ pub async fn add(
         None,
     )
     .await?;
-
-    if !string::has_content(&req.key) {
-        req.key = get_label_key(req.parent_id, &req.label);
-    }
 
     match Textbook::insert(&app_conf.get_ref().db, req).await {
         Ok(row) => Ok(to_resp(row)),
@@ -169,6 +160,7 @@ fn to_resp(row: Textbook) -> TextbookResp {
     }
 }
 
+// 详情
 pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookResp, Error> {
     match Textbook::find_by_id(&app_conf.get_ref().db, id).await {
         Ok(row) => Ok(to_resp(row)),
@@ -201,7 +193,7 @@ pub async fn info_list_by_ids(
 // 编辑
 pub async fn edit(
     app_conf: web::Data<AppConfig>,
-    mut req: UpdateTextbookReq,
+    req: UpdateTextbookReq,
 ) -> Result<TextbookResp, Error> {
     let _ = info(app_conf.clone(), req.id).await?;
 
@@ -213,10 +205,6 @@ pub async fn edit(
     )
     .await?;
 
-    if !string::has_content(&req.key) {
-        req.key = get_label_key(req.parent_id, &req.label);
-    }
-
     match Textbook::update(&app_conf.get_ref().db, req).await {
         Ok(row) => Ok(to_resp(row)),
         Err(e) => {
@@ -226,19 +214,44 @@ pub async fn edit(
     }
 }
 
+// 删除菜单-没有子菜单的菜单可以被删除
 pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
     let info = info(app_conf.clone(), id).await?;
 
-    // check children
+    // 菜单层级检查是否存在子菜单
     match Textbook::find_by_parent_id(&app_conf.get_ref().db, info.id).await {
         Ok(row) => {
             if let Some(_) = row {
-                return Err(Error::new(ErrorKind::Other, "该层级存在子节点, 不允许删除"));
+                return Err(Error::new(ErrorKind::Other, "该层级存在子菜单, 不允许删除"));
             }
         }
         Err(e) => {
             error!("Database find parent_id query error: {:?}", e);
             return Err(Error::new(ErrorKind::Other, "删除失败"));
+        }
+    }
+
+    // 检查第7级菜单是否有子菜单
+    if let Some(path_depth) = info.path_depth
+        && path_depth == 7
+    //todo 暂时写死
+    {
+        // 检查该菜单是否关联过
+        match ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, info.id)
+            .await
+        {
+            Ok(chapter) => {
+                if let Some(_) = chapter {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        "章节小节和知识点还存在绑定关系, 不允许删除",
+                    ));
+                }
+            }
+            Err(err) => {
+                error!("textbook chapter knowledge id query error: {:?}", err);
+                return Err(Error::new(ErrorKind::Other, "查询失败"));
+            }
         }
     }
 
@@ -248,29 +261,5 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
             error!("Database delete error: {:?}", e);
             Err(Error::new(ErrorKind::Other, "删除失败"))
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::api::textbook::CreateTextbookReq;
-    use crate::service::textbook::get_label_key;
-    use crate::util::string;
-
-    #[test]
-    fn test_get_label_key() {
-        let mut req = CreateTextbookReq {
-            parent_id: None,
-            label: "hello".to_string(),
-            key: "".to_string(),
-            path_depth: None,
-            sort_order: 0,
-        };
-
-        if !string::has_content(&req.key) {
-            req.key = get_label_key(req.parent_id, &req.label);
-        }
-
-        println!("{}", req.key);
     }
 }

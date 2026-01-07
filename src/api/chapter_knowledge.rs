@@ -6,7 +6,7 @@ use actix_web::{get, post, web};
 use log::info;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct CreateChapterKnowledgeReq {
     #[serde(rename(deserialize = "chapterId"))]
     pub chapter_id: i32,
@@ -14,7 +14,7 @@ pub struct CreateChapterKnowledgeReq {
     pub knowledge_id: i32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct ChapterKnowledgeResp {
     pub id: Option<i32>,
     #[serde(rename(serialize = "chapterId"))]
@@ -23,15 +23,16 @@ pub struct ChapterKnowledgeResp {
     pub knowledge_id: i32,
 }
 
+// 关联章节小节和知识点小类
 #[post("/add")]
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateChapterKnowledgeReq>,
 ) -> ApiResponse<ChapterKnowledgeResp> {
-    info!("req: {:?}", req);
     ApiResponse::response(chapter_knowledge::add(app_conf, req.into_inner()).await)
 }
 
+// 通过菜单标识获取关联详情-章节小节或者知识点小类标识
 #[get("/info/{chapter_or_knowledge_id}")]
 pub async fn info(
     app_conf: web::Data<AppConfig>,
@@ -43,39 +44,39 @@ pub async fn info(
     )
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct ChapterKnowledgeIdsReq {
     pub ids: Vec<i32>,
 }
 
+// 通过章节小节获取绑定的知识点信息
 #[post("/knowledge")]
 pub async fn knowledge(
     app_conf: web::Data<AppConfig>,
     req: web::Json<ChapterKnowledgeIdsReq>,
 ) -> ApiResponse<Vec<TextbookResp>> {
-    info!("req: {:?}", req);
     ApiResponse::response(chapter_knowledge::get_by_chapter(app_conf, req.into_inner()).await)
 }
 
+// 通过知识点小类标识获取绑定的章节小节信息
 #[post("/chapter")]
 pub async fn chapter(
     app_conf: web::Data<AppConfig>,
     req: web::Json<ChapterKnowledgeIdsReq>,
 ) -> ApiResponse<Vec<TextbookResp>> {
-    info!("req: {:?}", req);
     ApiResponse::response(chapter_knowledge::get_by_knowledge(app_conf, req.into_inner()).await)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 pub struct RemoveChapterKnowledgeReq {
     pub id: i32,
 }
 
+// 解除绑定关系
 #[post("/remove")]
 pub async fn edit(
     app_conf: web::Data<AppConfig>,
     req: web::Json<RemoveChapterKnowledgeReq>,
 ) -> ApiResponse<bool> {
-    info!("req: {:?}", req);
     ApiResponse::response(chapter_knowledge::remove(app_conf, req.into_inner()).await)
 }

@@ -29,7 +29,7 @@ impl ChapterKnowledge {
         .await
     }
 
-    // 更新关联关系
+    // 删除关联关系
     pub async fn delete_by_chapter_or_knowledge_id(
         pool: &PgPool,
         chapter_or_knowledge_id: i32,

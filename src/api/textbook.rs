@@ -2,10 +2,9 @@ use crate::service::textbook;
 use crate::util::response::ApiResponse;
 use crate::AppConfig;
 use actix_web::{get, post, web};
-use log::info;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct TextbookResp {
     pub id: i32,
     #[serde(rename(serialize = "parentId"))]
@@ -19,6 +18,7 @@ pub struct TextbookResp {
     pub children: Option<Vec<TextbookResp>>,
 }
 
+// 根据深度获取所有父级菜单列表
 #[get("/list/{depth}/all")]
 pub async fn list_all(
     app_conf: web::Data<AppConfig>,
@@ -27,6 +27,7 @@ pub async fn list_all(
     ApiResponse::response(textbook::list_all(app_conf, path.into_inner().0).await)
 }
 
+// 获取指定深度的所有子菜单列表
 #[get("/list/{parent_id}/part")]
 pub async fn list_part(
     app_conf: web::Data<AppConfig>,
@@ -36,48 +37,47 @@ pub async fn list_part(
 }
 
 // 新增时需要的字段（剔除 id 和 created_at）
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct CreateTextbookReq {
     #[serde(rename(deserialize = "parentId"))]
     pub parent_id: Option<i32>,
     pub label: String,
-    pub key: String,
     #[serde(rename(deserialize = "pathDepth"))]
     pub path_depth: Option<i32>,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i32,
 }
 
+// 新增菜单
 #[post("/add")]
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookReq>,
 ) -> ApiResponse<TextbookResp> {
-    info!("re: {:?}", req);
     ApiResponse::response(textbook::add(app_conf, req.into_inner()).await)
 }
 
 // 修改时需要的字段（通常包含 id，其他字段可选或必选）
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct UpdateTextbookReq {
     pub id: i32,
     #[serde(rename(deserialize = "parentId"))]
     pub parent_id: Option<i32>,
-    pub key: String,
     pub label: String,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i32,
 }
 
+// 编辑菜单
 #[post("/edit")]
 pub async fn edit(
     app_conf: web::Data<AppConfig>,
     req: web::Json<UpdateTextbookReq>,
 ) -> ApiResponse<TextbookResp> {
-    info!("re: {:?}", req);
     ApiResponse::response(textbook::edit(app_conf, req.into_inner()).await)
 }
 
+// 获取菜单详情
 #[get("/info/{id}")]
 pub async fn info(
     app_conf: web::Data<AppConfig>,
@@ -86,6 +86,7 @@ pub async fn info(
     ApiResponse::response(textbook::info(app_conf, path.into_inner().0).await)
 }
 
+// 删除菜单
 #[get("/delete/{id}")]
 pub async fn delete(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
     ApiResponse::response(textbook::delete(app_conf, path.into_inner().0).await)

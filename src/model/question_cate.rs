@@ -40,6 +40,7 @@ impl QuestionCate {
         Ok(result.rows_affected())
     }
 
+    // 通过关联标识获取题型列表
     pub async fn find_all_by_related_id(
         pool: &sqlx::PgPool,
         related_id: i32,

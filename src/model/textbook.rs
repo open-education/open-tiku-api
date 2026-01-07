@@ -24,6 +24,15 @@ pub struct Textbook {
 
 // 类似 dao 逻辑直接实现即可
 impl Textbook {
+    // 每个菜单的标识, 可能暂时没什么需要
+    fn get_label_key(parent_id: Option<i32>, label: &str) -> String {
+        if let Some(parent_id) = parent_id {
+            (&format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10]).to_string()
+        } else {
+            (&format!("{:x}", md5::compute(label))[..10]).to_string()
+        }
+    }
+
     /// 新增记录
     /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
     pub async fn insert(
@@ -38,8 +47,8 @@ impl Textbook {
             "#,
         )
         .bind(data.parent_id)
-        .bind(data.label)
-        .bind(data.key)
+        .bind(&data.label)
+        .bind(Self::get_label_key(data.parent_id, &data.label))
         .bind(data.path_depth)
         .bind(data.sort_order)
         .fetch_one(pool)
@@ -56,7 +65,7 @@ impl Textbook {
         sqlx::query_as::<_, Self>(
             r#"
             UPDATE textbook
-            SET parent_id = $2, label = $3, sort_order = $4, key = $5
+            SET parent_id = $2, label = $3, sort_order = $4
             WHERE id = $1
             RETURNING *
             "#,
@@ -65,7 +74,6 @@ impl Textbook {
         .bind(data.parent_id)
         .bind(data.label)
         .bind(data.sort_order)
-        .bind(data.key)
         .fetch_one(pool)
         .await
     }
@@ -140,6 +148,7 @@ impl Textbook {
         .await
     }
 
+    // 获取父级标识下面的层级, 没有控制层级
     pub async fn find_all_by_parent_id(
         pool: &PgPool,
         root_id: i32,
