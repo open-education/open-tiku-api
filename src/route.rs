@@ -1,7 +1,7 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, config, edit, file, question, question_cate, textbook, textbook_dict,
+    chapter_knowledge, config, edit, file, question, question_cate, textbook, other_dict,
 };
 
 // config related
@@ -75,7 +75,7 @@ pub fn question_cate(cfg: &mut web::ServiceConfig) {
 
 // 教材其它字典
 pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
-    cfg.service(textbook_dict::add)
-        .service(textbook_dict::remove)
-        .service(textbook_dict::list);
+    cfg.service(other_dict::add)
+        .service(other_dict::remove)
+        .service(other_dict::list);
 }

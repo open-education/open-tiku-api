@@ -1,4 +1,4 @@
-use crate::api::textbook_dict::CreateTextbookDictReq;
+use crate::api::other_dict::CreateTextbookDictReq;
 use sqlx::{FromRow, PgPool};
 
 #[derive(FromRow)]
@@ -55,8 +55,8 @@ impl TextbookDict {
             r#"
             SELECT id, textbook_id, type_code, item_value, sort_order 
             FROM textbook_dict 
-            WHERE textbook_id = $1 AND type_code = $1
-            ORDER BY sort_order ASC
+            WHERE textbook_id = $1 AND type_code = $2
+            ORDER BY sort_order
             "#,
         )
         .bind(textbook_id)

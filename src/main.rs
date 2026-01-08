@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/textbook").configure(route::textbook))
             .service(web::scope("/chapter-knowledge").configure(route::chapter_knowledge))
             .service(web::scope("/question-cate").configure(route::question_cate))
-            .service(web::scope("/textbook/dict").configure(route::textbook_dict))
+            .service(web::scope("/other/dict").configure(route::textbook_dict))
     })
     .bind(&addr)?
     .run()

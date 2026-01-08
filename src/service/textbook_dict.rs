@@ -1,5 +1,5 @@
-use crate::api::textbook_dict::{CreateTextbookDictReq, TextbookDictListReq, TextbookDictResp};
-use crate::model::textbook_dict::TextbookDict;
+use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
+use crate::model::other_dict::TextbookDict;
 use crate::AppConfig;
 use actix_web::web;
 use log::error;
@@ -51,14 +51,11 @@ pub async fn add(
 // 根据类型获取字典列表
 pub async fn get_list(
     app_conf: web::Data<AppConfig>,
-    req: TextbookDictListReq,
+    textbook_id: i32,
+    type_code: String,
 ) -> Result<Vec<TextbookDictResp>, Error> {
-    match TextbookDict::find_by_textbook_and_type(
-        &app_conf.get_ref().db,
-        req.textbook_id,
-        &req.type_code,
-    )
-    .await
+    match TextbookDict::find_by_textbook_and_type(&app_conf.get_ref().db, textbook_id, &type_code)
+        .await
     {
         Ok(rows) => {
             let mut res: Vec<TextbookDictResp> = vec![];
