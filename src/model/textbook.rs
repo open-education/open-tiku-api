@@ -1,5 +1,5 @@
 use crate::api::textbook::{CreateTextbookReq, UpdateTextbookReq};
-use sqlx::{FromRow, PgPool, Pool, Postgres};
+use sqlx::{FromRow, PgPool};
 
 // 教材信息
 
@@ -35,11 +35,8 @@ impl Textbook {
 
     /// 新增记录
     /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
-    pub async fn insert(
-        pool: &Pool<Postgres>,
-        data: CreateTextbookReq,
-    ) -> Result<Self, sqlx::Error> {
-        let row = sqlx::query_as::<_, Self>(
+    pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<Self, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
             r#"
             INSERT INTO textbook (parent_id, label, key, path_depth, sort_order)
             VALUES ($1, $2, $3, $4, $5)
@@ -52,16 +49,11 @@ impl Textbook {
         .bind(data.path_depth)
         .bind(data.sort_order)
         .fetch_one(pool)
-        .await?;
-
-        Ok(row)
+        .await
     }
 
     /// 修改记录
-    pub async fn update(
-        pool: &Pool<Postgres>,
-        data: UpdateTextbookReq,
-    ) -> Result<Self, sqlx::Error> {
+    pub async fn update(pool: &PgPool, data: UpdateTextbookReq) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
             UPDATE textbook
@@ -80,7 +72,7 @@ impl Textbook {
 
     /// 删除记录
     /// 返回 Result<()> 或受影响的行数
-    pub async fn delete(pool: &Pool<Postgres>, id: i32) -> Result<u64, sqlx::Error> {
+    pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
         let result = sqlx::query!("DELETE FROM textbook WHERE id = $1", id)
             .execute(pool)
             .await?;
@@ -89,7 +81,7 @@ impl Textbook {
     }
 
     /// 场景：在指定目录下根据 id 查找
-    pub async fn find_by_id(pool: &Pool<Postgres>, id: i32) -> Result<Self, sqlx::Error> {
+    pub async fn find_by_id(pool: &PgPool, id: i32) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE id = $1")
             .bind(id)
             .fetch_one(pool)

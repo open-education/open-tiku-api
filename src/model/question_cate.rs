@@ -1,5 +1,5 @@
 use crate::api::question_cate::CreateQuestionCateReq;
-use sqlx::FromRow;
+use sqlx::{FromRow, PgPool};
 
 #[derive(FromRow)]
 pub struct QuestionCate {
@@ -14,7 +14,7 @@ impl QuestionCate {
     /// 新增记录
     /// 返回生成的完整结构体（包含数据库生成的 ID 和时间戳）
     pub async fn insert(
-        pool: &sqlx::PgPool,
+        pool: &PgPool,
         req: CreateQuestionCateReq,
     ) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
@@ -33,7 +33,7 @@ impl QuestionCate {
     }
 
     /// 根据 ID 删除记录
-    pub async fn delete(pool: &sqlx::PgPool, id: i32) -> Result<u64, sqlx::Error> {
+    pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
         let result = sqlx::query!("DELETE FROM question_cate WHERE id = $1", id)
             .execute(pool)
             .await?;
@@ -42,7 +42,7 @@ impl QuestionCate {
 
     // 通过关联标识获取题型列表
     pub async fn find_all_by_related_id(
-        pool: &sqlx::PgPool,
+        pool: &PgPool,
         related_id: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>("SELECT * FROM question_cate WHERE related_id = $1")

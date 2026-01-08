@@ -15,7 +15,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
 // 服务相关环境变量配置
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 struct EnvConfig {
     database_url: String,
     server_host: String,
@@ -69,6 +69,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/textbook").configure(route::textbook))
             .service(web::scope("/chapter-knowledge").configure(route::chapter_knowledge))
             .service(web::scope("/question-cate").configure(route::question_cate))
+            .service(web::scope("/textbook/dict").configure(route::textbook_dict))
     })
     .bind(&addr)?
     .run()

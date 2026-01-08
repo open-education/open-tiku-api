@@ -1,6 +1,8 @@
 use actix_web::web;
 
-use crate::api::{chapter_knowledge, config, edit, file, question, question_cate, textbook};
+use crate::api::{
+    chapter_knowledge, config, edit, file, question, question_cate, textbook, textbook_dict,
+};
 
 // config related
 pub fn config(cfg: &mut web::ServiceConfig) {
@@ -45,6 +47,7 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
         .service(edit::edit_remark);
 }
 
+// 教材菜单
 pub fn textbook(cfg: &mut web::ServiceConfig) {
     cfg.service(textbook::list_all)
         .service(textbook::list_part)
@@ -54,6 +57,7 @@ pub fn textbook(cfg: &mut web::ServiceConfig) {
         .service(textbook::delete);
 }
 
+// 教材章节和知识点关联
 pub fn chapter_knowledge(cfg: &mut web::ServiceConfig) {
     cfg.service(chapter_knowledge::add)
         .service(chapter_knowledge::edit)
@@ -62,8 +66,16 @@ pub fn chapter_knowledge(cfg: &mut web::ServiceConfig) {
         .service(chapter_knowledge::info);
 }
 
+// 教材题型
 pub fn question_cate(cfg: &mut web::ServiceConfig) {
     cfg.service(question_cate::list)
         .service(question_cate::add)
         .service(question_cate::remove);
+}
+
+// 教材其它字典
+pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
+    cfg.service(textbook_dict::add)
+        .service(textbook_dict::remove)
+        .service(textbook_dict::list);
 }
