@@ -1,5 +1,4 @@
 mod api;
-mod config;
 mod constant;
 mod model;
 mod route;
@@ -62,7 +61,6 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .app_data(web::Data::new(app_conf.clone()))
-            .service(web::scope("/config").configure(route::config))
             .service(web::scope("/file").configure(route::file))
             .service(web::scope("/question").configure(route::question))
             .service(web::scope("/edit").configure(route::edit))

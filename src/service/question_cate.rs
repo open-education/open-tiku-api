@@ -20,7 +20,7 @@ pub async fn list(
     app_conf: web::Data<AppConfig>,
     related_id: i32,
 ) -> Result<Vec<QuestionCateResp>, Error> {
-    match QuestionCate::find_all_by_related_id(&app_conf.get_ref().db, related_id).await {
+    match QuestionCate::find_all_by_related_ids(&app_conf.get_ref().db, vec![related_id]).await {
         Ok(rows) => {
             let mut res: Vec<QuestionCateResp> = vec![];
             for row in rows {

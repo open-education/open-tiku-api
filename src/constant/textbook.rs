@@ -1,1 +1,1 @@
-pub const MAX_DEPTH: u32 = 8;
+pub const MAX_DEPTH: u32 = 7;

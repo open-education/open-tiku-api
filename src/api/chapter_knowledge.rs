@@ -3,7 +3,6 @@ use crate::service::chapter_knowledge;
 use crate::util::response::ApiResponse;
 use crate::AppConfig;
 use actix_web::{get, post, web};
-use log::info;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -38,7 +37,6 @@ pub async fn info(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
 ) -> ApiResponse<ChapterKnowledgeResp> {
-    info!("path: {:?}", path);
     ApiResponse::response(
         chapter_knowledge::info_by_chapter_or_knowledge(app_conf, path.into_inner().0).await,
     )

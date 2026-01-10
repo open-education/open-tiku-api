@@ -131,7 +131,7 @@ pub async fn remove(
     }
 
     // 如果有题型关联就不能解除了
-    match QuestionCate::find_all_by_related_id(&app_conf.get_ref().db, req_id).await {
+    match QuestionCate::find_all_by_related_ids(&app_conf.get_ref().db, vec![req_id]).await {
         Ok(rows) => {
             if !rows.is_empty() {
                 return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));

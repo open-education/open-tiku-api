@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS question_cate
 CREATE INDEX IF NOT EXISTS idx_related_id ON question_cate (related_id);
 
 -- 4. 题型相关的字典
-CREATE TABLE textbook_dict
+CREATE TABLE IF NOT EXISTS textbook_dict
 (
     id          SERIAL PRIMARY KEY,
     textbook_id INTEGER REFERENCES textbook (id) ON DELETE CASCADE, -- 菜单标识
@@ -55,3 +55,54 @@ CREATE TABLE textbook_dict
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (textbook_id, type_code, item_value)                     -- 确保同一类型下 value 唯一
 );
+
+-- 5. 题目表
+CREATE TABLE IF NOT EXISTS question
+(
+    id               BIGSERIAL PRIMARY KEY,
+
+    -- 基础关联
+    question_cate_id INTEGER  NOT NULL,                                                         -- 题型标识
+    question_type_id INTEGER  NOT NULL,                                                         -- 题目类型ID (1:单选, 2:多选, 3:填空, 4:解答等)
+    question_tag_ids JSONB,                                                                     -- 题目标签IDs
+    author_id        BIGINT   NOT NULL,                                                         -- 创作者标识
+
+    -- 核心内容
+    title            TEXT     NOT NULL,                                                         -- 标题 (支持 LaTeX 字符串)
+    content_plain    TEXT,                                                                      -- 增加纯文本搜索字段
+    comment          TEXT,                                                                      -- 补充说明
+
+    difficulty_level DECIMAL(2, 1) CHECK (difficulty_level >= 1.0 AND difficulty_level <= 5.0), -- 难易度
+
+    -- 资源与附件
+    images           JSONB             DEFAULT '[]'::jsonb,                                     -- 图片地址列表 ["url1", "url2"]
+
+    -- 选项：仅选择题使用，存储为 [{ "label": "A", "content": "..." }]
+    options          JSONB             DEFAULT '[]'::jsonb,
+    options_layout   SMALLINT          DEFAULT 3,                                               -- 布局方案: 1: 一行(inline), 2: 两行(双列), 3: 一列(垂直)
+
+    -- 答案与解析
+    answer           TEXT,                                                                      -- 参考答案
+    knowledge        TEXT,                                                                      -- 知识点标签
+    analysis         JSONB             DEFAULT '{}'::jsonb,                                     -- 解题分析
+    process          JSONB             DEFAULT '{}'::jsonb,                                     -- 解题过程 (详细步骤)
+    remark           TEXT,                                                                      -- 备注
+
+    status           SMALLINT NOT NULL DEFAULT 0,                                               -- 0 草稿 1 审核中 2 审核通过 3 拒绝
+    approve_id       BIGINT            DEFAULT 0,                                               -- 审核人
+    reject_reason    TEXT,                                                                      -- 审核拒绝后的反馈意见
+    approve_at       TIMESTAMPTZ,                                                               -- 审核时间
+
+    -- 审计字段
+    created_at       TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 题型和题目类型联合索引
+CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (question_cate_id, question_type_id);
+-- 题型和审核状态联合索引
+CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_id, status);
+-- 查看作者自己的题
+CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
+-- 创建全文检索索引 (支持中文分词，需安装 zhparser 或使用内置 simple) 简单支持即可, 后续如果使用频繁使用其它技术支持
+CREATE INDEX idx_question_title_fulltext ON question USING gin (to_tsvector('simple', content_plain));

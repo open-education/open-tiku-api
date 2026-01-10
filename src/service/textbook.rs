@@ -1,5 +1,6 @@
 use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
 use crate::model::chapter_knowledge::ChapterKnowledge;
+use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
 use crate::{constant, AppConfig};
 use actix_web::web;
@@ -98,6 +99,91 @@ pub async fn list_part(
             Err(Error::new(ErrorKind::Other, "查询失败"))
         }
     }
+}
+
+// 根据父标识列出所有题型列表
+pub async fn list_children(
+    app_conf: web::Data<AppConfig>,
+    parent_id: u32,
+) -> Result<Vec<TextbookResp>, Error> {
+    // 获取原始列表，注意加 mut
+    let mut resp = list_part(app_conf.clone(), parent_id).await?;
+
+    // 1. 提取关联 ID (利用迭代器链)
+    let relation_ids: Vec<i32> = resp
+        .iter()
+        .filter(|item| item.path_depth == Some(6))
+        .filter_map(|item| item.children.as_ref())
+        .flat_map(|children| children.iter().map(|row| row.id))
+        .collect();
+
+    if relation_ids.is_empty() {
+        return Ok(resp);
+    }
+
+    let db = &app_conf.get_ref().db;
+
+    // 2. 查询中间关系表
+    let rows = ChapterKnowledge::find_by_ids(db, relation_ids)
+        .await
+        .map_err(|e| {
+            error!("DB Error: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    let mut relation_map: HashMap<i32, i32> = HashMap::new();
+    let mut bridge_ids = Vec::with_capacity(rows.len());
+    for row in rows {
+        bridge_ids.push(row.id);
+        // 建立 原始ID -> 中间关联ID 的映射
+        relation_map.insert(row.chapter_id, row.id);
+        relation_map.insert(row.knowledge_id, row.id);
+    }
+
+    // 3. 查询题型分类
+    let q_rows = QuestionCate::find_all_by_related_ids(db, bridge_ids)
+        .await
+        .map_err(|e| {
+            error!("DB Error: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    let mut question_id_map: HashMap<i32, Vec<QuestionCate>> = HashMap::new();
+    for row in q_rows {
+        question_id_map.entry(row.related_id).or_default().push(row);
+    }
+
+    // 4. 回填数据
+    for item in resp.iter_mut() {
+        // 使用 1.80+ 稳定的 let_chains
+        if let Some(6) = item.path_depth
+            && let Some(children_list) = &mut item.children
+        {
+            for row in children_list.iter_mut() {
+                // 获取该行对应的关联 ID
+                if let Some(&rel_id) = relation_map.get(&row.id) {
+                    if let Some(questions) = question_id_map.get(&rel_id) {
+                        // get_or_insert_with: 如果是 None 则初始化为 Vec，并返回可变引用
+                        let row_children = row.children.get_or_insert_with(Vec::new);
+
+                        for q in questions {
+                            row_children.push(TextbookResp {
+                                id: q.id,
+                                parent_id: None,
+                                label: q.label.clone(),
+                                key: String::new(),
+                                sort_order: q.sort_order,
+                                path_depth: None,
+                                children: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(resp)
 }
 
 // 检查父级标识和名称是否存在, 不允许重复

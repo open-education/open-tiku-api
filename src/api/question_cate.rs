@@ -2,7 +2,6 @@ use crate::service::question_cate;
 use crate::util::response::ApiResponse;
 use crate::AppConfig;
 use actix_web::{get, post, web};
-use log::info;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -40,13 +39,11 @@ pub async fn list(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
-    info!("req: {:?}", path);
     ApiResponse::response(question_cate::list(app_conf, path.into_inner().0).await)
 }
 
 // 删除题型
 #[get("/remove/{id}")]
 pub async fn remove(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
-    info!("req: {:?}", path);
     ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0).await)
 }

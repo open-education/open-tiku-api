@@ -36,6 +36,15 @@ pub async fn list_part(
     ApiResponse::response(textbook::list_part(app_conf, parent_id.into_inner().0).await)
 }
 
+// 获取指定深度的所有子菜单列表-包括题型列表, 所以这个接口只是获取教材目录时有效, 否则跟 /list/{parent_id}/part 一致
+#[get("/list/{parent_id}/children")]
+pub async fn list_children(
+    app_conf: web::Data<AppConfig>,
+    parent_id: web::Path<(u32,)>,
+) -> ApiResponse<Vec<TextbookResp>> {
+    ApiResponse::response(textbook::list_children(app_conf, parent_id.into_inner().0).await)
+}
+
 // 新增时需要的字段（剔除 id 和 created_at）
 #[derive(Deserialize)]
 pub struct CreateTextbookReq {

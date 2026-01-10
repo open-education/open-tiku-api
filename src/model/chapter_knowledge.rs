@@ -66,6 +66,16 @@ impl ChapterKnowledge {
             .await
     }
 
+    // 通过章节小节或者知识点小类获取所有的关联关系, 这个方法其实可以替代上面两个方法
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i32>) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            "SELECT * FROM chapter_knowledge WHERE knowledge_id = ANY($1) OR chapter_id = ANY($1)",
+        )
+        .bind(ids)
+        .fetch_all(pool)
+        .await
+    }
+
     // 查看是否已关联
     pub async fn find_unique(
         pool: &PgPool,

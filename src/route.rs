@@ -1,17 +1,8 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, config, edit, file, question, question_cate, textbook, other_dict,
+    chapter_knowledge, edit, file, other_dict, question, question_cate, textbook,
 };
-
-// config related
-pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(config::get_guidance)
-        .service(config::get_catalogs)
-        .service(config::get_questions)
-        .service(config::get_tags)
-        .service(config::get_knowledge_info);
-}
 
 // file related
 pub fn file(cfg: &mut web::ServiceConfig) {
@@ -20,11 +11,11 @@ pub fn file(cfg: &mut web::ServiceConfig) {
         .service(file::delete);
 }
 
-// question
+// 题目
 pub fn question(cfg: &mut web::ServiceConfig) {
-    cfg.service(question::upload_question)
-        .service(question::get_question_info)
-        .service(question::get_question_list);
+    cfg.service(question::add)
+        .service(question::info)
+        .service(question::list);
 }
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
@@ -51,6 +42,7 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
 pub fn textbook(cfg: &mut web::ServiceConfig) {
     cfg.service(textbook::list_all)
         .service(textbook::list_part)
+        .service(textbook::list_children)
         .service(textbook::add)
         .service(textbook::edit)
         .service(textbook::info)

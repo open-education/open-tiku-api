@@ -3,231 +3,115 @@ use crate::api::edit::{
     EditKnowledgeReq, EditMentionReq, EditProcessReq, EditQuestionTypeReq, EditRateReq,
     EditRemarkReq, EditSelectReq, EditTagsReq, EditTitleReq,
 };
-use crate::constant::meta;
-use crate::service::index;
-use crate::util::{file, string};
-use std::io::Error;
+use crate::model::question::Question;
+use crate::AppConfig;
+use actix_web::web;
+use log::error;
+use std::io::{Error, ErrorKind};
 
-pub fn edit_question_type(meta_path: &str, req: EditQuestionTypeReq) -> Result<bool, Error> {
-    let mut question_index_list =
-        index::read_question_index(meta_path, &req.textbook_key, &req.catalog_key)?;
-    for question_index in &mut question_index_list {
-        if format!("{}_{}", question_index.id, question_index.left) == req.id {
-            question_index.question_type = req.question_type;
-            break;
-        }
-    }
+// 更新题目类型
+pub async fn edit_question_type(
+    app_conf: web::Data<AppConfig>,
+    req: EditQuestionTypeReq,
+) -> Result<bool, Error> {
+    let row =
+        Question::update_question_type_by_id(&app_conf.get_ref().db, req.id, req.question_type)
+            .await
+            .map_err(|e| {
+                error!("Error while updating QuestionType: {:?}", e);
+                Error::new(ErrorKind::Other, "更新失败")
+            })?;
 
-    let _ = index::write_index(
-        meta_path,
-        &req.textbook_key,
-        &req.catalog_key,
-        &question_index_list,
-    )?;
+    Ok(row > 0)
+}
 
+// 更新题目标签
+pub async fn edit_tags(app_conf: web::Data<AppConfig>, req: EditTagsReq) -> Result<bool, Error> {
+    let row = Question::update_question_tags_by_id(&app_conf.get_ref().db, req.id, req.tags)
+        .await
+        .map_err(|e| {
+            error!("Error while updating QuestionType: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
+}
+
+// 更新题目难易程度
+pub async fn edit_rate(app_conf: web::Data<AppConfig>, req: EditRateReq) -> Result<bool, Error> {
+    let row = Question::update_difficulty_level_by_id(
+        &app_conf.get_ref().db,
+        req.id,
+        req.difficulty_level,
+    )
+    .await
+    .map_err(|e| {
+        error!("Error while updating DifficultyLevel: {:?}", e);
+        Error::new(ErrorKind::Other, "更新失败")
+    })?;
+
+    Ok(row > 0)
+}
+
+// 更新标题
+pub async fn edit_title(app_conf: web::Data<AppConfig>, req: EditTitleReq) -> Result<bool, Error> {
+    let row = Question::update_title_by_id(&app_conf.get_ref().db, req.id, req.title)
+        .await
+        .map_err(|e| {
+            error!("Error while updating title: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
+}
+
+pub fn edit_select(app_conf: web::Data<AppConfig>, req: EditSelectReq) -> Result<bool, Error> {
     Ok(true)
 }
 
-pub fn edit_tags(meta_path: &str, req: EditTagsReq) -> Result<bool, Error> {
-    let mut question_index_list =
-        index::read_question_index(meta_path, &req.textbook_key, &req.catalog_key)?;
-    for question_index in &mut question_index_list {
-        if format!("{}_{}", question_index.id, question_index.left) == req.id {
-            question_index.tags = Some(req.tags);
-            break;
-        }
-    }
-
-    let _ = index::write_index(
-        meta_path,
-        &req.textbook_key,
-        &req.catalog_key,
-        &question_index_list,
-    )?;
-
+pub fn edit_mention(app_conf: web::Data<AppConfig>, req: EditMentionReq) -> Result<bool, Error> {
     Ok(true)
 }
 
-pub fn edit_rate(meta_path: &str, req: EditRateReq) -> Result<bool, Error> {
-    let mut question_index_list =
-        index::read_question_index(meta_path, &req.textbook_key, &req.catalog_key)?;
-    for question_index in &mut question_index_list {
-        if format!("{}_{}", question_index.id, question_index.left) == req.id {
-            question_index.rate_val = Some(req.rate);
-            break;
-        }
-    }
-
-    let _ = index::write_index(
-        meta_path,
-        &req.textbook_key,
-        &req.catalog_key,
-        &question_index_list,
-    )?;
-
+pub fn edit_a(app_conf: web::Data<AppConfig>, req: EditAReq) -> Result<bool, Error> {
     Ok(true)
 }
 
-pub fn edit_select(meta_path: &str, req: EditSelectReq) -> Result<bool, Error> {
-    let mut question_index_list =
-        index::read_question_index(meta_path, &req.textbook_key, &req.catalog_key)?;
-    for question_index in &mut question_index_list {
-        if format!("{}_{}", question_index.id, question_index.left) == req.id {
-            question_index.show_select_val = Some(req.select);
-            break;
-        }
-    }
-
-    let _ = index::write_index(
-        meta_path,
-        &req.textbook_key,
-        &req.catalog_key,
-        &question_index_list,
-    )?;
-
+pub fn edit_b(app_conf: web::Data<AppConfig>, req: EditBReq) -> Result<bool, Error> {
     Ok(true)
 }
 
-pub fn edit_title(meta_path: &str, req: EditTitleReq) -> Result<bool, Error> {
-    let title_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_TITLE_NAME
-    );
-    file::write_small_file(&title_path, &req.title)
+pub fn edit_c(app_conf: web::Data<AppConfig>, req: EditCReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_mention(meta_path: &str, req: EditMentionReq) -> Result<bool, Error> {
-    let mention_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_MENTION_NAME
-    );
-    file::write_small_file(&mention_path, &req.mention)
+pub fn edit_d(app_conf: web::Data<AppConfig>, req: EditDReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_a(meta_path: &str, req: EditAReq) -> Result<bool, Error> {
-    let a_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_A_NAME
-    );
-    file::write_small_file(&a_path, &req.a)
+pub fn edit_e(app_conf: web::Data<AppConfig>, req: EditEReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_b(meta_path: &str, req: EditBReq) -> Result<bool, Error> {
-    let b_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_B_NAME
-    );
-    file::write_small_file(&b_path, &req.b)
+pub fn edit_answer(app_conf: web::Data<AppConfig>, req: EditAnswerReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_c(meta_path: &str, req: EditCReq) -> Result<bool, Error> {
-    let c_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_C_NAME
-    );
-    file::write_small_file(&c_path, &req.c)
+pub fn edit_knowledge(
+    app_conf: web::Data<AppConfig>,
+    req: EditKnowledgeReq,
+) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_d(meta_path: &str, req: EditDReq) -> Result<bool, Error> {
-    let d_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_D_NAME
-    );
-    file::write_small_file(&d_path, &req.d)
+pub fn edit_analyze(app_conf: web::Data<AppConfig>, req: EditAnalyzeReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_e(meta_path: &str, req: EditEReq) -> Result<bool, Error> {
-    let e_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_E_NAME
-    );
-    file::write_small_file(&e_path, &req.e)
+pub fn edit_process(app_conf: web::Data<AppConfig>, req: EditProcessReq) -> Result<bool, Error> {
+    Ok(true)
 }
 
-pub fn edit_answer(meta_path: &str, req: EditAnswerReq) -> Result<bool, Error> {
-    let answer_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_ANSWER_NAME
-    );
-    file::write_small_file(&answer_path, &req.answer)
-}
-
-pub fn edit_knowledge(meta_path: &str, req: EditKnowledgeReq) -> Result<bool, Error> {
-    let knowledge_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_KNOWLEDGE_NAME
-    );
-    file::write_small_file(&knowledge_path, &req.knowledge)
-}
-
-pub fn edit_analyze(meta_path: &str, req: EditAnalyzeReq) -> Result<bool, Error> {
-    let analyze_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_ANALYZE_NAME
-    );
-    file::write_small_file(&analyze_path, &req.analyze)
-}
-
-pub fn edit_process(meta_path: &str, req: EditProcessReq) -> Result<bool, Error> {
-    let process_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_PROCESS_NAME
-    );
-    file::write_small_file(&process_path, &req.process)
-}
-
-pub fn edit_remark(meta_path: &str, req: EditRemarkReq) -> Result<bool, Error> {
-    let remark_path = format!(
-        "{}/{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req.textbook_key),
-        string::underline_to_slash(&req.catalog_key),
-        req.id,
-        meta::QUESTION_REMARK_NAME
-    );
-    file::write_small_file(&remark_path, &req.remark)
+pub fn edit_remark(app_conf: web::Data<AppConfig>, req: EditRemarkReq) -> Result<bool, Error> {
+    Ok(true)
 }
