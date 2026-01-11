@@ -1,14 +1,14 @@
+use crate::AppConfig;
 use crate::api::edit::{
     EditAnalyzeReq, EditAnswerReq, EditKnowledgeReq, EditMentionReq, EditProcessReq,
     EditQuestionTypeReq, EditRateReq, EditRemarkReq, EditSelectLayoutReq, EditSelectReq,
     EditTagsReq, EditTitleReq,
 };
 use crate::model::question::{Question, QuestionOption};
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
-use sqlx::types::Json;
 use sqlx::PgPool;
+use sqlx::types::Json;
 use std::io::{Error, ErrorKind};
 
 // 更新题目类型
@@ -16,13 +16,13 @@ pub async fn edit_question_type(
     app_conf: web::Data<AppConfig>,
     req: EditQuestionTypeReq,
 ) -> Result<bool, Error> {
-    let row =
-        Question::update_question_type_by_id(&app_conf.get_ref().db, req.id, req.question_type)
-            .await
-            .map_err(|e| {
-                error!("Error while updating QuestionType: {:?}", e);
-                Error::new(ErrorKind::Other, "更新失败")
-            })?;
+    let db = &app_conf.get_ref().db;
+    let row = Question::update_question_type_by_id(db, req.id, req.question_type)
+        .await
+        .map_err(|e| {
+            error!("Error while updating QuestionType: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
 
     Ok(row > 0)
 }

@@ -1,3 +1,4 @@
+use crate::AppConfig;
 use crate::api::chapter_knowledge::{
     ChapterKnowledgeIdsReq, ChapterKnowledgeResp, CreateChapterKnowledgeReq,
     RemoveChapterKnowledgeReq,
@@ -6,7 +7,6 @@ use crate::api::textbook::TextbookResp;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::service::textbook;
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -14,21 +14,20 @@ use std::io::{Error, ErrorKind};
 
 // 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), Error> {
-    match ChapterKnowledge::find_unique(&pool, req.chapter_id, req.knowledge_id).await {
-        Ok(res) => {
-            if let Some(_) = res {
-                Err(Error::new(
-                    ErrorKind::Other,
-                    "当前选择的章节和知识点已关联过",
-                ))
-            } else {
-                Ok(())
-            }
-        }
-        Err(err) => {
+    let res = ChapterKnowledge::find_unique(&pool, req.chapter_id, req.knowledge_id)
+        .await
+        .map_err(|err| {
             error!("add relation query err: {}", err);
-            Err(Error::new(ErrorKind::Other, "查询失败"))
-        }
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    if res.is_none() {
+        Ok(())
+    } else {
+        Err(Error::new(
+            ErrorKind::Other,
+            "当前选择的章节和知识点已关联过",
+        ))
     }
 }
 
@@ -45,18 +44,17 @@ pub async fn info_by_chapter_or_knowledge(
     app_conf: web::Data<AppConfig>,
     id: i32,
 ) -> Result<ChapterKnowledgeResp, Error> {
-    match ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, id).await {
-        Ok(row) => {
-            if let Some(item) = row {
-                Ok(to_resp(item))
-            } else {
-                Err(Error::new(ErrorKind::Other, "未做章节和知识点关联"))
-            }
-        }
-        Err(err) => {
-            error!("add chapter_knowledge query err: {}", err);
-            Err(Error::new(ErrorKind::Other, "查询失败"))
-        }
+    let row = ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, id)
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    if let Some(item) = row {
+        Ok(to_resp(item))
+    } else {
+        Err(Error::new(ErrorKind::Other, "未做章节和知识点关联"))
     }
 }
 
@@ -67,13 +65,14 @@ pub async fn add(
 ) -> Result<ChapterKnowledgeResp, Error> {
     check_unique(&app_conf.get_ref().db, &req).await?;
 
-    match ChapterKnowledge::insert(&app_conf.get_ref().db, &req).await {
-        Ok(res) => Ok(to_resp(res)),
-        Err(err) => {
-            error!("add relation err: {}", err);
-            Err(Error::new(ErrorKind::Other, ""))
-        }
-    }
+    let row = ChapterKnowledge::insert(&app_conf.get_ref().db, &req)
+        .await
+        .map_err(|err| {
+            error!("error adding chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "添加失败")
+        })?;
+
+    Ok(to_resp(row))
 }
 
 // 通过章节小节获取知识点类信息
@@ -85,17 +84,16 @@ pub async fn get_by_chapter(
         return Ok(vec![]);
     }
 
-    match ChapterKnowledge::find_by_chapter_ids(&app_conf.get_ref().db, req.ids).await {
-        Ok(rows) => {
-            let knowledge_ids: Vec<i32> = rows.iter().map(|row| row.knowledge_id).collect();
-            let res = textbook::info_list_by_ids(app_conf, knowledge_ids).await?;
-            Ok(res)
-        }
-        Err(err) => {
-            error!("get_all_by_chapter err: {}", err);
-            Err(Error::new(ErrorKind::Other, "get_all_by_chapter err"))
-        }
-    }
+    let rows = ChapterKnowledge::find_by_chapter_ids(&app_conf.get_ref().db, req.ids)
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    let knowledge_ids: Vec<i32> = rows.iter().map(|row| row.knowledge_id).collect();
+    let res = textbook::info_list_by_ids(app_conf, knowledge_ids).await?;
+    Ok(res)
 }
 
 // 通过知识点小类获取章节信息
@@ -107,17 +105,16 @@ pub async fn get_by_knowledge(
         return Ok(vec![]);
     }
 
-    match ChapterKnowledge::find_by_knowledge_ids(&app_conf.get_ref().db, req.ids).await {
-        Ok(rows) => {
-            let chapter_ids: Vec<i32> = rows.iter().map(|row| row.chapter_id).collect();
-            let res = textbook::info_list_by_ids(app_conf, chapter_ids).await?;
-            Ok(res)
-        }
-        Err(err) => {
-            error!("get_all_by_chapter err: {}", err);
-            Err(Error::new(ErrorKind::Other, "get_all_by_chapter err"))
-        }
-    }
+    let rows = ChapterKnowledge::find_by_knowledge_ids(&app_conf.get_ref().db, req.ids)
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    let chapter_ids: Vec<i32> = rows.iter().map(|row| row.chapter_id).collect();
+    let res = textbook::info_list_by_ids(app_conf, chapter_ids).await?;
+    Ok(res)
 }
 
 // 解除关联关系
@@ -131,24 +128,23 @@ pub async fn remove(
     }
 
     // 如果有题型关联就不能解除了
-    match QuestionCate::find_all_by_related_ids(&app_conf.get_ref().db, vec![req_id]).await {
-        Ok(rows) => {
-            if !rows.is_empty() {
-                return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
-            }
-        }
-        Err(err) => {
-            error!("remove chapter_knowledge query err: {}", err);
-            return Err(Error::new(ErrorKind::Other, "查询错误"));
-        }
+    let rows = QuestionCate::find_all_by_related_ids(&app_conf.get_ref().db, vec![req_id])
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    if !rows.is_empty() {
+        return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
     }
 
-    match ChapterKnowledge::delete_by_chapter_or_knowledge_id(&app_conf.get_ref().db, req_id).await
-    {
-        Ok(res) => Ok(res >= 1),
-        Err(err) => {
-            error!("remove relation err: {}", err);
-            Err(Error::new(ErrorKind::Other, "删除失败"))
-        }
-    }
+    let res = ChapterKnowledge::delete_by_chapter_or_knowledge_id(&app_conf.get_ref().db, req_id)
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "删除失败")
+        })?;
+
+    Ok(res > 0)
 }

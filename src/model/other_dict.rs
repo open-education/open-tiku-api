@@ -39,8 +39,7 @@ impl TextbookDict {
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             "SELECT * FROM textbook_dict WHERE textbook_id = $1 AND type_code = $2 AND item_value = $3",
-        )
-            .bind(textbook_id)
+        ).bind(textbook_id)
         .bind(type_code)
         .bind(item_value)
         .fetch_optional(pool)

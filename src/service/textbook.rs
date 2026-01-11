@@ -2,7 +2,7 @@ use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
-use crate::{constant, AppConfig};
+use crate::{AppConfig, constant};
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -66,19 +66,18 @@ pub async fn list_all(
     // 限制获取数据的最大层级
     let safe_depth = depth.min(constant::textbook::MAX_DEPTH);
 
-    match Textbook::find_all_by_depth(&app_conf.get_ref().db, safe_depth).await {
-        Ok(rows) => {
-            // 1. 建立父子索引映射
-            let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
+    let rows = Textbook::find_all_by_depth(&app_conf.get_ref().db, safe_depth)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
 
-            // 2. 从根节点（parent_id=0 是根）递归构建
-            Ok(get_levels_by_parent_id(&map, 0, safe_depth))
-        }
-        Err(e) => {
-            error!("Database list query error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "查询失败"))
-        }
-    }
+    // 1. 建立父子索引映射
+    let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
+
+    // 2. 从根节点（parent_id=0 是根）递归构建
+    Ok(get_levels_by_parent_id(&map, 0, safe_depth))
 }
 
 // 根据父级标识获取子菜单列表
@@ -86,19 +85,18 @@ pub async fn list_part(
     app_conf: web::Data<AppConfig>,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, Error> {
-    match Textbook::find_all_by_parent_id(&app_conf.get_ref().db, parent_id as i32).await {
-        Ok(rows) => {
-            // 1. 建立父子索引映射
-            let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
+    let rows = Textbook::find_all_by_parent_id(&app_conf.get_ref().db, parent_id as i32)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
 
-            // 2. 从根节点（parent_id=0 是根）递归构建
-            Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
-        }
-        Err(e) => {
-            error!("Database list part query error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "查询失败"))
-        }
-    }
+    // 1. 建立父子索引映射
+    let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
+
+    // 2. 从根节点（parent_id=0 是根）递归构建
+    Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
 }
 
 // 根据父标识列出所有题型列表
@@ -193,21 +191,20 @@ async fn check_parent_and_label_is_exists(
     label: &str,
     id: Option<i32>,
 ) -> Result<(), Error> {
-    match Textbook::find_by_parent_and_label(&pool, parent_id, label, id).await {
-        Ok(row) => {
-            if let Some(_) = row {
-                Err(Error::new(
-                    ErrorKind::Other,
-                    format!("当前层级名称已存在: {}", label),
-                ))
-            } else {
-                Ok(())
-            }
-        }
-        Err(e) => {
-            error!("Database check parent and label is exists error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "查询失败"))
-        }
+    let row = Textbook::find_by_parent_and_label(&pool, parent_id, label, id)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    if row.is_none() {
+        Ok(())
+    } else {
+        Err(Error::new(
+            ErrorKind::Other,
+            format!("当前层级名称已存在: {}", label),
+        ))
     }
 }
 
@@ -224,13 +221,14 @@ pub async fn add(
     )
     .await?;
 
-    match Textbook::insert(&app_conf.get_ref().db, req).await {
-        Ok(row) => Ok(to_resp(row)),
-        Err(e) => {
-            error!("Database add save error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "添加失败"))
-        }
-    }
+    let row = Textbook::insert(&app_conf.get_ref().db, req)
+        .await
+        .map_err(|e| {
+            error!("Error inserting textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "添加失败")
+        })?;
+
+    Ok(to_resp(row))
 }
 
 // 数据库结构映射返回, 不直接返回数据库结构对象
@@ -248,32 +246,33 @@ fn to_resp(row: Textbook) -> TextbookResp {
 
 // 详情
 pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookResp, Error> {
-    match Textbook::find_by_id(&app_conf.get_ref().db, id).await {
-        Ok(row) => Ok(to_resp(row)),
-        Err(e) => {
-            error!("Database edit query error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "数据不存在"))
-        }
-    }
+    let row = Textbook::find_by_id(&app_conf.get_ref().db, id)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "数据不存在")
+        })?;
+
+    Ok(to_resp(row))
 }
 
 pub async fn info_list_by_ids(
     app_conf: web::Data<AppConfig>,
     ids: Vec<i32>,
 ) -> Result<Vec<TextbookResp>, Error> {
-    match Textbook::find_by_ids(&app_conf.get_ref().db, ids).await {
-        Ok(items) => {
-            let mut res: Vec<TextbookResp> = vec![];
-            for item in items {
-                res.push(to_resp(item));
-            }
-            Ok(res)
-        }
-        Err(err) => {
-            error!("get all by ids err: {}", err);
-            Err(Error::new(ErrorKind::Other, ""))
-        }
+    let items = Textbook::find_by_ids(&app_conf.get_ref().db, ids)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    let mut res: Vec<TextbookResp> = vec![];
+    for item in items {
+        res.push(to_resp(item));
     }
+
+    Ok(res)
 }
 
 // 编辑
@@ -291,13 +290,14 @@ pub async fn edit(
     )
     .await?;
 
-    match Textbook::update(&app_conf.get_ref().db, req).await {
-        Ok(row) => Ok(to_resp(row)),
-        Err(e) => {
-            error!("Database edit update error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "编辑失败"))
-        }
-    }
+    let row = Textbook::update(&app_conf.get_ref().db, req)
+        .await
+        .map_err(|e| {
+            error!("Error updating textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "编辑失败")
+        })?;
+
+    Ok(to_resp(row))
 }
 
 // 删除菜单-没有子菜单的菜单可以被删除
@@ -305,16 +305,14 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
     let info = info(app_conf.clone(), id).await?;
 
     // 菜单层级检查是否存在子菜单
-    match Textbook::find_by_parent_id(&app_conf.get_ref().db, info.id).await {
-        Ok(row) => {
-            if let Some(_) = row {
-                return Err(Error::new(ErrorKind::Other, "该层级存在子菜单, 不允许删除"));
-            }
-        }
-        Err(e) => {
-            error!("Database find parent_id query error: {:?}", e);
-            return Err(Error::new(ErrorKind::Other, "删除失败"));
-        }
+    let row = Textbook::find_by_parent_id(&app_conf.get_ref().db, info.id)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "删除失败")
+        })?;
+    if row.is_some() {
+        return Err(Error::new(ErrorKind::Other, "该层级存在子菜单, 不允许删除"));
     }
 
     // 检查第7级菜单是否有子菜单
@@ -323,29 +321,26 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
     //todo 暂时写死
     {
         // 检查该菜单是否关联过
-        match ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, info.id)
-            .await
-        {
-            Ok(chapter) => {
-                if let Some(_) = chapter {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        "章节小节和知识点还存在绑定关系, 不允许删除",
-                    ));
-                }
-            }
-            Err(err) => {
-                error!("textbook chapter knowledge id query error: {:?}", err);
-                return Err(Error::new(ErrorKind::Other, "查询失败"));
-            }
+        let chapter =
+            ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, info.id)
+                .await
+                .map_err(|e| {
+                    error!("Error searching textbook: {:?}", e);
+                    Error::new(ErrorKind::Other, "查询失败")
+                })?;
+        if chapter.is_some() {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "章节小节和知识点还存在绑定关系, 不允许删除",
+            ));
         }
     }
 
-    match Textbook::delete(&app_conf.get_ref().db, id).await {
-        Ok(row) => Ok(row > 0),
-        Err(e) => {
-            error!("Database delete error: {:?}", e);
-            Err(Error::new(ErrorKind::Other, "删除失败"))
-        }
-    }
+    let row = Textbook::delete(&app_conf.get_ref().db, id)
+        .await
+        .map_err(|e| {
+            error!("Error deleting textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "删除失败")
+        })?;
+    Ok(row > 0)
 }

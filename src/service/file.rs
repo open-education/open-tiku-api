@@ -1,9 +1,9 @@
+use crate::AppConfig;
 use crate::api::file::{DeleteImageReq, UploadImageReq};
 use crate::service::edit;
 use crate::util::{file, upload};
-use crate::AppConfig;
 use actix_multipart::Multipart;
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use std::io::Error;
 
 // 上传
