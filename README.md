@@ -17,6 +17,7 @@ struct EnvConfig {
     database_url: String,
     server_host: String,
     server_port: u16,
+    meta_path: String,
 }
 ```
 
@@ -35,6 +36,17 @@ struct EnvConfig {
 #### 事务
 
 单点本地数据库, 暂时没有使用事务
+
+#### 常量
+
+[meta.rs](src/constant/meta.rs) 中有这么一行
+
+```
+/// 图片访问 api 前缀, 由 nginx 决定
+pub const IMAGE_READ_PREFIX: &str = "api";
+```
+
+由于没有提供文件服务, 因此图片等资源是跟随服务存储在本机, 只能通过接口自行读取文件, 如果你配置了 nginx 代理需要关注该常量的值
 
 ### 构建
 
