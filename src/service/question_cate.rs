@@ -27,10 +27,7 @@ pub async fn list(
             Error::new(ErrorKind::Other, "查询失败")
         })?;
 
-    let mut res: Vec<QuestionCateResp> = vec![];
-    for row in rows {
-        res.push(to_resp(row));
-    }
+    let res: Vec<QuestionCateResp> = rows.into_iter().map(to_resp).collect();
 
     Ok(res)
 }

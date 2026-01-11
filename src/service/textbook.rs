@@ -267,10 +267,7 @@ pub async fn info_list_by_ids(
             Error::new(ErrorKind::Other, "查询失败")
         })?;
 
-    let mut res: Vec<TextbookResp> = vec![];
-    for item in items {
-        res.push(to_resp(item));
-    }
+    let res: Vec<TextbookResp> = items.into_iter().map(to_resp).collect();
 
     Ok(res)
 }

@@ -1,6 +1,6 @@
-use crate::AppConfig;
 use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
 use crate::model::other_dict::TextbookDict;
+use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
@@ -57,10 +57,8 @@ pub async fn get_list(
             error!("error finding unique textbook item: {}", e);
             Error::new(ErrorKind::Other, "查询失败")
         })?;
-    let mut res: Vec<TextbookDictResp> = vec![];
-    for row in rows {
-        res.push(to_resp(row));
-    }
+    let res: Vec<TextbookDictResp> = rows.into_iter().map(to_resp).collect();
+
     Ok(res)
 }
 
