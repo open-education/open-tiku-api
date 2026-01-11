@@ -1,10 +1,8 @@
 use actix_web::web;
 
-use crate::api::{
-    chapter_knowledge, edit, file, other_dict, question, question_cate, textbook,
-};
+use crate::api::{chapter_knowledge, edit, file, other_dict, question, question_cate, textbook};
 
-// file related
+// 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
     cfg.service(file::upload)
         .service(file::read)
@@ -23,14 +21,10 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
     cfg.service(edit::edit_question_type)
         .service(edit::edit_tags)
         .service(edit::edit_rate)
-        .service(edit::edit_select)
         .service(edit::edit_title)
         .service(edit::edit_mention)
-        .service(edit::edit_a)
-        .service(edit::edit_b)
-        .service(edit::edit_c)
-        .service(edit::edit_d)
-        .service(edit::edit_e)
+        .service(edit::edit_options_layout)
+        .service(edit::edit_options)
         .service(edit::edit_answer)
         .service(edit::edit_knowledge)
         .service(edit::edit_analyze)

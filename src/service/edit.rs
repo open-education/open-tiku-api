@@ -1,12 +1,14 @@
 use crate::api::edit::{
-    EditAReq, EditAnalyzeReq, EditAnswerReq, EditBReq, EditCReq, EditDReq, EditEReq,
-    EditKnowledgeReq, EditMentionReq, EditProcessReq, EditQuestionTypeReq, EditRateReq,
-    EditRemarkReq, EditSelectReq, EditTagsReq, EditTitleReq,
+    EditAnalyzeReq, EditAnswerReq, EditKnowledgeReq, EditMentionReq, EditProcessReq,
+    EditQuestionTypeReq, EditRateReq, EditRemarkReq, EditSelectLayoutReq, EditSelectReq,
+    EditTagsReq, EditTitleReq,
 };
-use crate::model::question::Question;
+use crate::model::question::{Question, QuestionOption};
 use crate::AppConfig;
 use actix_web::web;
 use log::error;
+use sqlx::types::Json;
+use sqlx::PgPool;
 use std::io::{Error, ErrorKind};
 
 // 更新题目类型
@@ -65,53 +67,213 @@ pub async fn edit_title(app_conf: web::Data<AppConfig>, req: EditTitleReq) -> Re
     Ok(row > 0)
 }
 
-pub fn edit_select(app_conf: web::Data<AppConfig>, req: EditSelectReq) -> Result<bool, Error> {
-    Ok(true)
+// 添加图片
+pub async fn add_image(pool: &PgPool, id: i64, image_name: &str) -> Result<bool, Error> {
+    if id <= 0 {
+        return Ok(true);
+    }
+
+    let info = Question::find_by_id(pool, id).await.map_err(|e| {
+        error!("Error while removing image: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
+
+    let mut images = info.images.unwrap_or_default().0;
+    images.push(image_name.to_string());
+
+    edit_images(pool, id, images).await
 }
 
-pub fn edit_mention(app_conf: web::Data<AppConfig>, req: EditMentionReq) -> Result<bool, Error> {
-    Ok(true)
+// 删除图片
+pub async fn remove_image(pool: &PgPool, id: i64, image_name: &str) -> Result<bool, Error> {
+    if id <= 0 {
+        return Ok(true);
+    }
+
+    let info = Question::find_by_id(pool, id).await.map_err(|e| {
+        error!("Error while removing image: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
+
+    let mut images = info.images.unwrap_or_default().0;
+    images.retain(|x| x != image_name);
+
+    edit_images(pool, id, images).await
 }
 
-pub fn edit_a(app_conf: web::Data<AppConfig>, req: EditAReq) -> Result<bool, Error> {
-    Ok(true)
+// 更新题目图片地址
+async fn edit_images(pool: &PgPool, id: i64, images: Vec<String>) -> Result<bool, Error> {
+    let row = Question::update_images_by_id(pool, id, images)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Image: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_b(app_conf: web::Data<AppConfig>, req: EditBReq) -> Result<bool, Error> {
-    Ok(true)
+// 更新标题补充说明
+pub async fn edit_mention(
+    app_conf: web::Data<AppConfig>,
+    req: EditMentionReq,
+) -> Result<bool, Error> {
+    let row = Question::update_comment_by_id(&app_conf.get_ref().db, req.id, req.mention)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Comment: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_c(app_conf: web::Data<AppConfig>, req: EditCReq) -> Result<bool, Error> {
-    Ok(true)
+// 更新选项样式
+pub async fn edit_options_layout(
+    app_conf: web::Data<AppConfig>,
+    req: EditSelectLayoutReq,
+) -> Result<bool, Error> {
+    let row = Question::update_options_layout_by_id(&app_conf.get_ref().db, req.id, req.layout)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Options: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_d(app_conf: web::Data<AppConfig>, req: EditDReq) -> Result<bool, Error> {
-    Ok(true)
+// 合并选项
+fn merge_options(
+    source: Option<Json<Vec<QuestionOption>>>,
+    req: EditSelectReq,
+) -> Vec<QuestionOption> {
+    // 1. 提取原始数据，直接解构 Json
+    let mut options = source.map(|j| j.0).unwrap_or_default();
+
+    // 2. 预校验：新项是否有实际内容（优化：提前计算避免重复判断）
+    let is_new_valid = !req.option.content.is_empty()
+        || req
+            .option
+            .images
+            .as_ref()
+            .is_some_and(|images| !images.is_empty());
+
+    // 3. 查找是否存在相同 label 的项
+    // position 返回第一个匹配项的下标
+    if let Some(index) = options.iter().position(|opt| opt.label == req.option.label) {
+        if is_new_valid {
+            // 场景 A：已存在且有效 -> 更新该位置
+            options[index] = req.option;
+        } else {
+            // 场景 B：已存在但新项为空 -> 移除该项
+            options.remove(index);
+        }
+    } else if is_new_valid {
+        // 场景 C：不存在且有效 -> 直接追加
+        options.push(req.option);
+    }
+
+    // 4. 排序：针对 i16 使用不稳定排序性能更佳
+    options.sort_unstable_by_key(|q| q.order);
+
+    options
 }
 
-pub fn edit_e(app_conf: web::Data<AppConfig>, req: EditEReq) -> Result<bool, Error> {
-    Ok(true)
+// 编辑选项
+pub async fn edit_options(
+    app_conf: web::Data<AppConfig>,
+    req: EditSelectReq,
+) -> Result<bool, Error> {
+    // todo 暂时不加事务
+    let db = &app_conf.get_ref().db;
+
+    let info = Question::find_by_id(db, req.id).await.map_err(|err| {
+        error!("edit question get by id err: {:?}", err);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
+
+    let row = Question::update_options_by_id(db, req.id, merge_options(info.options, req))
+        .await
+        .map_err(|e| {
+            error!("Error while updating Options: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_answer(app_conf: web::Data<AppConfig>, req: EditAnswerReq) -> Result<bool, Error> {
-    Ok(true)
+// 编辑参考答案
+pub async fn edit_answer(
+    app_conf: web::Data<AppConfig>,
+    req: EditAnswerReq,
+) -> Result<bool, Error> {
+    let row = Question::update_answer_by_id(&app_conf.get_ref().db, req.id, req.answer)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Answer: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_knowledge(
+// 编辑知识点
+pub async fn edit_knowledge(
     app_conf: web::Data<AppConfig>,
     req: EditKnowledgeReq,
 ) -> Result<bool, Error> {
-    Ok(true)
+    let row = Question::update_knowledge_by_id(&app_conf.get_ref().db, req.id, req.knowledge)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Knowledge: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_analyze(app_conf: web::Data<AppConfig>, req: EditAnalyzeReq) -> Result<bool, Error> {
-    Ok(true)
+// 编辑解题分析
+pub async fn edit_analyze(
+    app_conf: web::Data<AppConfig>,
+    req: EditAnalyzeReq,
+) -> Result<bool, Error> {
+    let row = Question::update_analysis_by_id(&app_conf.get_ref().db, req.id, req.analyze)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Analysis: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_process(app_conf: web::Data<AppConfig>, req: EditProcessReq) -> Result<bool, Error> {
-    Ok(true)
+// 编辑解题过程
+pub async fn edit_process(
+    app_conf: web::Data<AppConfig>,
+    req: EditProcessReq,
+) -> Result<bool, Error> {
+    let row = Question::update_process_by_id(&app_conf.get_ref().db, req.id, req.process)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Process: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }
 
-pub fn edit_remark(app_conf: web::Data<AppConfig>, req: EditRemarkReq) -> Result<bool, Error> {
-    Ok(true)
+// 编辑备注
+pub async fn edit_remark(
+    app_conf: web::Data<AppConfig>,
+    req: EditRemarkReq,
+) -> Result<bool, Error> {
+    let row = Question::update_remark_by_id(&app_conf.get_ref().db, req.id, req.remark)
+        .await
+        .map_err(|e| {
+            error!("Error while updating Remark: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
+
+    Ok(row > 0)
 }

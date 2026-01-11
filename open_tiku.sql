@@ -106,3 +106,13 @@ CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_i
 CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
 -- 创建全文检索索引 (支持中文分词，需安装 zhparser 或使用内置 simple) 简单支持即可, 后续如果使用频繁使用其它技术支持
 CREATE INDEX idx_question_title_fulltext ON question USING gin (to_tsvector('simple', content_plain));
+
+-- 6. 变式题
+CREATE TABLE IF NOT EXISTS question_similar
+(
+    id          BIGSERIAL PRIMARY KEY,
+    question_id BIGINT NOT NULL, -- 父题主键
+    child_id    BIGINT NOT NULL, -- 变式题主键
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (question_id, child_id)
+);

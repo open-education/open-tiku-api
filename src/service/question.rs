@@ -3,6 +3,7 @@ use crate::api::question::{
     QuestionListResp,
 };
 use crate::model::question::Question;
+use crate::model::question_similar::QuestionSimilar;
 use crate::AppConfig;
 use actix_web::web;
 use log::error;
@@ -26,17 +27,28 @@ fn to_plain_text(title: &str) -> String {
 // 添加题目
 pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
+    let db = &app_conf.get_ref().db;
+    let source_id = req.source_id;
+
     // todo 从登录信息中解析出作者
     req.author_id = Some(1);
 
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
-    let row = Question::insert(&app_conf.get_ref().db, req)
-        .await
-        .map_err(|e| {
-            error!("question add err: {:?}", e);
-            Error::new(ErrorKind::Other, "题目添加失败")
-        })?;
+    let row = Question::insert(db, req).await.map_err(|e| {
+        error!("question add err: {:?}", e);
+        Error::new(ErrorKind::Other, "题目添加失败")
+    })?;
+
+    // 如果存在变式题则关联
+    if source_id.is_some() {
+        let _ = QuestionSimilar::insert(db, source_id.unwrap(), row.id)
+            .await
+            .map_err(|e| {
+                error!("question add err: {:?}", e);
+                Error::new(ErrorKind::Other, "变式题关联失败")
+            })?;
+    }
 
     Ok(row.id)
 }

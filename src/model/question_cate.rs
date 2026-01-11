@@ -1,6 +1,8 @@
 use crate::api::question_cate::CreateQuestionCateReq;
 use sqlx::{FromRow, PgPool};
 
+/// 题型
+
 #[derive(FromRow)]
 pub struct QuestionCate {
     pub id: i32,

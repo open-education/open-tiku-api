@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, PgPool, Type};
 
+/// 题目
+
 // 选项内容
 #[derive(Serialize, Deserialize, Clone)]
 pub struct QuestionOption {
@@ -258,6 +260,204 @@ impl Question {
         )
         .bind(id)
         .bind(title)
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新标题补充说明
+    pub async fn update_comment_by_id(
+        pool: &PgPool,
+        id: i64,
+        comment: String,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET comment = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(comment)
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新标题图片列表
+    pub async fn update_images_by_id(
+        pool: &PgPool,
+        id: i64,
+        images: Vec<String>,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET images = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(Json(images))
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新选项样式
+    pub async fn update_options_layout_by_id(
+        pool: &PgPool,
+        id: i64,
+        options_layout: i16,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET options_layout = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(options_layout)
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新选项
+    pub async fn update_options_by_id(
+        pool: &PgPool,
+        id: i64,
+        options: Vec<QuestionOption>,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET options = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(Json(options))
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新参考答案
+    pub async fn update_answer_by_id(
+        pool: &PgPool,
+        id: i64,
+        answer: String,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET answer = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(answer)
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新知识点
+    pub async fn update_knowledge_by_id(
+        pool: &PgPool,
+        id: i64,
+        knowledge: String,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET knowledge = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(knowledge)
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新解题分析
+    pub async fn update_analysis_by_id(
+        pool: &PgPool,
+        id: i64,
+        analysis: Content,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET analysis = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(Json(analysis))
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新解题过程
+    pub async fn update_process_by_id(
+        pool: &PgPool,
+        id: i64,
+        process: Content,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET process = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(Json(process))
+        .execute(pool)
+        .await?;
+
+        // rows_affected() 返回受影响的行数
+        Ok(result.rows_affected())
+    }
+
+    // 更新备注
+    pub async fn update_remark_by_id(
+        pool: &PgPool,
+        id: i64,
+        remark: String,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET remark = $2
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(remark)
         .execute(pool)
         .await?;
 

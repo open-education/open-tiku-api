@@ -25,8 +25,8 @@ struct EnvConfig {
 // 应用配置
 #[derive(Clone)]
 pub struct AppConfig {
-    meta_path: String,
-    db: PgPool, // 数据库连接池
+    db: PgPool,        // 数据库连接池
+    meta_path: String, // 元数据存储根目录
 }
 
 #[actix_web::main]
@@ -48,15 +48,15 @@ async fn main() -> std::io::Result<()> {
 
     // 准备应用配置信息
     let app_conf = AppConfig {
-        meta_path: env_config.meta_path,
         db: pool,
+        meta_path: env_config.meta_path,
     };
 
     // 服务监听地址和端口
     let addr = format!("{}:{}", env_config.server_host, env_config.server_port);
 
+    // 启动应用并加载资源
     HttpServer::new(move || {
-        // app
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))

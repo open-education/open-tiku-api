@@ -1,6 +1,4 @@
-use crate::api::file::UploadImageReq;
 use crate::constant::meta;
-use crate::util::string;
 use actix_multipart::Multipart;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -78,26 +76,17 @@ async fn save_file(field: &mut actix_multipart::Field, file_path: &str) -> Resul
     Ok(file_size)
 }
 
-pub fn get_read_image_url(req_upload_file: &UploadImageReq, safe_name: &str) -> String {
-    format!(
-        "/api/file/read/{}/{}/{}",
-        req_upload_file.textbook_key, req_upload_file.catalog_key, safe_name
-    )
+// 读取图片的路径要加上 nginx 代理指定的前缀, 此时默认为 api
+pub fn get_read_image_url(safe_name: &str) -> String {
+    format!("/{}/file/read/{}", meta::IMAGE_READ_PREFIX, safe_name)
 }
 
 /// 处理文件上传
 pub async fn upload_small_image(
     meta_path: &str,
     mut payload: Multipart,
-    req_upload_file: UploadImageReq,
 ) -> Result<Vec<UploadImageResp>, Error> {
-    let upload_path = format!(
-        "{}/{}/{}/{}",
-        meta_path,
-        string::underline_to_slash(&req_upload_file.textbook_key),
-        string::underline_to_slash(&req_upload_file.catalog_key),
-        meta::IMAGE_NAME
-    );
+    let upload_path = format!("{}/{}", meta_path, meta::IMAGE_NAME);
 
     // 确保上传目录存在
     std::fs::create_dir_all(&upload_path)?;
@@ -123,7 +112,7 @@ pub async fn upload_small_image(
                     original_name: original_filename,
                     name: safe_filename.clone(),
                     size: file_size,
-                    url: get_read_image_url(&req_upload_file, &safe_filename),
+                    url: get_read_image_url(&safe_filename),
                 });
             }
             Err(e) => {

@@ -1,6 +1,8 @@
 use crate::api::other_dict::CreateTextbookDictReq;
 use sqlx::{FromRow, PgPool};
 
+/// 教材其它字典
+
 #[derive(FromRow)]
 pub struct TextbookDict {
     pub id: i32,

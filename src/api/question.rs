@@ -12,6 +12,8 @@ use sqlx::types::Json;
 pub struct CreateQuestionReq {
     #[serde(rename(deserialize = "questionCateId"))]
     pub question_cate_id: i32, // 题型主键
+    #[serde(rename(deserialize = "sourceId"))]
+    pub source_id: Option<i64>, // 变式题父主键
     #[serde(rename(deserialize = "questionTypeId"))]
     pub question_type_id: i32, // 题型类型主键
     #[serde(rename(deserialize = "questionTagIds"))]
