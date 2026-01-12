@@ -4,8 +4,6 @@ set -e
 
 # 配置
 APP_NAME="open-tiku-api"
-META_PATH=""
-PORT=8082
 LOG_DIR="log"
 PID_FILE="${APP_NAME}.pid"
 
@@ -21,8 +19,6 @@ show_help() {
     echo ""
     echo "选项:"
     echo "  --version <版本号>  指定部署版本, 版本号为空或者不提供直接操作现有文件, 如需下载文件请提供对应的版本号"
-    echo "  --meta-path <路径>  指定 meta-path 参数 (默认: $META_PATH)"
-    echo "  --port <端口>       指定 port 参数 (默认: $PORT)"
     echo "  --help             显示帮助信息"
     echo ""
     echo "示例:"
@@ -30,7 +26,7 @@ show_help() {
     echo "  $0 stop                    # 停止应用程序"
     echo "  $0 restart -v 1.5.0        # 重启并升级到版本 1.5.0"
     echo "  $0 status                  # 查看状态"
-    echo "  $0 sh deploy.sh restart -p 8082 -v v0.0.1-beta -m /home/.../open-tiku-meta # 常用完整命令名称, 端口因为要配置 nginx 代理转发调整需要对应调整 nginx 配置"
+    echo "  $0 sh deploy.sh restart -v v0.0.1-beta # 常用完整命令名称, 端口因为要配置 nginx 代理转发调整需要对应调整 nginx 配置"
 }
 
 # 检查进程是否运行
@@ -224,11 +220,11 @@ start_app() {
     _log_file="$LOG_DIR/${APP_NAME}_$(date '+%Y%m%d_%H%M%S').log"
 
     # 启动
-    echo "启动命令: $APP_NAME --port=${PORT} --meta-path=$META_PATH"
+    echo "启动命令: $APP_NAME"
     echo "日志文件: $_log_file"
 
     # 使用 nohup 启动
-    nohup "./$APP_NAME" "--port=${PORT}" "--meta-path=${META_PATH}" > "$_log_file" 2>&1 &
+    nohup "./$APP_NAME" > "$_log_file" 2>&1 &
     _app_pid=$!
 
     # 保存 PID
@@ -291,16 +287,8 @@ while [ $# -gt 0 ]; do
             ACTION="$1"
             shift
             ;;
-        -p|--port)
-            PORT="$2"
-            shift 2
-            ;;
         -v|--version)
             VERSION="$2"
-            shift 2
-            ;;
-        -m|--meta-path)
-            META_PATH="$2"
             shift 2
             ;;
         -h|--help)
