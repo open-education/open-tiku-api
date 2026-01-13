@@ -1,18 +1,18 @@
-use crate::AppConfig;
 use crate::api::edit::{
     EditAnalyzeReq, EditAnswerReq, EditKnowledgeReq, EditMentionReq, EditProcessReq,
     EditQuestionTypeReq, EditRateReq, EditRemarkReq, EditSelectLayoutReq, EditSelectReq,
-    EditTagsReq, EditTitleReq,
+    EditStatusReq, EditTagsReq, EditTitleReq,
 };
 use crate::model::question::{Question, QuestionOption};
+use crate::AppConfig;
 use actix_web::web;
 use log::error;
-use sqlx::PgPool;
 use sqlx::types::Json;
+use sqlx::PgPool;
 use std::io::{Error, ErrorKind};
 
 // 更新题目类型
-pub async fn edit_question_type(
+pub async fn question_type(
     app_conf: web::Data<AppConfig>,
     req: EditQuestionTypeReq,
 ) -> Result<bool, Error> {
@@ -28,7 +28,7 @@ pub async fn edit_question_type(
 }
 
 // 更新题目标签
-pub async fn edit_tags(app_conf: web::Data<AppConfig>, req: EditTagsReq) -> Result<bool, Error> {
+pub async fn tags(app_conf: web::Data<AppConfig>, req: EditTagsReq) -> Result<bool, Error> {
     let row = Question::update_question_tags_by_id(&app_conf.get_ref().db, req.id, req.tags)
         .await
         .map_err(|e| {
@@ -40,7 +40,7 @@ pub async fn edit_tags(app_conf: web::Data<AppConfig>, req: EditTagsReq) -> Resu
 }
 
 // 更新题目难易程度
-pub async fn edit_rate(app_conf: web::Data<AppConfig>, req: EditRateReq) -> Result<bool, Error> {
+pub async fn rate(app_conf: web::Data<AppConfig>, req: EditRateReq) -> Result<bool, Error> {
     let row = Question::update_difficulty_level_by_id(
         &app_conf.get_ref().db,
         req.id,
@@ -56,7 +56,7 @@ pub async fn edit_rate(app_conf: web::Data<AppConfig>, req: EditRateReq) -> Resu
 }
 
 // 更新标题
-pub async fn edit_title(app_conf: web::Data<AppConfig>, req: EditTitleReq) -> Result<bool, Error> {
+pub async fn title(app_conf: web::Data<AppConfig>, req: EditTitleReq) -> Result<bool, Error> {
     let row = Question::update_title_by_id(&app_conf.get_ref().db, req.id, req.title)
         .await
         .map_err(|e| {
@@ -114,7 +114,7 @@ async fn edit_images(pool: &PgPool, id: i64, images: Vec<String>) -> Result<bool
 }
 
 // 更新标题补充说明
-pub async fn edit_mention(
+pub async fn mention(
     app_conf: web::Data<AppConfig>,
     req: EditMentionReq,
 ) -> Result<bool, Error> {
@@ -129,7 +129,7 @@ pub async fn edit_mention(
 }
 
 // 更新选项样式
-pub async fn edit_options_layout(
+pub async fn options_layout(
     app_conf: web::Data<AppConfig>,
     req: EditSelectLayoutReq,
 ) -> Result<bool, Error> {
@@ -181,7 +181,7 @@ fn merge_options(
 }
 
 // 编辑选项
-pub async fn edit_options(
+pub async fn options(
     app_conf: web::Data<AppConfig>,
     req: EditSelectReq,
 ) -> Result<bool, Error> {
@@ -204,7 +204,7 @@ pub async fn edit_options(
 }
 
 // 编辑参考答案
-pub async fn edit_answer(
+pub async fn answer(
     app_conf: web::Data<AppConfig>,
     req: EditAnswerReq,
 ) -> Result<bool, Error> {
@@ -219,7 +219,7 @@ pub async fn edit_answer(
 }
 
 // 编辑知识点
-pub async fn edit_knowledge(
+pub async fn knowledge(
     app_conf: web::Data<AppConfig>,
     req: EditKnowledgeReq,
 ) -> Result<bool, Error> {
@@ -234,7 +234,7 @@ pub async fn edit_knowledge(
 }
 
 // 编辑解题分析
-pub async fn edit_analyze(
+pub async fn analyze(
     app_conf: web::Data<AppConfig>,
     req: EditAnalyzeReq,
 ) -> Result<bool, Error> {
@@ -249,7 +249,7 @@ pub async fn edit_analyze(
 }
 
 // 编辑解题过程
-pub async fn edit_process(
+pub async fn process(
     app_conf: web::Data<AppConfig>,
     req: EditProcessReq,
 ) -> Result<bool, Error> {
@@ -264,7 +264,7 @@ pub async fn edit_process(
 }
 
 // 编辑备注
-pub async fn edit_remark(
+pub async fn remark(
     app_conf: web::Data<AppConfig>,
     req: EditRemarkReq,
 ) -> Result<bool, Error> {
@@ -274,6 +274,29 @@ pub async fn edit_remark(
             error!("Error while updating Remark: {:?}", e);
             Error::new(ErrorKind::Other, "更新失败")
         })?;
+
+    Ok(row > 0)
+}
+
+// 更新状态
+pub async fn status(
+    app_conf: web::Data<AppConfig>,
+    req: EditStatusReq,
+) -> Result<bool, Error> {
+    let approve_id = 1;
+
+    let row = Question::update_status_by_id(
+        &app_conf.get_ref().db,
+        req.id,
+        req.status,
+        approve_id,
+        req.reject_reason,
+    )
+    .await
+    .map_err(|e| {
+        error!("Error while updating Status: {:?}", e);
+        Error::new(ErrorKind::Other, "更新失败")
+    })?;
 
     Ok(row > 0)
 }

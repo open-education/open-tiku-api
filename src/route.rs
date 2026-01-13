@@ -18,18 +18,19 @@ pub fn question(cfg: &mut web::ServiceConfig) {
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
 pub fn edit(cfg: &mut web::ServiceConfig) {
-    cfg.service(edit::edit_question_type)
-        .service(edit::edit_tags)
-        .service(edit::edit_rate)
-        .service(edit::edit_title)
-        .service(edit::edit_mention)
-        .service(edit::edit_options_layout)
-        .service(edit::edit_options)
-        .service(edit::edit_answer)
-        .service(edit::edit_knowledge)
-        .service(edit::edit_analyze)
-        .service(edit::edit_process)
-        .service(edit::edit_remark);
+    cfg.service(edit::question_type)
+        .service(edit::tags)
+        .service(edit::rate)
+        .service(edit::title)
+        .service(edit::mention)
+        .service(edit::options_layout)
+        .service(edit::options)
+        .service(edit::answer)
+        .service(edit::knowledge)
+        .service(edit::analyze)
+        .service(edit::process)
+        .service(edit::remark)
+        .service(edit::status);
 }
 
 // 教材菜单

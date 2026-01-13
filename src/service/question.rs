@@ -2,7 +2,7 @@ use crate::api::question::{
     CreateQuestionReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp, QuestionListReq,
     QuestionListResp,
 };
-use crate::model::question::Question;
+use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
 use crate::AppConfig;
 use actix_web::web;
@@ -28,7 +28,7 @@ fn to_plain_text(title: &str) -> String {
 pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_conf.get_ref().db;
-    
+
     let source_id = req.source_id;
 
     // todo 从登录信息中解析出作者
@@ -116,13 +116,16 @@ pub async fn list(
 ) -> Result<QuestionListResp, Error> {
     let db = &app_conf.db; // 假设 AppConfig 暴露了 db 字段
 
+    let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
+
     // 1. 查询总数
-    let total = Question::count_by_cate_and_type(db, req.question_cate_id, req.question_type_id)
-        .await
-        .map_err(|e| {
-            error!("question count by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
-        })?;
+    let total =
+        Question::count_by_cate_and_type(db, req.question_cate_id, status, req.question_type_id)
+            .await
+            .map_err(|e| {
+                error!("question count by id err: {:?}", e);
+                Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
+            })?;
 
     // 2. 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
@@ -131,6 +134,7 @@ pub async fn list(
     let list_data = Question::list_by_cate_and_type(
         db,
         req.question_cate_id,
+        status,
         req.question_type_id,
         req.page_size,
         offset,

@@ -1,4 +1,5 @@
 use crate::api::question::CreateQuestionReq;
+use chrono::Utc;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
@@ -23,15 +24,6 @@ pub enum QuestionStatus {
     Pending = 1,   // 1: 待审核
     Published = 2, // 2: 已发布
     Rejected = 3,  // 3: 被拒绝
-}
-
-// 选项布局枚举
-#[derive(Serialize, Deserialize, Type)]
-#[repr(i16)]
-pub enum OptionsLayout {
-    OneLine = 1,    // A B C D 排成一行
-    TwoColumns = 2, // A B 在上，C D 在下
-    OneColumn = 3,  // 垂直排列，每行一个选项
 }
 
 // 解题分析
@@ -132,16 +124,19 @@ impl Question {
     pub async fn count_by_cate_and_type(
         pool: &PgPool,
         cate_id: i32,
+        status: i16,
         type_id: Option<i32>,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM question 
             WHERE question_cate_id = $1
-              AND ($2 IS NULL OR question_type_id = $2)
+              AND status = $2
+              AND ($3 IS NULL OR question_type_id = $3)
             "#,
         )
         .bind(cate_id)
+        .bind(status)
         .bind(type_id)
         .fetch_one(pool)
         .await
@@ -151,6 +146,7 @@ impl Question {
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
         cate_id: i32,
+        status: i16,
         type_id: Option<i32>,
         limit: i32,
         offset: i32,
@@ -166,12 +162,14 @@ impl Question {
                 created_at, updated_at
             FROM question
             WHERE question_cate_id = $1
-              AND ($2 IS NULL OR question_type_id = $2)
+              AND status = $2
+              AND ($3 IS NULL OR question_type_id = $3)
             ORDER BY id DESC
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
         )
         .bind(cate_id)
+        .bind(status)
         .bind(type_id)
         .bind(limit)
         .bind(offset)
@@ -478,5 +476,37 @@ impl Question {
         .await?;
 
         Ok(exists)
+    }
+
+    // 更新状态
+    pub async fn update_status_by_id(
+        pool: &PgPool,
+        id: i64,
+        status: i16,
+        approve_id: i64,
+        reject_reason: Option<String>,
+    ) -> Result<u64, sqlx::Error> {
+        // 1. 获取当前 UTC 时间用于更新 approve_at
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r#"
+        UPDATE question
+        SET status = $2, 
+            approve_id = $3, 
+            reject_reason = $4, 
+            approve_at = $5
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(status)
+        .bind(approve_id)
+        .bind(reject_reason)
+        .bind(now)
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 }

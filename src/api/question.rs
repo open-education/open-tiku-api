@@ -127,7 +127,7 @@ pub struct QuestionListReq {
     pub question_cate_id: i32,
     #[serde(rename(deserialize = "questionTypeId"))]
     pub question_type_id: Option<i32>,
-    pub status: Option<i32>,
+    pub status: Option<i16>,
     #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
     #[serde(rename(deserialize = "pageSize"))]

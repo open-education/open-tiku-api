@@ -16,11 +16,11 @@ pub struct EditQuestionTypeReq {
 
 // 题目类型
 #[post("/question-type")]
-pub async fn edit_question_type(
+pub async fn question_type(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditQuestionTypeReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_question_type(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::question_type(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -31,11 +31,11 @@ pub struct EditTagsReq {
 
 // 题目标签
 #[post("/tags")]
-pub async fn edit_tags(
+pub async fn tags(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditTagsReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_tags(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::tags(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -48,11 +48,11 @@ pub struct EditRateReq {
 
 // 题目难易程度
 #[post("/rate")]
-pub async fn edit_rate(
+pub async fn rate(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditRateReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_rate(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::rate(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -63,11 +63,11 @@ pub struct EditTitleReq {
 
 // 题目标题
 #[post("/title")]
-pub async fn edit_title(
+pub async fn title(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditTitleReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_title(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::title(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -78,11 +78,11 @@ pub struct EditMentionReq {
 
 // 标题补充说明
 #[post("/mention")]
-pub async fn edit_mention(
+pub async fn mention(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditMentionReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_mention(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::mention(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -93,11 +93,11 @@ pub struct EditSelectLayoutReq {
 
 // 选项样式
 #[post("/options-layout")]
-pub async fn edit_options_layout(
+pub async fn options_layout(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditSelectLayoutReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_options_layout(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::options_layout(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -108,11 +108,11 @@ pub struct EditSelectReq {
 
 // 编辑选项
 #[post("/options")]
-pub async fn edit_options(
+pub async fn options(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditSelectReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_options(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::options(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -123,11 +123,11 @@ pub struct EditAnswerReq {
 
 // 编辑答案
 #[post("/answer")]
-pub async fn edit_answer(
+pub async fn answer(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditAnswerReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_answer(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::answer(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -138,11 +138,11 @@ pub struct EditKnowledgeReq {
 
 // 编辑知识点
 #[post("/knowledge")]
-pub async fn edit_knowledge(
+pub async fn knowledge(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditKnowledgeReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_knowledge(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::knowledge(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -153,11 +153,11 @@ pub struct EditAnalyzeReq {
 
 // 解题分析
 #[post("/analyze")]
-pub async fn edit_analyze(
+pub async fn analyze(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditAnalyzeReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_analyze(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::analyze(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -168,11 +168,11 @@ pub struct EditProcessReq {
 
 // 解题过程
 #[post("/process")]
-pub async fn edit_process(
+pub async fn process(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditProcessReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_process(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::process(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -182,9 +182,26 @@ pub struct EditRemarkReq {
 }
 
 #[post("/remark")]
-pub async fn edit_remark(
+pub async fn remark(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditRemarkReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::edit_remark(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::remark(app_conf, req.into_inner()).await)
+}
+
+#[derive(Deserialize)]
+pub struct EditStatusReq {
+    pub id: i64,
+    pub status: i16,
+    #[serde(rename(deserialize = "rejectReason"))]
+    pub reject_reason: Option<String>,
+}
+
+// 更新状态
+#[post("/status")]
+pub async fn status(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<EditStatusReq>,
+) -> ApiResponse<bool> {
+    ApiResponse::response(edit::status(app_conf, req.into_inner()).await)
 }
