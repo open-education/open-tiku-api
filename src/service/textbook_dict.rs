@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
 use crate::model::other_dict::TextbookDict;
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
@@ -20,27 +20,22 @@ pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateTextbookDictReq,
 ) -> Result<TextbookDictResp, Error> {
-    let res = TextbookDict::find_by_unique(
-        &app_conf.get_ref().db,
-        req.textbook_id,
-        &req.type_code,
-        &req.item_value,
-    )
-    .await
-    .map_err(|e| {
-        error!("error finding unique textbook item: {}", e);
-        Error::new(ErrorKind::Other, "查询失败")
-    })?;
+    let db = &app_conf.get_ref().db;
+
+    let res = TextbookDict::find_by_unique(db, req.textbook_id, &req.type_code, &req.item_value)
+        .await
+        .map_err(|e| {
+            error!("error finding unique textbook item: {}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
     if res.is_some() {
         return Err(Error::new(ErrorKind::Other, "字典已经存在"));
     }
 
-    let row = TextbookDict::insert(&app_conf.get_ref().db, req)
-        .await
-        .map_err(|e| {
-            error!("error adding unique textbook item: {}", e);
-            Error::new(ErrorKind::Other, "新增失败")
-        })?;
+    let row = TextbookDict::insert(db, req).await.map_err(|e| {
+        error!("error adding unique textbook item: {}", e);
+        Error::new(ErrorKind::Other, "新增失败")
+    })?;
     Ok(to_resp(row))
 }
 
@@ -51,6 +46,7 @@ pub async fn get_list(
     type_code: String,
 ) -> Result<Vec<TextbookDictResp>, Error> {
     let db = &app_conf.get_ref().db;
+
     let rows = TextbookDict::find_by_textbook_and_type(db, textbook_id, &type_code)
         .await
         .map_err(|e| {

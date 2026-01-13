@@ -1,5 +1,6 @@
 use crate::AppConfig;
 use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
+use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use actix_web::web;
 use log::error;
@@ -49,14 +50,21 @@ pub async fn add(
 
 // 删除题型
 pub async fn remove(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
-    //todo 关联题目后就不允许删除了
+    let db = &app_conf.get_ref().db;
 
-    let row = QuestionCate::delete(&app_conf.get_ref().db, id)
-        .await
-        .map_err(|err| {
-            error!("error deleting question: {}", err);
-            Error::new(ErrorKind::Other, "删除失败")
-        })?;
+    // 关联题目后就不允许删除了
+    let exist = Question::exist_by_cate_id(db, id).await.map_err(|err| {
+        error!("error finding exists question: {}", err);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
+    if exist {
+        return Err(Error::new(ErrorKind::Other, "题型已关联题目, 不允许删除"));
+    }
+
+    let row = QuestionCate::delete(db, id).await.map_err(|err| {
+        error!("error deleting question: {}", err);
+        Error::new(ErrorKind::Other, "删除失败")
+    })?;
 
     Ok(row > 0)
 }

@@ -28,6 +28,7 @@ fn to_plain_text(title: &str) -> String {
 pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_conf.get_ref().db;
+    
     let source_id = req.source_id;
 
     // todo 从登录信息中解析出作者

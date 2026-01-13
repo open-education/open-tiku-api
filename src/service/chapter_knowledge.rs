@@ -1,4 +1,3 @@
-use crate::AppConfig;
 use crate::api::chapter_knowledge::{
     ChapterKnowledgeIdsReq, ChapterKnowledgeResp, CreateChapterKnowledgeReq,
     RemoveChapterKnowledgeReq,
@@ -7,6 +6,7 @@ use crate::api::textbook::TextbookResp;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::service::textbook;
+use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -63,14 +63,14 @@ pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateChapterKnowledgeReq,
 ) -> Result<ChapterKnowledgeResp, Error> {
-    check_unique(&app_conf.get_ref().db, &req).await?;
+    let db = &app_conf.get_ref().db;
 
-    let row = ChapterKnowledge::insert(&app_conf.get_ref().db, &req)
-        .await
-        .map_err(|err| {
-            error!("error adding chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "添加失败")
-        })?;
+    check_unique(db, &req).await?;
+
+    let row = ChapterKnowledge::insert(db, &req).await.map_err(|err| {
+        error!("error adding chapter knowledge: {}", err);
+        Error::new(ErrorKind::Other, "添加失败")
+    })?;
 
     Ok(to_resp(row))
 }
@@ -127,8 +127,10 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "删除数据标识为空"));
     }
 
+    let db = &app_conf.get_ref().db;
+
     // 如果有题型关联就不能解除了
-    let rows = QuestionCate::find_all_by_related_ids(&app_conf.get_ref().db, vec![req_id])
+    let rows = QuestionCate::find_all_by_related_ids(db, vec![req_id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -139,7 +141,7 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
     }
 
-    let res = ChapterKnowledge::delete_by_chapter_or_knowledge_id(&app_conf.get_ref().db, req_id)
+    let res = ChapterKnowledge::delete_by_chapter_or_knowledge_id(db, req_id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);

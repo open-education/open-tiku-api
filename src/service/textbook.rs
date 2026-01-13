@@ -2,7 +2,7 @@ use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
-use crate::{AppConfig, constant};
+use crate::{constant, AppConfig};
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -191,7 +191,7 @@ async fn check_parent_and_label_is_exists(
     label: &str,
     id: Option<i32>,
 ) -> Result<(), Error> {
-    let row = Textbook::find_by_parent_and_label(&pool, parent_id, label, id)
+    let row = Textbook::find_by_parent_and_label(pool, parent_id, label, id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
@@ -213,20 +213,14 @@ pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateTextbookReq,
 ) -> Result<TextbookResp, Error> {
-    check_parent_and_label_is_exists(
-        &app_conf.get_ref().db,
-        req.parent_id,
-        req.label.as_str(),
-        None,
-    )
-    .await?;
+    let db = &app_conf.get_ref().db;
 
-    let row = Textbook::insert(&app_conf.get_ref().db, req)
-        .await
-        .map_err(|e| {
-            error!("Error inserting textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "添加失败")
-        })?;
+    check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
+
+    let row = Textbook::insert(db, req).await.map_err(|e| {
+        error!("Error inserting textbook: {:?}", e);
+        Error::new(ErrorKind::Other, "添加失败")
+    })?;
 
     Ok(to_resp(row))
 }
@@ -279,20 +273,14 @@ pub async fn edit(
 ) -> Result<TextbookResp, Error> {
     let _ = info(app_conf.clone(), req.id).await?;
 
-    check_parent_and_label_is_exists(
-        &app_conf.get_ref().db,
-        req.parent_id,
-        req.label.as_str(),
-        Some(req.id),
-    )
-    .await?;
+    let db = &app_conf.get_ref().db;
 
-    let row = Textbook::update(&app_conf.get_ref().db, req)
-        .await
-        .map_err(|e| {
-            error!("Error updating textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "编辑失败")
-        })?;
+    check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), Some(req.id)).await?;
+
+    let row = Textbook::update(db, req).await.map_err(|e| {
+        error!("Error updating textbook: {:?}", e);
+        Error::new(ErrorKind::Other, "编辑失败")
+    })?;
 
     Ok(to_resp(row))
 }
@@ -301,8 +289,10 @@ pub async fn edit(
 pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
     let info = info(app_conf.clone(), id).await?;
 
+    let db = &app_conf.get_ref().db;
+
     // 菜单层级检查是否存在子菜单
-    let row = Textbook::find_by_parent_id(&app_conf.get_ref().db, info.id)
+    let row = Textbook::find_by_parent_id(db, info.id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
@@ -315,16 +305,14 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
     // 检查第7级菜单是否有子菜单
     if let Some(path_depth) = info.path_depth
         && path_depth == 7
-    //todo 暂时写死
     {
         // 检查该菜单是否关联过
-        let chapter =
-            ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, info.id)
-                .await
-                .map_err(|e| {
-                    error!("Error searching textbook: {:?}", e);
-                    Error::new(ErrorKind::Other, "查询失败")
-                })?;
+        let chapter = ChapterKnowledge::find_by_chapter_or_knowledge_id(db, info.id)
+            .await
+            .map_err(|e| {
+                error!("Error searching textbook: {:?}", e);
+                Error::new(ErrorKind::Other, "查询失败")
+            })?;
         if chapter.is_some() {
             return Err(Error::new(
                 ErrorKind::Other,
@@ -333,11 +321,9 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
         }
     }
 
-    let row = Textbook::delete(&app_conf.get_ref().db, id)
-        .await
-        .map_err(|e| {
-            error!("Error deleting textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "删除失败")
-        })?;
+    let row = Textbook::delete(db, id).await.map_err(|e| {
+        error!("Error deleting textbook: {:?}", e);
+        Error::new(ErrorKind::Other, "删除失败")
+    })?;
     Ok(row > 0)
 }

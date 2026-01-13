@@ -464,4 +464,19 @@ impl Question {
         // rows_affected() 返回受影响的行数
         Ok(result.rows_affected())
     }
+
+    // 题型下是否存在题目
+    pub async fn exist_by_cate_id(pool: &PgPool, cate_id: i32) -> Result<bool, sqlx::Error> {
+        // EXISTS 返回布尔值
+        let exists = sqlx::query_scalar::<_, bool>(
+            r#"
+        SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)
+        "#,
+        )
+        .bind(cate_id)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(exists)
+    }
 }
