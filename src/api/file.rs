@@ -1,26 +1,20 @@
+use crate::AppConfig;
 use crate::service::file::{delete_image, read_small_image, upload_small_image};
 use crate::util::response::ApiResponse;
 use crate::util::upload::UploadImageResp;
-use crate::AppConfig;
 use actix_multipart::Multipart;
-use actix_web::{get, post, web, HttpResponse};
+use actix_web::{HttpResponse, get, post, web};
 use serde::Deserialize;
 
 /// 文件上传请求
-
-#[derive(Deserialize)]
-pub struct UploadImageReq {
-    pub id: Option<i64>,
-}
 
 // 图片上传
 #[post("/upload")]
 pub async fn upload(
     app_conf: web::Data<AppConfig>,
     payload: Multipart,
-    req: web::Query<UploadImageReq>,
 ) -> ApiResponse<Vec<UploadImageResp>> {
-    ApiResponse::response(upload_small_image(app_conf, payload, req.into_inner()).await)
+    ApiResponse::response(upload_small_image(app_conf, payload).await)
 }
 
 // 图片读取
@@ -34,7 +28,6 @@ pub async fn read(
 
 #[derive(Deserialize)]
 pub struct DeleteImageReq {
-    pub id: Option<i64>,
     pub filename: String,
 }
 

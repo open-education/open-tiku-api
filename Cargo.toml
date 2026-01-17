@@ -17,6 +17,8 @@ lto = true
 # 这缩短了编译时间, 但会阻止某些优化
 # Cargo.toml 中将其设置为 1 以允许最大尺寸缩减优化
 codegen-units = 1
+# 当程序发生 panic 时，直接停止运行，而不是尝试“栈展开”（unwinding）, 一般来说不需要除非能确定不会发生内存泄漏
+panic = "abort"
 
 [dependencies]
 actix-web = "4"
@@ -25,11 +27,11 @@ log = "0.4"
 env_logger = "0.11.8"
 actix-multipart = "0.6"
 futures-util = "0.3"
-chrono = {version = "0.4.42", features = ["serde"]}
+chrono = { version = "0.4.42", features = ["serde"] }
 sanitize-filename = "0.6.0"
-tokio = {version = "1.48.0", features = ["full"]}
+tokio = { version = "1.48.0", features = ["full"] }
 md5 = "0.8.0"
-sqlx = {version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "chrono", "json", "rust_decimal"]}
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "chrono", "json", "rust_decimal"] }
 dotenvy = "0.15.7"
 envy = "0.4.2"
 rust_decimal = "1.39.0"

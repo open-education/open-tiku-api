@@ -1,7 +1,7 @@
+use crate::AppConfig;
 use crate::model::question::{Content, QuestionOption};
 use crate::service::edit;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{post, web};
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -86,6 +86,20 @@ pub async fn mention(
 }
 
 #[derive(Deserialize)]
+pub struct EditImageReq {
+    pub id: i64,
+    pub images: Vec<String>,
+}
+
+#[post("/images")]
+pub async fn images(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<EditImageReq>,
+) -> ApiResponse<bool> {
+    ApiResponse::response(edit::images(app_conf, req.into_inner()).await)
+}
+
+#[derive(Deserialize)]
 pub struct EditSelectLayoutReq {
     pub id: i64,
     pub layout: i16,
@@ -103,7 +117,7 @@ pub async fn options_layout(
 #[derive(Deserialize)]
 pub struct EditSelectReq {
     pub id: i64,
-    pub option: QuestionOption,
+    pub options: Vec<QuestionOption>,
 }
 
 // 编辑选项

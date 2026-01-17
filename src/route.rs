@@ -23,6 +23,7 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
         .service(edit::rate)
         .service(edit::title)
         .service(edit::mention)
+        .service(edit::images)
         .service(edit::options_layout)
         .service(edit::options)
         .service(edit::answer)

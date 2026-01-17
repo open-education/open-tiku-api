@@ -1,6 +1,5 @@
 use crate::AppConfig;
-use crate::api::file::{DeleteImageReq, UploadImageReq};
-use crate::service::edit;
+use crate::api::file::DeleteImageReq;
 use crate::util::{file, upload};
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, web};
@@ -10,16 +9,8 @@ use std::io::Error;
 pub async fn upload_small_image(
     app_conf: web::Data<AppConfig>,
     payload: Multipart,
-    req: UploadImageReq,
 ) -> Result<Vec<upload::UploadImageResp>, Error> {
     let resp = upload::upload_small_image(&app_conf.get_ref().meta_path, payload).await?;
-
-    // 添加题目对应的图片
-    if let Some(filename) = resp.get(0)
-        && let Some(id) = req.id
-    {
-        edit::add_image(&app_conf.get_ref().db, id, filename.name.as_str()).await?;
-    }
 
     Ok(resp)
 }
@@ -39,10 +30,5 @@ pub async fn delete_image(
 ) -> Result<bool, Error> {
     file::delete_image(&app_conf.get_ref().meta_path, req.filename.as_str()).await?;
 
-    // 删除题目对应的图片
-    if let Some(id) = req.id {
-        edit::remove_image(&app_conf.get_ref().db, id, req.filename.as_str()).await
-    } else {
-        Ok(true)
-    }
+    Ok(true)
 }
