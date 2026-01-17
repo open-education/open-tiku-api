@@ -1,13 +1,12 @@
+use crate::AppConfig;
 use crate::api::edit::{
     EditAnalyzeReq, EditAnswerReq, EditImageReq, EditKnowledgeReq, EditMentionReq, EditProcessReq,
     EditQuestionTypeReq, EditRateReq, EditRemarkReq, EditSelectLayoutReq, EditSelectReq,
     EditStatusReq, EditTagsReq, EditTitleReq,
 };
-use crate::model::question::{Question, QuestionOption};
-use crate::AppConfig;
+use crate::model::question::Question;
 use actix_web::web;
 use log::error;
-use sqlx::types::Json;
 use std::io::{Error, ErrorKind};
 
 // 更新题目类型
