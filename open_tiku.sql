@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS textbook_dict
     type_code   VARCHAR(50)  NOT NULL,                              -- 如: 'question_type', 'question_tag'
     item_value  VARCHAR(100) NOT NULL,                              -- 如: '选择题'
     sort_order  INT         DEFAULT 0,                              -- 排序
+    is_select   BOOLEAN     DEFAULT FALSE,                          -- 新增字段：是否选中，默认设为 false
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (textbook_id, type_code, item_value)                     -- 确保同一类型下 value 唯一
 );

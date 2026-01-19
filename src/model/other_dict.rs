@@ -10,6 +10,7 @@ pub struct TextbookDict {
     pub type_code: String,
     pub item_value: String,
     pub sort_order: i32,
+    pub is_select: bool,
 }
 
 impl TextbookDict {
@@ -17,8 +18,8 @@ impl TextbookDict {
     pub async fn insert(pool: &PgPool, req: CreateTextbookDictReq) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            INSERT INTO textbook_dict (textbook_id, type_code, item_value, sort_order)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO textbook_dict (textbook_id, type_code, item_value, sort_order, is_select)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#,
         )
@@ -26,6 +27,7 @@ impl TextbookDict {
         .bind(req.type_code)
         .bind(req.item_value)
         .bind(req.sort_order)
+        .bind(req.is_select)
         .fetch_one(pool)
         .await
     }
@@ -54,7 +56,7 @@ impl TextbookDict {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            SELECT id, textbook_id, type_code, item_value, sort_order 
+            SELECT id, textbook_id, type_code, item_value, sort_order, is_select 
             FROM textbook_dict 
             WHERE textbook_id = $1 AND type_code = $2
             ORDER BY sort_order

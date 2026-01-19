@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::service::textbook_dict;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +14,8 @@ pub struct CreateTextbookDictReq {
     pub item_value: String,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i32,
+    #[serde(rename(deserialize = "isSelect"))]
+    pub is_select: bool,
 }
 
 #[derive(Serialize)]
@@ -27,6 +29,8 @@ pub struct TextbookDictResp {
     pub item_value: String,
     #[serde(rename(serialize = "sortOrder"))]
     pub sort_order: i32,
+    #[serde(rename(serialize = "isSelect"))]
+    pub is_select: bool,
 }
 
 // 字典添加

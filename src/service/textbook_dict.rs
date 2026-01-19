@@ -12,6 +12,7 @@ fn to_resp(row: TextbookDict) -> TextbookDictResp {
         type_code: row.type_code,
         item_value: row.item_value,
         sort_order: row.sort_order,
+        is_select: row.is_select,
     }
 }
 

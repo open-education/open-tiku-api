@@ -41,12 +41,6 @@ async fn main() -> std::io::Result<()> {
     let env_config: EnvConfig =
         from_env::<EnvConfig>().expect("Failed to parse environment variable configuration");
 
-    // 2. 如果 .env 里有 TZ，确保它被写入环境变量
-    // (其实 dotenv() 已经做了这一步，但这里可以强制检查)
-    unsafe {
-        env::set_var("TZ", "Asia/Shanghai");
-    }
-
     // 创建数据库连接池
     let options = PgConnectOptions::from_str(&env_config.database_url)
         .expect("database url format is incorrect")
