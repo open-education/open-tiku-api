@@ -10,8 +10,10 @@ use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
 use envy::from_env;
 use serde::Deserialize;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::PgPool;
+use std::env;
+use std::str::FromStr;
 
 // 服务相关环境变量配置
 #[derive(Deserialize)]
@@ -39,10 +41,19 @@ async fn main() -> std::io::Result<()> {
     let env_config: EnvConfig =
         from_env::<EnvConfig>().expect("Failed to parse environment variable configuration");
 
+    // 2. 如果 .env 里有 TZ，确保它被写入环境变量
+    // (其实 dotenv() 已经做了这一步，但这里可以强制检查)
+    unsafe {
+        env::set_var("TZ", "Asia/Shanghai");
+    }
+
     // 创建数据库连接池
+    let options = PgConnectOptions::from_str(&env_config.database_url)
+        .expect("database url format is incorrect")
+        .options([("timezone", "Asia/Shanghai")]);
     let pool = PgPoolOptions::new()
         .max_connections(2)
-        .connect(env_config.database_url.as_str())
+        .connect_with(options)
         .await
         .expect("Unable to connect to the database");
 
