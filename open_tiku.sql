@@ -117,3 +117,49 @@ CREATE TABLE IF NOT EXISTS question_similar
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (question_id, child_id)
 );
+
+-- 7. 组卷规则
+CREATE TABLE IF NOT EXISTS rule
+(
+    id         SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 8. 试卷
+CREATE TABLE IF NOT EXISTS test
+(
+    id          BIGSERIAL PRIMARY KEY,
+    textbook_id INTEGER      NOT NULL, -- 教材标识
+    title       VARCHAR(255) NOT NULL, -- 试卷名称
+    rule_id     INTEGER      NOT NULL, -- 规则标识
+    score       INT          NOT NULL, -- 试卷总分
+
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. 试卷详情
+CREATE TABLE IF NOT EXISTS test_detail
+(
+    id          BIGSERIAL PRIMARY KEY,
+    test_id     BIGINT       NOT NULL, -- 试卷标识
+    title       VARCHAR(255) NOT NULL, -- 标题名称
+    description TEXT,                  -- 标题描述, 即括号中的长内容
+    score       INT          NOT NULL, -- 标题总分
+    sort_order  INT         DEFAULT 0, -- 标题排序
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. 题目详情
+CREATE TABLE IF NOT EXISTS test_detail_info
+(
+    id          BIGSERIAL PRIMARY KEY,
+    detail_id   BIGINT NOT NULL,       -- 题目信息标识
+    no          INT    NOT NULL,       -- 题目序号
+    question_id BIGINT NOT NULL,       -- 题目标识
+    score       INT    NOT NULL,       -- 题目分数
+    sort_order  INT         DEFAULT 0, -- 题目排序
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);

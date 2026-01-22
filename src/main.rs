@@ -12,7 +12,6 @@ use envy::from_env;
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::PgPool;
-use std::env;
 use std::str::FromStr;
 
 // 服务相关环境变量配置
