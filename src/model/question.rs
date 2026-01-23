@@ -126,6 +126,9 @@ impl Question {
         cate_id: i32,
         status: i16,
         type_id: Option<i32>,
+        ids: Option<Vec<i64>>,
+        title_val: Option<String>,
+        tag_ids: Option<Vec<i32>>,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -133,11 +136,18 @@ impl Question {
             WHERE question_cate_id = $1
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
+              AND ($4 IS NULL OR id = ANY($4))
+              AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
+              AND ($6 IS NULL OR question_tag_ids @> $7)
             "#,
         )
         .bind(cate_id)
         .bind(status)
         .bind(type_id)
+        .bind(ids)
+        .bind(title_val)
+        .bind(tag_ids.as_ref().map(|_| true))
+        .bind(tag_ids.map(Json))
         .fetch_one(pool)
         .await
     }
@@ -148,6 +158,9 @@ impl Question {
         cate_id: i32,
         status: i16,
         type_id: Option<i32>,
+        ids: Option<Vec<i64>>,
+        title_val: Option<String>,
+        tag_ids: Option<Vec<i32>>,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -164,13 +177,20 @@ impl Question {
             WHERE question_cate_id = $1
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
+              AND ($4 IS NULL OR id = ANY($4))
+              AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
+            AND ($6 IS NULL OR question_tag_ids @> $7)
             ORDER BY id DESC
-            LIMIT $4 OFFSET $5
+            LIMIT $8 OFFSET $9
             "#,
         )
         .bind(cate_id)
         .bind(status)
         .bind(type_id)
+        .bind(ids)
+        .bind(title_val)
+        .bind(tag_ids.as_ref().map(|_| true))
+        .bind(tag_ids.map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)

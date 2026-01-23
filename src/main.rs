@@ -9,9 +9,10 @@ use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
 use dotenvy::dotenv;
 use envy::from_env;
+use log::LevelFilter;
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::PgPool;
+use sqlx::{ConnectOptions, PgPool};
 use std::str::FromStr;
 
 // 服务相关环境变量配置

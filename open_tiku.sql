@@ -105,8 +105,6 @@ CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (question_cate_id,
 CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_id, status);
 -- 查看作者自己的题
 CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
--- 创建全文检索索引 (支持中文分词，需安装 zhparser 或使用内置 simple) 简单支持即可, 后续如果使用频繁使用其它技术支持
-CREATE INDEX idx_question_title_fulltext ON question USING gin (to_tsvector('simple', content_plain));
 
 -- 6. 变式题
 CREATE TABLE IF NOT EXISTS question_similar

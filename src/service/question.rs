@@ -119,13 +119,29 @@ pub async fn list(
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
     // 1. 查询总数
-    let total =
-        Question::count_by_cate_and_type(db, req.question_cate_id, status, req.question_type_id)
-            .await
-            .map_err(|e| {
-                error!("question count by id err: {:?}", e);
-                Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
-            })?;
+    let total = Question::count_by_cate_and_type(
+        db,
+        req.question_cate_id,
+        status,
+        req.question_type_id,
+        req.ids.clone(),
+        req.title_val.clone(),
+        req.tag_ids.clone(),
+    )
+    .await
+    .map_err(|e| {
+        error!("question count by id err: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
+    })?;
+    
+    if total == 0 {
+        return Ok(QuestionListResp {
+            list: vec![],
+            page_no: 0,
+            page_size: 0,
+            total,
+        });
+    }
 
     // 2. 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
@@ -136,6 +152,9 @@ pub async fn list(
         req.question_cate_id,
         status,
         req.question_type_id,
+        req.ids,
+        req.title_val,
+        req.tag_ids,
         req.page_size,
         offset,
     )
