@@ -179,7 +179,7 @@ impl Question {
               AND ($3 IS NULL OR question_type_id = $3)
               AND ($4 IS NULL OR id = ANY($4))
               AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
-            AND ($6 IS NULL OR question_tag_ids @> $7)
+              AND ($6 IS NULL OR question_tag_ids @> $7)
             ORDER BY id DESC
             LIMIT $8 OFFSET $9
             "#,
@@ -528,5 +528,73 @@ impl Question {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    // 母题下面变式题数量
+    pub async fn count_similar_by_params(
+        pool: &PgPool,
+        question_id: i64,
+        status: i16,
+        cate_id: i32,
+        type_id: Option<i32>,
+        tag_ids: Option<Vec<i32>>,
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT COUNT(q.id)
+            FROM question q
+            INNER JOIN question_similar qs ON q.id = qs.child_id
+            WHERE qs.question_id = $1
+              AND q.status = $2
+              AND q.question_cate_id = $3
+              AND ($4 IS NULL OR q.question_type_id = $4)
+              AND ($5 IS NULL OR q.question_tag_ids @> $6)
+            "#,
+        )
+        .bind(question_id)
+        .bind(status)
+        .bind(cate_id)
+        .bind(type_id)
+        .bind(tag_ids.as_ref().map(|_| true))
+        .bind(tag_ids.map(Json))
+        .fetch_one(pool)
+        .await
+    }
+
+    // 母题下面变式题列表
+    pub async fn list_similar_by_params(
+        pool: &PgPool,
+        question_id: i64,
+        status: i16,
+        cate_id: i32,
+        type_id: Option<i32>,
+        tag_ids: Option<Vec<i32>>,
+        limit: i32,
+        offset: i32,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+            SELECT q.*
+            FROM question q
+            INNER JOIN question_similar qs ON q.id = qs.child_id
+            WHERE qs.question_id = $1
+              AND q.status = $2
+              AND q.question_cate_id = $3
+              AND ($4 IS NULL OR q.question_type_id = $4)
+              AND ($5 IS NULL OR q.question_tag_ids @> $6)
+            ORDER BY qs.id ASC
+            LIMIT $7 OFFSET $8
+            "#,
+        )
+        .bind(question_id)
+        .bind(status)
+        .bind(cate_id)
+        .bind(type_id)
+        .bind(tag_ids.as_ref().map(|_| true))
+        .bind(tag_ids.map(Json))
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
     }
 }

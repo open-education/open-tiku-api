@@ -157,3 +157,28 @@ pub async fn list(
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::list(app_conf, req.into_inner()).await)
 }
+
+#[derive(Deserialize)]
+pub struct QuestionSimilarListReq {
+    #[serde(rename(deserialize = "questionId"))]
+    pub question_id: i64,
+    #[serde(rename(deserialize = "questionCateId"))]
+    pub question_cate_id: i32,
+    #[serde(rename(deserialize = "questionTypeId"))]
+    pub question_type_id: Option<i32>,
+    pub status: Option<i16>,
+    #[serde(rename(deserialize = "tagIds"))]
+    pub tag_ids: Option<Vec<i32>>,
+    #[serde(rename(deserialize = "pageNo"))]
+    pub page_no: i32,
+    #[serde(rename(deserialize = "pageSize"))]
+    pub page_size: i32,
+}
+
+#[post("/similar")]
+pub async fn similar(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<QuestionSimilarListReq>,
+) -> ApiResponse<QuestionListResp> {
+    ApiResponse::response(question::similar(app_conf, req.into_inner()).await)
+}

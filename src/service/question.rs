@@ -1,6 +1,6 @@
 use crate::api::question::{
     CreateQuestionReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp, QuestionListReq,
-    QuestionListResp,
+    QuestionListResp, QuestionSimilarListReq,
 };
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
@@ -133,7 +133,7 @@ pub async fn list(
         error!("question count by id err: {:?}", e);
         Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
     })?;
-    
+
     if total == 0 {
         return Ok(QuestionListResp {
             list: vec![],
@@ -161,6 +161,72 @@ pub async fn list(
     .await
     .map_err(|e| {
         error!("question list by id err: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?; // 必须加 ? 才能得到 Vec<Question>
+
+    // 4. 转换并返回
+    Ok(QuestionListResp {
+        // 使用 map().collect() 一行转换
+        list: list_data
+            .into_iter()
+            .map(|row| to_base_resp(&row))
+            .collect(),
+        page_no: req.page_no,
+        page_size: req.page_size,
+        total,
+    })
+}
+
+// 变式题题目列表
+pub async fn similar(
+    app_conf: web::Data<AppConfig>,
+    req: QuestionSimilarListReq,
+) -> Result<QuestionListResp, Error> {
+    let db = &app_conf.db; // 假设 AppConfig 暴露了 db 字段
+
+    let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
+
+    // 1. 查询总数
+    let total = Question::count_similar_by_params(
+        db,
+        req.question_id,
+        status,
+        req.question_cate_id,
+        req.question_type_id,
+        req.tag_ids.clone(),
+    )
+    .await
+    .map_err(|e| {
+        error!("question similar count by id err: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
+    })?;
+
+    if total == 0 {
+        return Ok(QuestionListResp {
+            list: vec![],
+            page_no: 0,
+            page_size: 0,
+            total,
+        });
+    }
+
+    // 2. 计算偏移量
+    let offset = (req.page_no - 1) * req.page_size;
+
+    // 3. 查询列表 (添加 ? 运算符解包 Result)
+    let list_data = Question::list_similar_by_params(
+        db,
+        req.question_id,
+        status,
+        req.question_cate_id,
+        req.question_type_id,
+        req.tag_ids,
+        req.page_size,
+        offset,
+    )
+    .await
+    .map_err(|e| {
+        error!("question similar list by id err: {:?}", e);
         Error::new(ErrorKind::Other, "查询失败")
     })?; // 必须加 ? 才能得到 Vec<Question>
 

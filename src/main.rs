@@ -6,13 +6,12 @@ mod service;
 mod util;
 
 use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use dotenvy::dotenv;
 use envy::from_env;
-use log::LevelFilter;
 use serde::Deserialize;
+use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{ConnectOptions, PgPool};
 use std::str::FromStr;
 
 // 服务相关环境变量配置

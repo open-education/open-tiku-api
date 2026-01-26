@@ -13,7 +13,8 @@ pub fn file(cfg: &mut web::ServiceConfig) {
 pub fn question(cfg: &mut web::ServiceConfig) {
     cfg.service(question::add)
         .service(question::info)
-        .service(question::list);
+        .service(question::list)
+        .service(question::similar);
 }
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
