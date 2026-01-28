@@ -9,6 +9,9 @@ pub struct Textbook {
     // SERIAL 对应 Rust 的 i32 (Postgres INTEGER)
     pub id: i32,
 
+    // 路径类型
+    pub path_type: String,
+
     // REFERENCES 可能为空（根节点），所以使用 Option
     pub parent_id: Option<i32>,
 
@@ -39,8 +42,8 @@ impl Textbook {
     pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            INSERT INTO textbook (parent_id, label, key, path_depth, sort_order)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO textbook (parent_id, label, key, path_depth, sort_order, path_type)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
             "#,
         )
@@ -49,6 +52,7 @@ impl Textbook {
         .bind(Self::get_label_key(data.parent_id, &data.label))
         .bind(data.path_depth)
         .bind(data.sort_order)
+        .bind(data.path_type)
         .fetch_one(pool)
         .await
     }
@@ -61,6 +65,7 @@ impl Textbook {
         label: &str,
         sort_order: i32,
         path_depth: i32,
+        path_type: &str,
     ) -> Result<Self, sqlx::Error>
     where
         // 使用此约束可以同时接收 &PgPool 和 &mut Transaction
@@ -69,7 +74,7 @@ impl Textbook {
         sqlx::query_as::<_, Self>(
             r#"
         UPDATE textbook
-        SET parent_id = $2, label = $3, sort_order = $4, path_depth = $5
+        SET parent_id = $2, label = $3, sort_order = $4, path_depth = $5, path_type = $6
         WHERE id = $1
         RETURNING *
         "#,
@@ -79,6 +84,7 @@ impl Textbook {
         .bind(label)
         .bind(sort_order)
         .bind(path_depth)
+        .bind(path_type)
         .fetch_one(executor)
         .await
     }
@@ -163,14 +169,14 @@ impl Textbook {
             r#"
         WITH RECURSIVE tree AS (
             -- 锚点部分：选择起始节点（你想从哪个 parent_id 开始找）
-            SELECT id, parent_id, label, key, path_depth, sort_order
+            SELECT id, parent_id, label, key, path_depth, sort_order, path_type
             FROM textbook
             WHERE parent_id = $1
             
             UNION ALL
             
             -- 递归部分：关联子节点
-            SELECT t.id, t.parent_id, t.label, t.key, t.path_depth, t.sort_order
+            SELECT t.id, t.parent_id, t.label, t.key, t.path_depth, t.sort_order, t.path_type
             FROM textbook t
             INNER JOIN tree ON t.parent_id = tree.id
         )
@@ -217,6 +223,7 @@ impl Textbook {
         target_id: i32,
         new_parent_id: Option<i32>,
         new_depth: i32, // 你已经知道的当前节点新深度
+        new_path_type: &str,
     ) -> Result<u64, sqlx::Error>
     where
         E: Executor<'e, Database = Postgres>,
@@ -239,13 +246,15 @@ impl Textbook {
             SET 
                 parent_id = CASE WHEN t.id = $1 THEN $2 ELSE t.parent_id END,
                 -- 深度 = 给定的新深度 + 相对当前节点的偏移量
-                path_depth = $3 + tree.offset_level
+                path_depth = $3 + tree.offset_level,
+                path_type = $4
             FROM tree
             WHERE t.id = tree.id
             "#,
             target_id,     // $1
             new_parent_id, // $2
-            new_depth      // $3
+            new_depth,     // $3
+            new_path_type, // $4
         )
         .execute(executor)
         .await?;

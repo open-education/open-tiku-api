@@ -4,13 +4,17 @@
 CREATE TABLE IF NOT EXISTS textbook
 (
     id         SERIAL PRIMARY KEY,
+    path_type  VARCHAR(30)  NOT NULL DEFAULT 'common',             -- 路径类型 common 公共节点 knowledge 考点选题 chapter 章节选题
     parent_id  INTEGER REFERENCES textbook (id) ON DELETE CASCADE, -- 父级标识, 查询时需要指定 path_depth 控制深度
     label      VARCHAR(255) NOT NULL,                              -- 名称对应学段科目等
     key        VARCHAR(120) NOT NULL,                              -- 名称标识
     path_depth INTEGER,                                            -- 层级深度
-    sort_order INTEGER     DEFAULT 0,                              -- 排序
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    sort_order INTEGER               DEFAULT 0,                    -- 排序
+    created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
+-- 添加字段
+ALTER TABLE textbook
+    ADD COLUMN path_type VARCHAR(30) NOT NULL DEFAULT 'common';
 
 -- 唯一索引：父级目录下的名称是唯一的, 跨层级不限制
 CREATE UNIQUE INDEX IF NOT EXISTS uni_idx_parent_label ON textbook (parent_id, label);

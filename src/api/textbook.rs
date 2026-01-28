@@ -1,12 +1,14 @@
-use crate::AppConfig;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
+use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct TextbookResp {
     pub id: i32,
+    #[serde(rename(serialize = "pathType"))]
+    pub path_type: String,
     #[serde(rename(serialize = "parentId"))]
     pub parent_id: Option<i32>,
     pub label: String,
@@ -55,6 +57,8 @@ pub struct CreateTextbookReq {
     pub path_depth: Option<i32>,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i32,
+    #[serde(rename(deserialize = "pathType"))]
+    pub path_type: Option<String>,
 }
 
 // 新增菜单
@@ -75,6 +79,8 @@ pub struct UpdateTextbookReq {
     pub label: String,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i32,
+    #[serde(rename(deserialize = "pathType"))]
+    pub path_type: Option<String>,
 }
 
 // 编辑菜单

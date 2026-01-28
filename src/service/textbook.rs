@@ -27,6 +27,7 @@ fn get_levels_by_parent_id(
         for item in items {
             let mut info = TextbookResp {
                 id: item.id,
+                path_type: item.path_type.clone(),
                 parent_id: item.parent_id,
                 label: item.label.clone(),
                 key: item.key.clone(),
@@ -167,6 +168,7 @@ pub async fn list_children(
                         for q in questions {
                             row_children.push(TextbookResp {
                                 id: q.id,
+                                path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
                                 parent_id: None,
                                 label: q.label.clone(),
                                 key: String::new(),
@@ -229,6 +231,7 @@ pub async fn add(
 fn to_resp(row: Textbook) -> TextbookResp {
     TextbookResp {
         id: row.id,
+        path_type: row.path_type,
         parent_id: row.parent_id,
         label: row.label,
         key: row.key,
@@ -273,9 +276,8 @@ pub async fn edit(
     req: UpdateTextbookReq,
 ) -> Result<TextbookResp, Error> {
     // 不允许自己挂载自己
-    if let Some(new_p_id) = req.parent_id
-        && new_p_id == req.id
-    {
+    let req_parent_id = req.parent_id.unwrap_or(0);
+    if req_parent_id == req.id {
         return Err(Error::new(ErrorKind::Other, "父级不能是自己"));
     }
 
@@ -287,28 +289,34 @@ pub async fn edit(
 
     let is_parent_changed = req.parent_id != old_row.parent_id;
 
-    // 深度
-    let mut path_depth: i32 = 1;
+    // 深度, 编辑时默认为表里的深度, 如果父级变化则使用最新的相对父级深度
+    let path_depth = if req_parent_id > 0 {
+        let new_parent_row = info(app_conf.clone(), req_parent_id).await?;
+        new_parent_row.path_depth.unwrap_or(0) + 1
+    } else {
+        1
+    };
+
+    // path_type
+    let path_type = if req.path_type.is_none() {
+        old_row.path_type
+    } else {
+        req.path_type.unwrap()
+    };
 
     // 当父id变更时, 检查是否构成环
-    if is_parent_changed {
-        if let Some(new_p_id) = req.parent_id {
-            let exist = Textbook::is_descendant(db, req.id, new_p_id)
-                .await
-                .map_err(|e| {
-                    error!("Error searching textbook: {:?}", e);
-                    Error::new(ErrorKind::Other, "查询失败")
-                })?;
-            if exist {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "当前父级跟所选子级列表存在交叉, 不支持挂载",
-                ));
-            }
-
-            // 父id变更时当前节点深度需要更新
-            let new_parent_row = info(app_conf.clone(), new_p_id).await?;
-            path_depth = new_parent_row.path_depth.unwrap_or(0) + 1;
+    if is_parent_changed && req_parent_id > 0 {
+        let exist = Textbook::is_descendant(db, req.id, req_parent_id)
+            .await
+            .map_err(|e| {
+                error!("Error searching textbook: {:?}", e);
+                Error::new(ErrorKind::Other, "查询失败")
+            })?;
+        if exist {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "当前父级跟所选子级列表存在交叉, 不支持挂载",
+            ));
         }
     }
 
@@ -325,6 +333,7 @@ pub async fn edit(
         req.label.as_str(),
         req.sort_order,
         path_depth,
+        path_type.as_str(),
     )
     .await
     .map_err(|e| {
@@ -334,12 +343,18 @@ pub async fn edit(
 
     // 所有子孙节点深度同步更新
     if is_parent_changed {
-        let _ = Textbook::update_descendant_depth(&mut *tx, req.id, req.parent_id, path_depth)
-            .await
-            .map_err(|e| {
-                error!("Error updating descendant depth: {:?}", e);
-                Error::new(ErrorKind::Other, "更新失败")
-            })?;
+        let _ = Textbook::update_descendant_depth(
+            &mut *tx,
+            req.id,
+            req.parent_id,
+            path_depth,
+            path_type.as_str(),
+        )
+        .await
+        .map_err(|e| {
+            error!("Error updating descendant depth: {:?}", e);
+            Error::new(ErrorKind::Other, "更新失败")
+        })?;
     }
 
     tx.commit().await.map_err(|e| {
