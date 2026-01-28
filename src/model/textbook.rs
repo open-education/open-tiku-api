@@ -1,7 +1,8 @@
-use crate::api::textbook::{CreateTextbookReq, UpdateTextbookReq};
-use sqlx::{FromRow, PgPool};
+use crate::api::textbook::CreateTextbookReq;
+use sqlx::{Executor, FromRow, PgPool, Postgres};
 
 // 教材信息
+// 如果要支持事务和非事务的方式查询, 可以参考这个写法, 实际上大部分是不需要关注事务的
 
 #[derive(FromRow)]
 pub struct Textbook {
@@ -53,20 +54,32 @@ impl Textbook {
     }
 
     /// 修改记录
-    pub async fn update(pool: &PgPool, data: UpdateTextbookReq) -> Result<Self, sqlx::Error> {
+    pub async fn update<'e, E>(
+        executor: E,
+        id: i32,
+        parent_id: Option<i32>,
+        label: &str,
+        sort_order: i32,
+        path_depth: i32,
+    ) -> Result<Self, sqlx::Error>
+    where
+        // 使用此约束可以同时接收 &PgPool 和 &mut Transaction
+        E: Executor<'e, Database = Postgres>,
+    {
         sqlx::query_as::<_, Self>(
             r#"
-            UPDATE textbook
-            SET parent_id = $2, label = $3, sort_order = $4
-            WHERE id = $1
-            RETURNING *
-            "#,
+        UPDATE textbook
+        SET parent_id = $2, label = $3, sort_order = $4, path_depth = $5
+        WHERE id = $1
+        RETURNING *
+        "#,
         )
-        .bind(data.id)
-        .bind(data.parent_id)
-        .bind(data.label)
-        .bind(data.sort_order)
-        .fetch_one(pool)
+        .bind(id)
+        .bind(parent_id)
+        .bind(label)
+        .bind(sort_order)
+        .bind(path_depth)
+        .fetch_one(executor)
         .await
     }
 
@@ -169,5 +182,74 @@ impl Textbook {
         .await?;
 
         Ok(rows)
+    }
+
+    /// 新的父节点是否是后代
+    /// 检查 potential_parent_id 是否是当前 target_id 的子孙节点
+    /// 如果返回 true，说明会形成环，禁止更新
+    pub async fn is_descendant(
+        pool: &PgPool,
+        target_id: i32,
+        potential_parent_id: i32,
+    ) -> Result<bool, sqlx::Error> {
+        let exists = sqlx::query_scalar!(
+            r#"
+            WITH RECURSIVE sub AS (
+                -- 从当前节点的子级开始找
+                SELECT id FROM textbook WHERE parent_id = $1
+                UNION ALL
+                SELECT t.id FROM textbook t JOIN sub s ON t.parent_id = s.id
+            )
+            SELECT EXISTS (SELECT 1 FROM sub WHERE id = $2)
+            "#,
+            target_id,           // $1: 当前节点 ID
+            potential_parent_id  // $2: 想要设置的新父级 ID
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(exists.unwrap_or(false))
+    }
+
+    /// 根据已知的新深度更新节点及其所有后代，返回影响行数
+    pub async fn update_descendant_depth<'e, E>(
+        executor: E,
+        target_id: i32,
+        new_parent_id: Option<i32>,
+        new_depth: i32, // 你已经知道的当前节点新深度
+    ) -> Result<u64, sqlx::Error>
+    where
+        E: Executor<'e, Database = Postgres>,
+    {
+        let result = sqlx::query!(
+            r#"
+            WITH RECURSIVE tree AS (
+                -- 1. 起点：当前节点，相对层级差设为 0
+                SELECT id, 0 AS offset_level
+                FROM textbook
+                WHERE id = $1
+                UNION ALL
+                -- 2. 递归：所有后代，层级差逐级递增
+                SELECT t.id, s.offset_level + 1
+                FROM textbook t
+                JOIN tree s ON t.parent_id = s.id
+            )
+            -- 3. 批量更新
+            UPDATE textbook AS t
+            SET 
+                parent_id = CASE WHEN t.id = $1 THEN $2 ELSE t.parent_id END,
+                -- 深度 = 给定的新深度 + 相对当前节点的偏移量
+                path_depth = $3 + tree.offset_level
+            FROM tree
+            WHERE t.id = tree.id
+            "#,
+            target_id,     // $1
+            new_parent_id, // $2
+            new_depth      // $3
+        )
+        .execute(executor)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 }

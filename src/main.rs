@@ -40,7 +40,6 @@ async fn main() -> std::io::Result<()> {
     let env_config: EnvConfig =
         from_env::<EnvConfig>().expect("Failed to parse environment variable configuration");
 
-    // 创建数据库连接池
     let options = PgConnectOptions::from_str(&env_config.database_url)
         .expect("database url format is incorrect")
         .options([("timezone", "Asia/Shanghai")]);

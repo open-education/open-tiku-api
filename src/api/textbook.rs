@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 

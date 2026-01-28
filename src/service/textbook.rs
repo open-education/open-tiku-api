@@ -2,7 +2,7 @@ use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
-use crate::{constant, AppConfig};
+use crate::{AppConfig, constant};
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -267,19 +267,84 @@ pub async fn info_list_by_ids(
 }
 
 // 编辑
+// 编辑如果调整了父级id则所有的子级深度都需要更新, 更新的基准是按父级深度依次加1
 pub async fn edit(
     app_conf: web::Data<AppConfig>,
     req: UpdateTextbookReq,
 ) -> Result<TextbookResp, Error> {
-    let _ = info(app_conf.clone(), req.id).await?;
+    // 不允许自己挂载自己
+    if let Some(new_p_id) = req.parent_id
+        && new_p_id == req.id
+    {
+        return Err(Error::new(ErrorKind::Other, "父级不能是自己"));
+    }
+
+    let old_row = info(app_conf.clone(), req.id).await?;
 
     let db = &app_conf.get_ref().db;
 
     check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), Some(req.id)).await?;
 
-    let row = Textbook::update(db, req).await.map_err(|e| {
+    let is_parent_changed = req.parent_id != old_row.parent_id;
+
+    // 深度
+    let mut path_depth: i32 = 1;
+
+    // 当父id变更时, 检查是否构成环
+    if is_parent_changed {
+        if let Some(new_p_id) = req.parent_id {
+            let exist = Textbook::is_descendant(db, req.id, new_p_id)
+                .await
+                .map_err(|e| {
+                    error!("Error searching textbook: {:?}", e);
+                    Error::new(ErrorKind::Other, "查询失败")
+                })?;
+            if exist {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "当前父级跟所选子级列表存在交叉, 不支持挂载",
+                ));
+            }
+
+            // 父id变更时当前节点深度需要更新
+            let new_parent_row = info(app_conf.clone(), new_p_id).await?;
+            path_depth = new_parent_row.path_depth.unwrap_or(0) + 1;
+        }
+    }
+
+    // 这部分更新使用事务
+    let mut tx = db.begin().await.map_err(|e| {
+        error!("Error beginning transaction: {}", e);
+        Error::new(ErrorKind::Other, "更新失败")
+    })?;
+
+    let row = Textbook::update(
+        &mut *tx,
+        req.id,
+        req.parent_id,
+        req.label.as_str(),
+        req.sort_order,
+        path_depth,
+    )
+    .await
+    .map_err(|e| {
         error!("Error updating textbook: {:?}", e);
         Error::new(ErrorKind::Other, "编辑失败")
+    })?;
+
+    // 所有子孙节点深度同步更新
+    if is_parent_changed {
+        let _ = Textbook::update_descendant_depth(&mut *tx, req.id, req.parent_id, path_depth)
+            .await
+            .map_err(|e| {
+                error!("Error updating descendant depth: {:?}", e);
+                Error::new(ErrorKind::Other, "更新失败")
+            })?;
+    }
+
+    tx.commit().await.map_err(|e| {
+        error!("Error committing transaction: {}", e);
+        Error::new(ErrorKind::Other, "更新失败")
     })?;
 
     Ok(to_resp(row))
@@ -296,7 +361,7 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "删除失败")
+            Error::new(ErrorKind::Other, "查询失败")
         })?;
     if row.is_some() {
         return Err(Error::new(ErrorKind::Other, "该层级存在子菜单, 不允许删除"));
@@ -325,5 +390,6 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
         error!("Error deleting textbook: {:?}", e);
         Error::new(ErrorKind::Other, "删除失败")
     })?;
+
     Ok(row > 0)
 }

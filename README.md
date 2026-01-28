@@ -33,10 +33,6 @@ struct EnvConfig {
 
 考虑到查询并不复杂, 所以没有使用 ORM 框架, 而是使用了相对轻量的 [sqlx](https://crates.io/crates/sqlx), 本身支持了大部分类型的数据库, 因此如果要更换数据库原则上只需要调整 model 内的表连接池类型即可.
 
-#### 事务
-
-单点本地数据库, 暂时没有使用事务
-
 #### 常量
 
 [meta.rs](src/constant/meta.rs) 中有这么一行

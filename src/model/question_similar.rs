@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 
 /// 变式题
+#[allow(dead_code)]
 #[derive(FromRow)]
 pub struct QuestionSimilar {
     pub id: i64, // BIGSERIAL 对应 i64
