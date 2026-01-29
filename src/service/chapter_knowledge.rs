@@ -43,16 +43,16 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 pub async fn info_by_chapter_or_knowledge(
     app_conf: web::Data<AppConfig>,
     id: i32,
-) -> Result<ChapterKnowledgeResp, Error> {
-    let row = ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, id)
+) -> Result<Vec<ChapterKnowledgeResp>, Error> {
+    let rows = ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
             Error::new(ErrorKind::Other, "查询失败")
         })?;
 
-    if let Some(item) = row {
-        Ok(to_resp(item))
+    if !rows.is_empty() {
+        Ok(rows.into_iter().map(to_resp).collect())
     } else {
         Err(Error::new(ErrorKind::Other, "未做章节和知识点关联"))
     }

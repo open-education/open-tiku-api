@@ -1,7 +1,7 @@
+use crate::AppConfig;
 use crate::api::textbook::TextbookResp;
 use crate::service::chapter_knowledge;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,7 @@ pub async fn add(
 pub async fn info(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
-) -> ApiResponse<ChapterKnowledgeResp> {
+) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
     ApiResponse::response(
         chapter_knowledge::info_by_chapter_or_knowledge(app_conf, path.into_inner().0).await,
     )

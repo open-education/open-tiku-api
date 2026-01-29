@@ -130,13 +130,18 @@ pub async fn list_children(
             Error::new(ErrorKind::Other, "查询失败")
         })?;
 
-    let mut relation_map: HashMap<i32, i32> = HashMap::new();
+    // 目前的关联关系是 章节选题 -> 多个考点选题
+    let mut relation_map: HashMap<i32, Vec<i32>> = HashMap::new();
     let mut bridge_ids = Vec::with_capacity(rows.len());
     for row in rows {
         bridge_ids.push(row.id);
         // 建立 原始ID -> 中间关联ID 的映射
-        relation_map.insert(row.chapter_id, row.id);
-        relation_map.insert(row.knowledge_id, row.id);
+        // 使用 .entry().or_default() 自动处理 Vec 的初始化和推入
+        relation_map.entry(row.chapter_id).or_default().push(row.id);
+        relation_map
+            .entry(row.knowledge_id)
+            .or_default()
+            .push(row.id);
     }
 
     // 3. 查询题型分类
@@ -154,28 +159,28 @@ pub async fn list_children(
 
     // 4. 回填数据
     for item in resp.iter_mut() {
-        // 使用 1.80+ 稳定的 let_chains
-        if let Some(6) = item.path_depth
-            && let Some(children_list) = &mut item.children
-        {
+        // 使用 If-Let Chains (Rust 1.64+)
+        if let (Some(6), Some(children_list)) = (item.path_depth, &mut item.children) {
             for row in children_list.iter_mut() {
-                // 获取该行对应的关联 ID
-                if let Some(&rel_id) = relation_map.get(&row.id) {
-                    if let Some(questions) = question_id_map.get(&rel_id) {
-                        // get_or_insert_with: 如果是 None 则初始化为 Vec，并返回可变引用
-                        let row_children = row.children.get_or_insert_with(Vec::new);
+                // 获取对应的关联 ID 列表引用
+                if let Some(rel_ids) = relation_map.get(&row.id) {
+                    let row_children = row.children.get_or_insert_with(Vec::new);
 
-                        for q in questions {
-                            row_children.push(TextbookResp {
-                                id: q.id,
-                                path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
-                                parent_id: None,
-                                label: q.label.clone(),
-                                key: String::new(),
-                                sort_order: q.sort_order,
-                                path_depth: None,
-                                children: None,
-                            });
+                    for &rel_id in rel_ids {
+                        if let Some(questions) = question_id_map.get(&rel_id) {
+                            // 直接遍历 questions 并克隆数据
+                            for q in questions {
+                                row_children.push(TextbookResp {
+                                    id: q.id,
+                                    path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
+                                    parent_id: None,
+                                    label: q.label.clone(),
+                                    key: String::new(),
+                                    sort_order: q.sort_order,
+                                    path_depth: None,
+                                    children: None,
+                                });
+                            }
                         }
                     }
                 }
@@ -387,13 +392,13 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
         && path_depth == 7
     {
         // 检查该菜单是否关联过
-        let chapter = ChapterKnowledge::find_by_chapter_or_knowledge_id(db, info.id)
+        let chapters = ChapterKnowledge::find_by_chapter_or_knowledge_id(db, info.id)
             .await
             .map_err(|e| {
                 error!("Error searching textbook: {:?}", e);
                 Error::new(ErrorKind::Other, "查询失败")
             })?;
-        if chapter.is_some() {
+        if !chapters.is_empty() {
             return Err(Error::new(
                 ErrorKind::Other,
                 "章节小节和知识点还存在绑定关系, 不允许删除",

@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::service::question_cate;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 
@@ -33,8 +33,8 @@ pub async fn add(
     ApiResponse::response(question_cate::add(app_conf, req.into_inner()).await)
 }
 
-// 题型列表
-#[get("/list/{id}")]
+// 题型列表 - 通过章节或者考点标识
+#[get("/list/{chapter_or_knowledge_id}")]
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,

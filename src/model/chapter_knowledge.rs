@@ -95,15 +95,15 @@ impl ChapterKnowledge {
     pub async fn find_by_chapter_or_knowledge_id(
         pool: &PgPool,
         chapter_or_knowledge_id: i32,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             "SELECT id, chapter_id, knowledge_id 
-     FROM chapter_knowledge 
-     WHERE chapter_id = $1 OR knowledge_id = $1 
-     LIMIT 1",
+                 FROM chapter_knowledge
+                 WHERE chapter_id = $1 OR knowledge_id = $1
+                ",
         )
         .bind(chapter_or_knowledge_id)
-        .fetch_optional(pool)
+        .fetch_all(pool)
         .await
     }
 }
