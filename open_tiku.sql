@@ -12,9 +12,6 @@ CREATE TABLE IF NOT EXISTS textbook
     sort_order INTEGER               DEFAULT 0,                    -- 排序
     created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
--- 添加字段
-ALTER TABLE textbook
-    ADD COLUMN path_type VARCHAR(30) NOT NULL DEFAULT 'common';
 
 -- 唯一索引：父级目录下的名称是唯一的, 跨层级不限制
 CREATE UNIQUE INDEX IF NOT EXISTS uni_idx_parent_label ON textbook (parent_id, label);
