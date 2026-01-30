@@ -33,6 +33,42 @@ struct EnvConfig {
 
 考虑到查询并不复杂, 所以没有使用 ORM 框架, 而是使用了相对轻量的 [sqlx](https://crates.io/crates/sqlx), 本身支持了大部分类型的数据库, 因此如果要更换数据库原则上只需要调整 model 内的表连接池类型即可.
 
+关于事务, 如果需要使用事务, 可参考该方法 [edit](src/service/textbook.rs), 要支持事务需要注意调整常规写法, 不需要事务不用写这么复杂
+
+```
+/// 修改记录
+pub async fn update<'e, E>(
+    executor: E,
+    ...
+) -> Result<Self, sqlx::Error>
+where
+    // 使用此约束可以同时接收 &PgPool 和 &mut Transaction
+    E: Executor<'e, Database = Postgres>,
+{
+
+}
+
+let db = &app_conf.get_ref().db;
+
+// 开启事务
+let mut tx = db.begin().await.map_err(|e| {
+    error!("Error beginning transaction: {}", e);
+    Error::new(ErrorKind::Other, "更新失败")
+})?;
+
+// 注意传参方式为 &mut *tx
+let row = Textbook::update(
+    &mut *tx,
+    ...
+)
+
+// 最后提交即可
+tx.commit().await.map_err(|e| {
+    error!("Error committing transaction: {}", e);
+    Error::new(ErrorKind::Other, "更新失败")
+})?;
+```
+
 #### 常量
 
 [meta.rs](src/constant/meta.rs) 中有这么一行
@@ -51,3 +87,9 @@ pub const IMAGE_READ_PREFIX: &str = "api";
 ### 部署
 
 目前仅提供了基于 Debian 的部署脚本 [deploy.sh](deploy.sh), 详情可查看该文件内容.
+
+部署时需要先指定线上 .env 文件, 类似
+
+```
+source .env && sh deploy.sh start -v v0.0.1-beta
+```
