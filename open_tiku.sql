@@ -118,10 +118,16 @@ CREATE TABLE IF NOT EXISTS question_similar
 );
 
 -- 7. 组卷规则
-CREATE TABLE IF NOT EXISTS rule
+CREATE TABLE IF NOT EXISTS test_rule
 (
-    id         SERIAL PRIMARY KEY,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    id          SERIAL PRIMARY KEY,
+    value       VARCHAR(120) NOT NULL,            -- 描述字段
+    level       SMALLINT     NOT NULL,            -- 试卷等级
+    target      VARCHAR(255) NOT NULL,            -- 核心考察目标
+    score       SMALLINT     NOT NULL,            -- 总分
+    content     JSONB        DEFAULT '[]'::jsonb, -- 题型内容
+    description VARCHAR(255) DEFAULT '',          -- 备注
+    created_at  TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 8. 试卷
