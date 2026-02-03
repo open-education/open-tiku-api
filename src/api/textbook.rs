@@ -1,6 +1,6 @@
+use crate::AppConfig;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +17,8 @@ pub struct TextbookResp {
     pub sort_order: i32, // 默认为 0
     #[serde(rename(serialize = "pathDepth"))]
     pub path_depth: Option<i32>,
+    #[serde(rename(serialize = "tableName"))]
+    pub table_name: Option<String>,
     pub children: Option<Vec<TextbookResp>>,
 }
 

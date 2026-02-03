@@ -33,6 +33,7 @@ fn get_levels_by_parent_id(
                 key: item.key.clone(),
                 sort_order: item.sort_order,
                 path_depth: item.path_depth,
+                table_name: Some("textbook".to_string()),
                 children: None,
             };
 
@@ -178,6 +179,7 @@ pub async fn list_children(
                                     key: String::new(),
                                     sort_order: q.sort_order,
                                     path_depth: None,
+                                    table_name: Some("question_cate".to_string()),
                                     children: None,
                                 });
                             }
@@ -242,6 +244,7 @@ fn to_resp(row: Textbook) -> TextbookResp {
         key: row.key,
         sort_order: row.sort_order,
         path_depth: row.path_depth,
+        table_name: Some("textbook".to_string()),
         children: None,
     }
 }
