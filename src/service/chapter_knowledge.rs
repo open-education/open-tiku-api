@@ -40,11 +40,11 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 }
 
 // 通过章节或者知识点获取关联信息
-pub async fn info_by_chapter_or_knowledge(
+pub async fn info_by_knowledge(
     app_conf: web::Data<AppConfig>,
     id: i32,
 ) -> Result<Vec<ChapterKnowledgeResp>, Error> {
-    let rows = ChapterKnowledge::find_by_chapter_or_knowledge_id(&app_conf.get_ref().db, id)
+    let rows = ChapterKnowledge::find_by_knowledge_ids(&app_conf.get_ref().db, vec![id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
