@@ -16,7 +16,7 @@ pub struct CreateChapterKnowledgeReq {
 #[derive(Serialize)]
 pub struct ChapterKnowledgeResp {
     pub id: Option<i32>,
-    #[serde(rename(serialize = "chapterId"))]
+    #[serde(rename(deserialize = "chapterId"))]
     pub chapter_id: i32,
     #[serde(rename(deserialize = "knowledgeId"))]
     pub knowledge_id: i32,
@@ -38,7 +38,7 @@ pub async fn info(
     path: web::Path<(i32,)>,
 ) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
     ApiResponse::response(
-        chapter_knowledge::info_by_chapter_or_knowledge(app_conf, path.into_inner().0).await,
+        chapter_knowledge::info_by_knowledge(app_conf, path.into_inner().0).await,
     )
 }
 

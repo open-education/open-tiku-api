@@ -1,0 +1,73 @@
+# 编译并发布产出物至 Releases
+name: Publish Release Workflows
+on:
+  # 允许手动触发, 输入版本号即可
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: '输入版本号, 比如 v0.0.1-beta'
+        required: true
+        default: 'v0.0.1-beta'
+  push:
+    tags:
+      # 标记 v 开头的 tag 时生效
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publishGitRelease:
+    # 运行环境
+    runs-on: ubuntu-latest
+    # 这里的 services 会启动一个临时的 Postgres 数据库, 因为 sqlx 编译时就会检查 sql 语句
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: password  # 你自定义的密码
+          POSTGRES_DB: open_tiku_test  # 你自定义的数据库名
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # 在虚拟机中检出代码
+    steps:
+      - uses: actions/checkout@v4
+
+      # 安装 Rust 环境配置
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-gnu # 根据需要添加目标平台
+
+      # 导入 sql 文件创建表结构
+      - name: Import Schema from SQL file
+        env:
+          # 使用 postgres 镜像默认的变量
+          PGPASSWORD: password 
+        run: |
+          # -h 数据库地址, -U 用户名, -d 数据库名, -f 你的SQL文件路径
+          psql -h localhost -U postgres -d open_tiku_test -f ./open_tiku.sql
+
+      # 编译和压缩可执行的二进制文件
+      - name: Compile and Package
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/open_tiku_test
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      # 将压缩后的可执行二进制文件发布到 Releases
+      - name: Release
+        uses: softprops/action-gh-release@v2  # 建议使用 v2
+        with:
+          files: target/release/open-tiku-api.tgz
+          draft: true
+          prerelease: false
+          fail_on_unmatched_files: true
