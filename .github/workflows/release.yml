@@ -1,6 +1,13 @@
 # 编译并发布产出物至 Releases
 name: Publish Release Workflows
 on:
+  # 允许手动触发, 输入版本号即可
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: '输入版本号, 比如 v0.0.1-beta'
+        required: true
+        default: 'v0.0.1-beta'
   push:
     tags:
       # 标记 v 开头的 tag 时生效
