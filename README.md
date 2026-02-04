@@ -84,6 +84,8 @@ pub const IMAGE_READ_PREFIX: &str = "api";
 
 生产环境包构建脚本细节查看 [build.sh](build.sh).
 
+如果本地环境是 Linux 可以本地直接构建即可, 如果本地不是 Linux 环境目前配置了 Github Actions 工作流, main 分支合并完成后手动触发构建即可, 构建完成后是 草稿 状态, 需要进行编辑对应的标签重新发布后才可见.
+
 ### 部署
 
 目前仅提供了基于 Debian 的部署脚本 [deploy.sh](deploy.sh), 详情可查看该文件内容.
