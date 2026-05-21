@@ -3,8 +3,16 @@ use actix_web::HttpResponse;
 use std::fs;
 use std::io::{Error, ErrorKind};
 
-pub fn read_small_image(meta_path: &str, filename: &str) -> actix_web::Result<HttpResponse> {
-    let image_path = format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename);
+pub fn read_file(
+    meta_path: &str,
+    is_image: bool,
+    filename: &str,
+) -> actix_web::Result<HttpResponse> {
+    let image_path = if is_image {
+        format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename)
+    } else {
+        format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
+    };
 
     // 安全检查
     if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
@@ -19,9 +27,9 @@ pub fn read_small_image(meta_path: &str, filename: &str) -> actix_web::Result<Ht
                 .body(image_data))
         }
         Err(e) if e.kind() == ErrorKind::NotFound => {
-            Ok(HttpResponse::NotFound().body("图片不存在"))
+            Ok(HttpResponse::NotFound().body("文件不存在"))
         }
-        Err(_) => Ok(HttpResponse::InternalServerError().body("读取图片失败")),
+        Err(_) => Ok(HttpResponse::InternalServerError().body("读取文件失败")),
     }
 }
 

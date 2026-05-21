@@ -4,9 +4,11 @@ use crate::api::{chapter_knowledge, edit, file, other_dict, question, question_c
 
 // 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
-    cfg.service(file::upload)
-        .service(file::read)
-        .service(file::delete);
+    cfg.service(file::upload_image)
+        .service(file::upload_file)
+        .service(file::read_image)
+        .service(file::read_file)
+        .service(file::delete_image);
 }
 
 // 题目

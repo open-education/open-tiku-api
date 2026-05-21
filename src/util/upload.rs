@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
-pub struct UploadImageResp {
+pub struct UploadFileResp {
     pub original_name: String,
     pub size: usize,
     pub name: String,
@@ -23,16 +23,29 @@ fn get_filename(field: &actix_multipart::Field) -> Result<String, Error> {
 }
 
 /// 验证文件类型
-fn validate_file_type(filename: &str) -> Result<(), Error> {
-    if let Some(ext) = Path::new(filename).extension().and_then(|e| e.to_str()) {
-        let ext_lower = ext.to_lowercase();
-        if !meta::ALLOW_IMAGE_EXTENSION.contains(&ext_lower.as_str()) {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!("不支持的文件类型: {}", ext),
-            ));
-        }
+fn validate_file_type(filename: &str, is_image: bool) -> Result<(), Error> {
+    // 1. 获取小写后缀，若无后缀则直接报错
+    let ext = Path::new(filename)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_lowercase())
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "文件缺少扩展名"))?;
+
+    // 2. 选择匹配列表
+    let (list, type_desc) = if is_image {
+        (&meta::ALLOW_IMAGE_EXTENSION[..], "图片")
+    } else {
+        (&meta::ALLOW_FILE_EXTENSION[..], "文件")
+    };
+
+    // 3. 校验
+    if !list.contains(&ext.as_str()) {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            format!("不支持的{}类型: .{}", type_desc, ext),
+        ));
     }
+
     Ok(())
 }
 
@@ -77,52 +90,52 @@ async fn save_file(field: &mut actix_multipart::Field, file_path: &str) -> Resul
 }
 
 // 读取图片的路径要加上 nginx 代理指定的前缀, 此时默认为 api
-pub fn get_read_image_url(safe_name: &str) -> String {
-    format!("/{}/file/read/{}", meta::IMAGE_READ_PREFIX, safe_name)
+pub fn get_read_file_url(safe_name: &str, is_image: bool) -> String {
+    if is_image {
+        format!("/{}/file/read/image/{}", meta::IMAGE_READ_PREFIX, safe_name)
+    } else {
+        format!("/{}/file/read/file/{}", meta::IMAGE_READ_PREFIX, safe_name)
+    }
 }
 
-/// 处理文件上传
-pub async fn upload_small_image(
+// 实际上传文件至本地
+pub async fn upload_file(
     meta_path: &str,
     mut payload: Multipart,
-) -> Result<Vec<UploadImageResp>, Error> {
-    let upload_path = format!("{}/{}", meta_path, meta::IMAGE_NAME);
-
-    // 确保上传目录存在
+    is_image: &bool,
+) -> Result<UploadFileResp, Error> {
+    let upload_path = format!(
+        "{}/{}",
+        meta_path,
+        if *is_image {
+            meta::IMAGE_NAME
+        } else {
+            meta::FILE_NAME
+        }
+    );
     std::fs::create_dir_all(&upload_path)?;
 
-    let mut uploaded_files = Vec::new();
+    // 获取第一个有效字段, 实际上只上传一个文件
+    let mut field = payload
+        .next()
+        .await
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "No file uploaded"))?
+        .map_err(|e| Error::new(ErrorKind::Other, format!("Upload error: {}", e)))?;
 
-    while let Some(field) = payload.next().await {
-        match field {
-            Ok(mut field) => {
-                let original_filename = get_filename(&field)?;
+    let original_filename = get_filename(&field)?;
 
-                // 验证文件类型
-                validate_file_type(&original_filename)?;
+    // 验证与生成文件名
+    validate_file_type(&original_filename, *is_image)?;
+    let safe_filename = generate_safe_filename(&original_filename);
+    let file_path = format!("{}/{}", upload_path, safe_filename);
 
-                // 生成安全的文件名
-                let safe_filename = generate_safe_filename(&original_filename);
-                let file_path = format!("{}/{}", upload_path, safe_filename);
+    // 保存
+    let file_size = save_file(&mut field, &file_path).await?;
 
-                // 保存文件
-                let file_size = save_file(&mut field, &file_path).await?;
-
-                uploaded_files.push(UploadImageResp {
-                    original_name: original_filename,
-                    name: safe_filename.clone(),
-                    size: file_size,
-                    url: get_read_image_url(&safe_filename),
-                });
-            }
-            Err(e) => {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!("upload file error: {}", e),
-                ));
-            }
-        }
-    }
-
-    Ok(uploaded_files)
+    Ok(UploadFileResp {
+        original_name: original_filename,
+        name: safe_filename.clone(),
+        size: file_size,
+        url: get_read_file_url(&safe_filename, *is_image),
+    })
 }
