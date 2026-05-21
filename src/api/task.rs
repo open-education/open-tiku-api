@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct TaskAddReq {
+    #[serde(rename(deserialize = "questionCateId"))]
+    pub question_cate_id: i64,
     #[serde(rename(deserialize = "taskType"))]
     pub task_type: i16,
     pub name: String,
@@ -23,6 +25,8 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<TaskAddReq>) -> 
 
 #[derive(Deserialize)]
 pub struct TaskListReq {
+    #[serde(rename(deserialize = "questionCateId"))]
+    pub question_cate_id: i64,
     #[serde(rename(deserialize = "taskType"))]
     pub task_type: i16,
     #[serde(rename(deserialize = "pageNo"))]
@@ -34,6 +38,8 @@ pub struct TaskListReq {
 #[derive(Serialize)]
 pub struct TaskInfoResp {
     pub id: i64,
+    #[serde(rename(serialize = "questionCateId"))]
+    pub question_cate_id: i64,
     #[serde(rename(serialize = "taskType"))]
     pub task_type: i16,
     pub name: String,

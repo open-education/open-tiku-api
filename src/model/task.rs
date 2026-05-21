@@ -6,6 +6,7 @@ use sqlx::{FromRow, PgPool, Type};
 #[derive(FromRow)]
 pub struct Task {
     pub id: i64,
+    pub question_cate_id: i64,
     pub task_type: i16,
     pub name: String,
     pub url: String,
@@ -36,6 +37,7 @@ pub enum TaskStatus {
 impl Task {
     pub async fn insert(
         pool: &PgPool,
+        question_cate_id: i64,
         task_type: i16,
         name: &String,
         author_id: i64,
@@ -44,11 +46,12 @@ impl Task {
     ) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            INSERT INTO task (task_type, name, url, author_id, status, email)
-                VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
         )
+        .bind(question_cate_id)
         .bind(task_type)
         .bind(name)
         .bind(url)
@@ -82,26 +85,30 @@ impl Task {
         Ok(result.rows_affected())
     }
 
-    pub async fn count_by_author(
+    pub async fn count_by_cate(
         pool: &PgPool,
+        question_cate_id: i64,
         author_id: i64,
         task_type: i16,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM task 
-            WHERE author_id = $1
-              AND task_type = $2
+            WHERE question_cate_id=$1 
+            AND author_id = $2
+              AND task_type = $3
             "#,
         )
+        .bind(question_cate_id)
         .bind(author_id)
         .bind(task_type)
         .fetch_one(pool)
         .await
     }
 
-    pub async fn list_by_author(
+    pub async fn list_by_cate(
         pool: &PgPool,
+        question_cate_id: i64,
         author_id: i64,
         task_type: i16,
         limit: i32,
@@ -110,14 +117,16 @@ impl Task {
         sqlx::query_as::<_, Self>(
             r#"
             SELECT 
-                id, author_id, task_type, name, email, url, author_id, status, result, created_at, updated_at
+                id, question_cate_id, author_id, task_type, name, email, url, author_id, status, result, created_at, updated_at
             FROM task
-            WHERE author_id = $1
-              AND task_type = $2
+            WHERE question_cate_id = $1 
+              AND author_id = $2
+              AND task_type = $3
             ORDER BY id DESC
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
         )
+            .bind(question_cate_id)
         .bind(author_id)
         .bind(task_type)
         .bind(limit)

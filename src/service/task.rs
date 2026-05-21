@@ -9,12 +9,20 @@ use std::io::{Error, ErrorKind};
 pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64, Error> {
     let db = &app_conf.get_ref().db;
 
-    let row = Task::insert(db, req.task_type, &req.name, 1, &req.url, &req.email)
-        .await
-        .map_err(|e| {
-            error!("task add err: {:?}", e);
-            Error::new(ErrorKind::Other, "任务添加失败")
-        })?;
+    let row = Task::insert(
+        db,
+        req.question_cate_id,
+        req.task_type,
+        &req.name,
+        1,
+        &req.url,
+        &req.email,
+    )
+    .await
+    .map_err(|e| {
+        error!("task add err: {:?}", e);
+        Error::new(ErrorKind::Other, "任务添加失败")
+    })?;
 
     Ok(row.id)
 }
@@ -22,6 +30,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64,
 fn to_base_resp(row: &Task) -> TaskInfoResp {
     TaskInfoResp {
         id: row.id,
+        question_cate_id: row.question_cate_id,
         task_type: 0,
         name: row.name.clone(),
         author: "admin".to_string(),
@@ -38,7 +47,7 @@ pub async fn list(app_conf: web::Data<AppConfig>, req: TaskListReq) -> Result<Ta
     let db = &app_conf.db;
 
     // 1. 查询总数
-    let total = Task::count_by_author(db, 1, req.task_type)
+    let total = Task::count_by_cate(db, req.question_cate_id, 1, req.task_type)
         .await
         .map_err(|e| {
             error!("task count by id err: {:?}", e);
@@ -58,12 +67,19 @@ pub async fn list(app_conf: web::Data<AppConfig>, req: TaskListReq) -> Result<Ta
     let offset = (req.page_no - 1) * req.page_size;
 
     // 3. 查询列表
-    let list_data = Task::list_by_author(db, 1, req.task_type, req.page_size, offset)
-        .await
-        .map_err(|e| {
-            error!("task list by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
+    let list_data = Task::list_by_cate(
+        db,
+        req.question_cate_id,
+        1,
+        req.task_type,
+        req.page_size,
+        offset,
+    )
+    .await
+    .map_err(|e| {
+        error!("task list by id err: {:?}", e);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
 
     // 4. 转换并返回
     Ok(TaskListResp {
