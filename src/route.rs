@@ -1,6 +1,8 @@
 use actix_web::web;
 
-use crate::api::{chapter_knowledge, edit, file, other_dict, question, question_cate, textbook};
+use crate::api::{
+    chapter_knowledge, edit, file, other_dict, question, question_cate, task, textbook,
+};
 
 // 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
@@ -69,4 +71,8 @@ pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
     cfg.service(other_dict::add)
         .service(other_dict::remove)
         .service(other_dict::list);
+}
+
+pub fn task(cfg: &mut web::ServiceConfig) {
+    cfg.service(task::add).service(task::list);
 }

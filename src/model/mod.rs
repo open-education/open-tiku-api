@@ -5,3 +5,4 @@ pub mod other_dict;
 pub mod question;
 pub mod question_similar;
 pub mod test_rule;
+pub mod task;

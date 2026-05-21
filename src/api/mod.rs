@@ -5,3 +5,4 @@ pub mod question;
 pub mod question_cate;
 pub mod textbook;
 pub mod file;
+pub mod task;

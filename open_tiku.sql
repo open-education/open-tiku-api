@@ -117,6 +117,23 @@ CREATE TABLE IF NOT EXISTS question_similar
     UNIQUE (question_id, child_id)
 );
 
+-- 7. 任务管理
+CREATE TABLE IF NOT EXISTS task
+(
+    id         BIGSERIAL PRIMARY KEY,
+    task_type  SMALLINT     NOT NULL, -- 任务类型 1 题目上传
+    name       VARCHAR(128) NOT NULL, -- 文件名称
+    author_id  BIGINT       NOT NULL, -- 创作者标识
+    url        VARCHAR(128) NOT NULL, -- 文件路径
+    email      VARCHAR(128) NOT NULL, -- 接收任务结果的邮箱
+    status     SMALLINT     NOT NULL, -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
+    result     TEXT,                  -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+-- 查看作者自己的任务
+CREATE INDEX IF NOT EXISTS idx_author_task ON task (author_id, task_type);
+
 -- 7. 组卷规则
 CREATE TABLE IF NOT EXISTS test_rule
 (
