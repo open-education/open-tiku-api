@@ -1,7 +1,8 @@
 use crate::AppConfig;
 use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
-use crate::model::task::Task;
+use crate::model::task::{Task, TaskStatus};
 use actix_web::web;
+use chrono::Local;
 use log::error;
 use std::io::{Error, ErrorKind};
 
@@ -9,7 +10,7 @@ use std::io::{Error, ErrorKind};
 pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64, Error> {
     let db = &app_conf.get_ref().db;
 
-    let row = Task::insert(
+    let row_id = Task::insert(
         db,
         req.question_cate_id,
         req.task_type,
@@ -24,7 +25,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64,
         Error::new(ErrorKind::Other, "任务添加失败")
     })?;
 
-    Ok(row.id)
+    Ok(row_id)
 }
 
 fn to_base_resp(row: &Task) -> TaskInfoResp {
@@ -35,11 +36,19 @@ fn to_base_resp(row: &Task) -> TaskInfoResp {
         name: row.name.clone(),
         author: "admin".to_string(),
         status: row.status,
-        status_desc: "".to_string(),
+        status_desc: TaskStatus::desc(row.status).to_string(),
         email: row.email.clone(),
         result: row.result.clone(),
-        created_at: row.created_at,
-        updated_at: row.updated_at,
+        created_at: row
+            .created_at
+            .with_timezone(&Local)
+            .format("%Y-%m-%d %H:%M")
+            .to_string(),
+        updated_at: row
+            .updated_at
+            .with_timezone(&Local)
+            .format("%Y-%m-%d %H:%M")
+            .to_string(),
     }
 }
 
@@ -57,8 +66,8 @@ pub async fn list(app_conf: web::Data<AppConfig>, req: TaskListReq) -> Result<Ta
     if total == 0 {
         return Ok(TaskListResp {
             list: vec![],
-            page_no: 0,
-            page_size: 0,
+            page_no: 1,
+            page_size: 10,
             total,
         });
     }

@@ -13,7 +13,7 @@ pub struct Task {
     pub email: String,
     pub author_id: i64,
     pub status: i16,
-    pub result: String,
+    pub result: Option<String>,
     // 创建更新时间
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
@@ -34,6 +34,18 @@ pub enum TaskStatus {
     Failed = 10, // 处理失败
 }
 
+impl TaskStatus {
+    pub fn desc(code: i16) -> &'static str {
+        match code {
+            1 => "待处理",
+            2 => "处理中",
+            3 => "处理成功",
+            10 => "处理失败",
+            _ => "未知状态",
+        }
+    }
+}
+
 impl Task {
     pub async fn insert(
         pool: &PgPool,
@@ -43,12 +55,12 @@ impl Task {
         author_id: i64,
         url: &String,
         email: &String,
-    ) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar(
             r#"
             INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
+            RETURNING id
             "#,
         )
         .bind(question_cate_id)

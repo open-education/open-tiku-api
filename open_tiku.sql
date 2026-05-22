@@ -128,10 +128,9 @@ CREATE TABLE IF NOT EXISTS task
     url              VARCHAR(128) NOT NULL, -- 文件路径
     email            VARCHAR(128) NOT NULL, -- 接收任务结果的邮箱
     status           SMALLINT     NOT NULL, -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
-    result           TEXT,                  -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
+    result           TEXT         NULL,     -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
     created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (url)                            -- 同一个地址只能使用一次
+    updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 -- 查看作者自己的任务
 CREATE INDEX IF NOT EXISTS idx_cate_task ON task (question_cate_id, author_id, task_type);

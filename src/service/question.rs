@@ -137,8 +137,8 @@ pub async fn list(
     if total == 0 {
         return Ok(QuestionListResp {
             list: vec![],
-            page_no: 0,
-            page_size: 0,
+            page_no: 1,
+            page_size: 10,
             total,
         });
     }

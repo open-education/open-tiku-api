@@ -1,12 +1,13 @@
 use crate::constant::meta;
 use actix_multipart::Multipart;
 use futures_util::StreamExt;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct UploadFileResp {
+    #[serde(rename(serialize = "originalName"))]
     pub original_name: String,
     pub size: usize,
     pub name: String,

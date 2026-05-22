@@ -48,12 +48,12 @@ pub struct TaskInfoResp {
     pub status: i16,
     #[serde(rename(serialize = "statusDesc"))]
     pub status_desc: String,
-    pub result: String,
+    pub result: Option<String>,
     // 创建更新时间
     #[serde(rename(serialize = "createdAt"))]
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: String,
     #[serde(rename(serialize = "updatedAt"))]
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: String,
 }
 
 #[derive(Serialize)]
