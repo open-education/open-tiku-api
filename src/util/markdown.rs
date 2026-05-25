@@ -1,0 +1,362 @@
+use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+use regex::Regex;
+use std::io::Error;
+
+/// 从 markdown 文档中解析出题目结构和内容
+/// 1. 目前表格处理只能处理固定的表格, 存在其余表格时无法正确解析, 需后续完善
+/// 2. 图片不支持, 因为文档本身无法提供图片
+
+// 原始题目内容
+#[derive(Debug)]
+pub struct RawQuestion {
+    title: String,           // 标题
+    stem: String,            // 题干
+    choices: Vec<String>,    // 选项内容
+    table: Vec<Vec<String>>, // 表格内容, 这里会有争议, 题目中本身有表格
+    knowledge: String,       // 知识点
+    answer: String,          // 参考答案
+    analysis: String,        // 解题分析
+    detail: String,          // 详解, 对应解题过程
+}
+
+#[derive(Debug)]
+pub struct Question {
+    parent: RawQuestion,        // 母题
+    children: Vec<RawQuestion>, // 变式题列表
+}
+
+// 一级：分母题
+// 按母题分块, 区块内的变式题均为母题的变式题
+fn split_parents(text: &str) -> Vec<String> {
+    let mut parents = Vec::new();
+    let mut buf = String::new();
+    let mut started = false;
+    for line in text.lines() {
+        if line.trim_start().starts_with("##### 母题") {
+            // 遇到第二个母题将上一个母题记录并清空 buf 继续保存其它题目
+            if started && !buf.trim().is_empty() {
+                parents.push(buf.trim().to_string());
+                buf.clear();
+            }
+            started = true;
+        }
+        if started {
+            buf.push_str(line);
+            buf.push('\n');
+        }
+    }
+    if !buf.trim().is_empty() {
+        parents.push(buf.trim().to_string());
+    }
+    parents
+}
+
+// 二级：分所有H5标题（母题+变式）
+// 返回 标题->原始整体内容 的列表
+fn split_parents_and_children(block: &str) -> Vec<(String, String)> {
+    let mut res = Vec::new();
+    let mut buf = String::new();
+    let mut title = String::new();
+    for line in block.lines() {
+        if line.trim_start().starts_with("##### ") {
+            // 第二次遇见标题行说明一个题目已完整记录到 buf, 保存后清空继续处理下一个题
+            if !buf.is_empty() {
+                res.push((title.clone(), buf.trim().to_string()));
+                buf.clear();
+            }
+            title = line
+                .trim_start()
+                .trim_start_matches("#####")
+                .trim()
+                .to_string();
+        }
+        // 将当前行也追加到原始内容中
+        if !line.trim().is_empty() || line.trim_start().starts_with("##### ") {
+            buf.push_str(line);
+            buf.push('\n');
+        }
+    }
+    if !buf.trim().is_empty() {
+        res.push((title.clone(), buf.trim().to_string()));
+    }
+    res
+}
+
+// 题干&选项切割正则，兼容全角半角
+fn extract_choices_and_stem(text: &str, table_cells: &Vec<Vec<String>>) -> (String, Vec<String>) {
+    if table_cells.is_empty() {
+        return (text.to_string(), Vec::new());
+    }
+
+    // 只有选择题才需要
+    let last = table_cells[0].last().unwrap().trim();
+    if !last.eq("【选择题】") {
+        return (text.to_string(), Vec::new());
+    }
+
+    let re = Regex::new(r"[A-D][.．][^A-D　\n]+").unwrap();
+    let choices: Vec<String> = re
+        .find_iter(text)
+        .map(|m| m.as_str().trim().to_string())
+        .collect();
+
+    let stem = re.replace_all(text, "").to_string();
+    let stem = stem
+        .trim()
+        .replace("（  　）", "（    ）")
+        .trim()
+        .to_string();
+    (stem, choices)
+}
+
+// 记录每个标签节点
+#[derive(PartialEq, Debug)]
+enum Section {
+    None,
+    Head5,     // 母题变式题标题
+    Table, // 目前只解析固定的 | 难度  | 适用学期 | 题目类型   | -- todo 需要完善目前其它表会有问题
+    Knowledge, // 知识点
+    Answer, // 参考答案
+    Analysis, // 解题分析
+    Detail, // 解题过程, 详解
+}
+
+// 主Markdown->结构化题的解析
+fn parse_question(title: String, markdown: &str) -> RawQuestion {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_TABLES); // 启用表格读取支持
+    let parser = Parser::new_ext(markdown, options);
+
+    let mut state = Section::None;
+
+    let mut head5 = String::new(); // 母题变式题标题
+    let mut main_content = String::new(); // 题目主体内容包括选项等
+    let mut table_cells: Vec<Vec<String>> = Vec::new(); // 表格的内容
+    let mut current_row = Vec::new(); // 记录表格中的行
+    let mut in_table_row = false; // 在表格内容行中
+
+    let mut knowledge = String::new(); // 知识点
+    let mut answer = String::new(); // 参考答案
+    let mut analysis = String::new(); // 解题分析
+    let mut detail = String::new(); // 解题过程-详解
+    let mut in_strong = false; // 是否在后续的几个加粗标签中
+
+    for event in parser {
+        match event {
+            Event::Start(Tag::Heading { level, .. }) => {
+                if level == pulldown_cmark::HeadingLevel::H5 {
+                    state = Section::Head5;
+                }
+            }
+            Event::End(TagEnd::Heading { .. }) => {
+                if state == Section::Head5 {
+                    state = Section::None;
+                }
+            }
+            // 非特定的表格内容实际上我们是不需要处理的
+            Event::Start(Tag::Table(_)) => {
+                state = Section::Table;
+            }
+            Event::End(TagEnd::Table) => {
+                state = Section::None;
+            }
+            Event::Start(Tag::TableRow) => {
+                in_table_row = true;
+                current_row = Vec::new();
+            }
+            Event::End(TagEnd::TableRow) => {
+                in_table_row = false;
+                if !current_row.is_empty() {
+                    table_cells.push(current_row.clone());
+                }
+            }
+            Event::Start(Tag::Strong) => {
+                in_strong = true;
+            }
+            Event::End(TagEnd::Strong) => {
+                in_strong = false;
+            }
+            Event::Text(t) => {
+                let s = t.trim();
+                if in_strong {
+                    if s == "涉及知识点：" {
+                        state = Section::Knowledge;
+                        continue;
+                    } else if s == "参考答案：" {
+                        state = Section::Answer;
+                        continue;
+                    } else if s == "【分析】" {
+                        state = Section::Analysis;
+                        continue;
+                    } else if s == "【详解】" {
+                        state = Section::Detail;
+                        continue;
+                    }
+                }
+                match state {
+                    Section::Head5 => head5.push_str(&format!(" {}", s)),
+                    Section::Table => {
+                        if in_table_row {
+                            current_row.push(s.to_string());
+                        }
+                    }
+                    Section::Knowledge => knowledge.push_str(s),
+                    Section::Answer => answer.push_str(s),
+                    Section::Analysis => analysis.push_str(s),
+                    Section::Detail => detail.push_str(s),
+                    Section::None => {
+                        main_content.push_str(&format!(" {}", s));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let (stem, choices) = extract_choices_and_stem(&main_content, &table_cells);
+
+    RawQuestion {
+        title: if title.is_empty() {
+            head5.trim().to_string()
+        } else {
+            title
+        },
+        stem,
+        choices,
+        table: table_cells,
+        knowledge: knowledge.trim().to_string(),
+        answer: answer.trim().to_string(),
+        analysis: analysis.trim().to_string(),
+        detail: detail.trim().to_string(),
+    }
+}
+
+// 得到所有的问题列表
+pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
+    let blocks = split_parents(content);
+    let mut all_questions = Vec::new();
+
+    for block in blocks {
+        let subs = split_parents_and_children(&block);
+        // 没有母题变式题
+        if subs.is_empty() {
+            continue;
+        }
+        // 第一项为母题
+        let (parent_title, parent_md) = &subs[0];
+        let parent_struct = parse_question(parent_title.clone(), parent_md);
+
+        // 变式
+        let mut var_vec = Vec::new();
+        for (title, md) in subs.iter().skip(1) {
+            let var = parse_question(title.clone(), md);
+            var_vec.push(var);
+        }
+
+        all_questions.push(Question {
+            parent: parent_struct,
+            children: var_vec,
+        });
+    }
+
+    Ok(all_questions)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::util::markdown::get_questions;
+
+    #[test]
+    fn test_parse() {
+        let content = r#"##### 母题 1
+
+当 $x = 2$ 时，代数式 $2x + 1$ 的值是（   ）
+
+A．3　　B．5　　C．4　　D．6
+
+| 难度  | 适用学期 | 题目类型   |
+| :---- | :------- | :--------- |
+| 【1】 | 【71】   | 【选择题】 |
+
+**涉及知识点：** 【求代数式的值】
+
+**参考答案：** 【B】
+
+**【分析】** 本题考查了代数式求值。将 $x = 2$ 代入代数式 $2x + 1$ 直接计算即可。
+
+**【详解】** 解：∵ $x = 2$，  
+∴ $2x + 1 = 2 \times 2 + 1 = 4 + 1 = 5$。  
+故选：B。
+
+---
+
+##### 变式 1
+
+当 $x = -1$ 时，代数式 $2x - 2$ 的值为（   ）
+
+A．2　　B．$-2$　　C．4　　D．$-4$
+
+| 难度  | 适用学期 | 题目类型   |
+| :---- | :------- | :--------- |
+| 【1】 | 【71】   | 【选择题】 |
+
+**涉及知识点：** 【求代数式的值】
+
+**参考答案：** 【D】
+
+**【分析】** 本题考查了求代数式的值，将 $x = -1$ 代入所求代数式计算即可得解。
+
+**【详解】** 解：当 $x = -1$ 时，代数式 $2x - 2 = 2 \times (-1) - 2 = -2 - 2 = -4$。  
+故选：D。
+
+---
+
+##### 变式 3
+
+有一列数 $a_{1},a_{2},a_{3},\ldots,a_{n}$， 其中 $a_{1} = 5 \times 2 + 1$，$a_{2} = 5 \times 3 + 2$，$a_{3} = 5 \times 4 + 3$，$a_{4} = 5 \times 5 + 4$，则 $a_{10} =$ \_\_\_\_\_\_ ，当 $a_{n} = 2021$ 时，$n =$ \_\_\_\_\_\_ 。
+
+| 难度  | 适用学期 | 题目类型   |
+| :---- | :------- | :--------- |
+| 【5】 | 【71】   | 【填空题】 |
+
+**涉及知识点：** 【求代数式的值，整体求值】
+
+**参考答案：** 【65，336】
+
+**【分析】** 本题考查了规律问题。通过观察数列前几项的结构，可知 $a_{n} = 5(n + 1) + n = 6n + 5$，进而计算即可。
+
+**【详解】** 解：$a_{1} = 5 \times 2 + 1$，
+$a_{2} = 5 \times 3 + 2$，
+$a_{3} = 5 \times 4 + 3$，
+$a_{4} = 5 \times 5 + 4$，
+......
+$a_{n} = 5(n + 1) + n = 6n + 5$，
+$a_{10} = 6 \times 10 + 5 = 65$，
+当 $a_{n} = 2021$ 时，$6n + 5 = 2021$，解得：$n = 336$。
+故答案为：65，336。
+
+---"#;
+        let all_questions = get_questions(content);
+
+        // 输出结构
+        for mother in all_questions.unwrap_or_default() {
+            println!("\n=== 标题：{} ===", mother.parent.title);
+            println!("题干: {}", mother.parent.stem);
+            println!("选项: {:?}", mother.parent.choices);
+            println!("表格: {:?}", mother.parent.table);
+            println!("参考答案: {}", mother.parent.answer);
+            println!("知识点: {}", mother.parent.knowledge);
+            println!("分析: {}", mother.parent.analysis);
+            println!("详解: {}", mother.parent.detail);
+            for v in &mother.children {
+                println!("  -- 变式标题：{}", v.title);
+                println!("     题干: {}", v.stem);
+                println!("     选项: {:?}", v.choices);
+                println!("     表格: {:?}", v.table);
+                println!("     参考答案: {}", v.answer);
+                println!("     知识点: {}", v.knowledge);
+                println!("     分析: {}", v.analysis);
+                println!("     详解: {}", v.detail);
+            }
+        }
+    }
+}
