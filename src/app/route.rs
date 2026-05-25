@@ -4,6 +4,8 @@ use crate::api::{
     chapter_knowledge, edit, file, other_dict, question, question_cate, task, textbook,
 };
 
+/// web 服务路由配置
+
 // 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
     cfg.service(file::upload_image)
