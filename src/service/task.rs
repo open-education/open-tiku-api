@@ -18,6 +18,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64,
         1,
         &req.url,
         &req.email,
+        req.textbook_id,
     )
     .await
     .map_err(|e| {

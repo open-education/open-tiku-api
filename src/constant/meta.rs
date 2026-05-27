@@ -12,3 +12,5 @@ pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
 pub const IMAGE_NAME_LEN: usize = 10;
 /// 图片访问 api 前缀, 由 nginx 决定
 pub const IMAGE_READ_PREFIX: &str = "api";
+/// 临时管理员标识
+pub const TEMP_ADMIN_ID: i64 = 1;

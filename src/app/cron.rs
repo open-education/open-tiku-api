@@ -13,7 +13,7 @@ pub async fn run_cron(args: Vec<String>) {
     let (_, app_config) = config::init().await;
 
     match task_name.as_str() {
-        "question" => task::question::upload(&app_config).await,
+        "question-upload" => task::question::upload(&app_config).await,
         _ => {
             eprintln!("未知任务: {}", task_name);
             std::process::exit(1);

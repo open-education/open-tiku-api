@@ -8,7 +8,7 @@ pub fn read_file(
     is_image: bool,
     filename: &str,
 ) -> actix_web::Result<HttpResponse> {
-    let image_path = if is_image {
+    let file_path = if is_image {
         format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename)
     } else {
         format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
@@ -19,7 +19,7 @@ pub fn read_file(
         return Ok(HttpResponse::BadRequest().body("无效的文件名"));
     }
 
-    match fs::read(&image_path) {
+    match fs::read(&file_path) {
         Ok(image_data) => {
             let content_type = get_content_type(&filename);
             Ok(HttpResponse::Ok()

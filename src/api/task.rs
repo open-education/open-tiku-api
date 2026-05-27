@@ -15,6 +15,8 @@ pub struct TaskAddReq {
     pub name: String,
     pub url: String,
     pub email: String,
+    #[serde(rename(deserialize = "textbookId"))]
+    pub textbook_id: i32,
 }
 
 // 创建任务

@@ -1,6 +1,8 @@
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use regex::Regex;
+use rust_decimal::Decimal;
 use std::io::Error;
+use std::str::FromStr;
 
 /// 从 markdown 文档中解析出题目结构和内容
 /// 1. 目前表格处理只能处理固定的表格, 存在其余表格时无法正确解析, 需后续完善
@@ -9,20 +11,20 @@ use std::io::Error;
 // 原始题目内容
 #[derive(Debug)]
 pub struct RawQuestion {
-    title: String,           // 标题
-    stem: String,            // 题干
-    choices: Vec<String>,    // 选项内容
-    table: Vec<Vec<String>>, // 表格内容, 这里会有争议, 题目中本身有表格
-    knowledge: String,       // 知识点
-    answer: String,          // 参考答案
-    analysis: String,        // 解题分析
-    detail: String,          // 详解, 对应解题过程
+    pub title: String,           // 标题
+    pub stem: String,            // 题干
+    pub choices: Vec<String>,    // 选项内容
+    pub table: Vec<Vec<String>>, // 表格内容, 这里会有争议, 题目中本身有表格
+    pub knowledge: String,       // 知识点
+    pub answer: String,          // 参考答案
+    pub analysis: String,        // 解题分析
+    pub detail: String,          // 详解, 对应解题过程
 }
 
 #[derive(Debug)]
 pub struct Question {
-    parent: RawQuestion,        // 母题
-    children: Vec<RawQuestion>, // 变式题列表
+    pub parent: RawQuestion,        // 母题
+    pub children: Vec<RawQuestion>, // 变式题列表
 }
 
 // 一级：分母题
@@ -230,6 +232,67 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
     }
 }
 
+// 解析出题目难度, 解析失败等均返回 1
+pub fn get_difficulty_level(table: &Vec<Vec<String>>) -> Decimal {
+    // 允许的分数集合（使用 Decimal）
+    const ALLOWED: [&str; 9] = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
+
+    // 获取第一个单元格
+    let first_cell = match table.first().and_then(|row| row.first()) {
+        Some(s) => s,
+        None => return Decimal::from(1),
+    };
+
+    // 提取【】中的内容
+    let content = first_cell
+        .strip_prefix('【')
+        .and_then(|s| s.strip_suffix('】'))
+        .unwrap_or("");
+
+    // 解析为 Decimal
+    let num = Decimal::from_str(content.trim()).unwrap_or_else(|_| Decimal::from(1));
+
+    // 检查是否在允许列表中（通过字符串比较或转为字符串后比较）
+    let num_str = num.to_string();
+    if ALLOWED.contains(&num_str.as_str()) {
+        num
+    } else {
+        Decimal::from(1)
+    }
+}
+
+// 解析出题型类型
+pub fn get_question_type(table: &Vec<Vec<String>>) -> String {
+    table
+        .first() // 取第一个子数组
+        .and_then(|row| row.get(2)) // 取索引 2 的元素
+        .and_then(|s| s.strip_prefix('【').and_then(|s| s.strip_suffix('】')))
+        .map(|s| s.to_string())
+        .unwrap_or_default()
+}
+
+// 解析出选项列表
+pub fn get_choices(choices: Vec<String>) -> Vec<(char, String)> {
+    let mut result: Vec<(char, String)> = choices
+        .into_iter()
+        .filter_map(|s| {
+            // 取第一个字符作为选项字母
+            let mut chars = s.chars();
+            let letter = chars.next()?;
+            // 跳过点分隔符（可能是 '．' 或 '.'）
+            let rest = chars.as_str().trim_start_matches(|c| c == '．' || c == '.');
+            if rest.is_empty() {
+                None
+            } else {
+                Some((letter, rest.to_string()))
+            }
+        })
+        .collect();
+    // 按字母顺序排序（A, B, C, D）
+    result.sort_by_key(|(letter, _)| *letter);
+    result
+}
+
 // 得到所有的问题列表
 pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
     let blocks = split_parents(content);
@@ -263,7 +326,7 @@ pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::markdown::get_questions;
+    use crate::util::markdown_parse::{get_question_type, get_questions};
 
     #[test]
     fn test_parse() {
@@ -343,6 +406,10 @@ $a_{10} = 6 \times 10 + 5 = 65$，
             println!("题干: {}", mother.parent.stem);
             println!("选项: {:?}", mother.parent.choices);
             println!("表格: {:?}", mother.parent.table);
+            println!(
+                "解析出来的题型名称: {}",
+                get_question_type(&mother.parent.table)
+            );
             println!("参考答案: {}", mother.parent.answer);
             println!("知识点: {}", mother.parent.knowledge);
             println!("分析: {}", mother.parent.analysis);
@@ -352,6 +419,7 @@ $a_{10} = 6 \times 10 + 5 = 65$，
                 println!("     题干: {}", v.stem);
                 println!("     选项: {:?}", v.choices);
                 println!("     表格: {:?}", v.table);
+                println!("解析出来的题型名称: {}", get_question_type(&v.table));
                 println!("     参考答案: {}", v.answer);
                 println!("     知识点: {}", v.knowledge);
                 println!("     分析: {}", v.analysis);

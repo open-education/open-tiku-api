@@ -1,8 +1,11 @@
 use crate::AppConfig;
+use crate::service::question_upload;
+use log::error;
 
 /// 批量上传题目
 
 pub async fn upload(config: &AppConfig) {
-    println!("开始上传题目");
-    println!("test...");
+    if let Err(e) = question_upload::batch(config).await {
+        error!("Upload question failed err: {}", e);
+    }
 }

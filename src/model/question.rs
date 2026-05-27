@@ -3,7 +3,7 @@ use chrono::Utc;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, PgPool, Type};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction, Type};
 
 /// 题目
 
@@ -27,7 +27,7 @@ pub enum QuestionStatus {
 }
 
 // 解题分析
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Content {
     pub content: String,
     pub images: Option<Vec<String>>,
@@ -72,8 +72,8 @@ pub struct Question {
 }
 
 impl Question {
-    // 添加题目
-    pub async fn insert(pool: &PgPool, req: CreateQuestionReq) -> Result<Self, sqlx::Error> {
+    // 添加题目-不包含事务
+    pub async fn simple_insert(pool: &PgPool, req: CreateQuestionReq) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
             INSERT INTO question (
@@ -110,6 +110,111 @@ impl Question {
         .bind(req.remark)
         .fetch_one(pool)
         .await
+    }
+
+    // tx 事务方式写入
+    // 注意事务签名类型 tx: &mut Transaction<'_, Postgres>,
+    pub async fn tx_insert(
+        tx: &mut Transaction<'_, Postgres>,
+        req: CreateQuestionReq,
+    ) -> Result<Question, sqlx::Error> {
+        sqlx::query_as::<_, Question>(
+            r#"
+        INSERT INTO question (
+            question_cate_id, question_type_id, question_tag_ids, author_id,
+            title, content_plain, comment, difficulty_level, 
+            images, options, options_layout, 
+            answer, knowledge, analysis, process, remark
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING 
+            id, question_cate_id, question_type_id, question_tag_ids, author_id, 
+            title, content_plain, comment, difficulty_level, 
+            images, options, options_layout, 
+            answer, knowledge, analysis, process, remark,
+            status, approve_id, reject_reason, approve_at,
+            created_at, updated_at
+        "#,
+        )
+        .bind(req.question_cate_id)
+        .bind(req.question_type_id)
+        .bind(Json(req.question_tag_ids.unwrap_or_default()))
+        .bind(req.author_id)
+        .bind(req.title)
+        .bind(req.content_plain)
+        .bind(req.comment)
+        .bind(req.difficulty_level)
+        .bind(Json(req.images.unwrap_or_default()))
+        .bind(Json(req.options.unwrap_or_default()))
+        .bind(req.options_layout)
+        .bind(req.answer)
+        .bind(req.knowledge)
+        .bind(Json(req.analysis.unwrap_or_default()))
+        .bind(Json(req.process.unwrap_or_default()))
+        .bind(req.remark)
+        .fetch_one(&mut **tx) // 关键：使用 &mut **tx 作为 executor
+        .await
+    }
+
+    // tx 方式批量添加题题目
+    // 注意事务签名类型 tx: &mut Transaction<'_, Postgres>,
+    pub async fn tx_batch_insert(
+        tx: &mut Transaction<'_, Postgres>,
+        reqs: Vec<CreateQuestionReq>,
+    ) -> Result<Vec<i64>, sqlx::Error> {
+        if reqs.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // 预分配容量
+        let mut all_ids = Vec::with_capacity(reqs.len());
+
+        // 避免 SQL 语句过大
+        // 简单看了下一个中等规模的题直接存为 .md 是 1.6k 500*1.6=800k, 大部分题都是选择填空一次性写300条应该暂时没什么风险
+        for chunk in reqs.chunks(300) {
+            let mut query_builder = QueryBuilder::new(
+                r#"
+            INSERT INTO question (
+                question_cate_id, question_type_id, question_tag_ids, author_id,
+                title, content_plain, comment, difficulty_level,
+                images, options, options_layout,
+                answer, knowledge, analysis, process, remark
+            )
+            "#,
+            );
+
+            query_builder.push_values(chunk, |mut b, req| {
+                b.push_bind(req.question_cate_id)
+                    .push_bind(req.question_type_id)
+                    .push_bind(Json(req.question_tag_ids.clone().unwrap_or_default()))
+                    .push_bind(req.author_id)
+                    .push_bind(&req.title)
+                    .push_bind(&req.content_plain)
+                    .push_bind(&req.comment)
+                    .push_bind(req.difficulty_level)
+                    .push_bind(Json(req.images.clone().unwrap_or_default()))
+                    .push_bind(Json(req.options.clone().unwrap_or_default()))
+                    .push_bind(req.options_layout)
+                    .push_bind(&req.answer)
+                    .push_bind(&req.knowledge)
+                    .push_bind(Json(req.analysis.clone().unwrap_or_default()))
+                    .push_bind(Json(req.process.clone().unwrap_or_default()))
+                    .push_bind(&req.remark);
+            });
+
+            // 添加 RETURNING id 子句
+            query_builder.push(" RETURNING id");
+
+            // 执行查询并获取返回的 id 列表
+            let ids: Vec<i64> = query_builder
+                .build_query_scalar()
+                .fetch_all(&mut **tx)
+                .await?;
+
+            all_ids.extend(ids);
+        }
+
+        Ok(all_ids)
     }
 
     // 通过id获取详情

@@ -11,6 +11,7 @@ pub struct Task {
     pub name: String,
     pub url: String,
     pub email: String,
+    pub textbook_id: i32,
     pub author_id: i64,
     pub status: i16,
     pub result: Option<String>,
@@ -55,23 +56,25 @@ impl Task {
         author_id: i64,
         url: &String,
         email: &String,
+        textbook_id: i32,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
             r#"
-            INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id
-            "#,
+        INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email, textbook_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+        "#,
         )
-        .bind(question_cate_id)
-        .bind(task_type)
-        .bind(name)
-        .bind(url)
-        .bind(author_id)
-        .bind(TaskStatus::Waiting)
-        .bind(email)
-        .fetch_one(pool)
-        .await
+            .bind(question_cate_id)
+            .bind(task_type)
+            .bind(name)
+            .bind(url)
+            .bind(author_id)
+            .bind(TaskStatus::Waiting as i16)
+            .bind(email)
+            .bind(textbook_id)
+            .fetch_one(pool)
+            .await
     }
 
     pub async fn update_by_id(
@@ -128,21 +131,59 @@ impl Task {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            SELECT 
-                id, question_cate_id, author_id, task_type, name, email, url, author_id, status, result, created_at, updated_at
-            FROM task
-            WHERE question_cate_id = $1 
-              AND author_id = $2
-              AND task_type = $3
-            ORDER BY id DESC
-            LIMIT $4 OFFSET $5
-            "#,
+        SELECT
+            id,
+            question_cate_id,
+            author_id,
+            task_type,
+            name,
+            email,
+            textbook_id,
+            url,
+            status,
+            result,
+            created_at,
+            updated_at
+        FROM task
+        WHERE question_cate_id = $1
+          AND author_id = $2
+          AND task_type = $3
+        ORDER BY id DESC
+        LIMIT $4 OFFSET $5
+        "#,
         )
-            .bind(question_cate_id)
+        .bind(question_cate_id)
         .bind(author_id)
         .bind(task_type)
         .bind(limit)
         .bind(offset)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 所有待执行的任务列表
+    pub async fn get_waiting_list(pool: &PgPool, task_type: i16) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT
+            id,
+            question_cate_id,
+            task_type,
+            name,
+            email,
+            textbook_id,
+            url,
+            author_id,
+            status,
+            result,
+            created_at,
+            updated_at
+        FROM task
+        WHERE status = 1
+        AND task_type = $1
+        "#,
+        )
+        .bind(task_type)
         .fetch_all(pool)
         .await
     }

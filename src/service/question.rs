@@ -9,9 +9,10 @@ use actix_web::web;
 use log::error;
 use regex::Regex;
 use std::io::{Error, ErrorKind};
+use crate::constant::meta;
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
-fn to_plain_text(title: &str) -> String {
+pub fn to_plain_text(title: &str) -> String {
     // 1. 移除 LaTeX 符号 (例如 $...$ 或 $$...$$)
     let re_latex = Regex::new(r"\$[^$]+\$").unwrap();
     let no_latex = re_latex.replace_all(title, "");
@@ -32,11 +33,11 @@ pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> 
     let source_id = req.source_id;
 
     // todo 从登录信息中解析出作者
-    req.author_id = Some(1);
+    req.author_id = Some(meta::TEMP_ADMIN_ID);
 
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
-    let row = Question::insert(db, req).await.map_err(|e| {
+    let row = Question::simple_insert(db, req).await.map_err(|e| {
         error!("question add err: {:?}", e);
         Error::new(ErrorKind::Other, "题目添加失败")
     })?;
