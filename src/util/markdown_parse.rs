@@ -401,20 +401,20 @@ $a_{10} = 6 \times 10 + 5 = 65$，
         let all_questions = get_questions(content);
 
         // 输出结构
-        for mother in all_questions.unwrap_or_default() {
-            println!("\n=== 标题：{} ===", mother.parent.title);
-            println!("题干: {}", mother.parent.stem);
-            println!("选项: {:?}", mother.parent.choices);
-            println!("表格: {:?}", mother.parent.table);
+        for parent in all_questions.unwrap_or_default() {
+            println!("\n=== 标题：{} ===", parent.parent.title);
+            println!("题干: {}", parent.parent.stem);
+            println!("选项: {:?}", parent.parent.choices);
+            println!("表格: {:?}", parent.parent.table);
             println!(
                 "解析出来的题型名称: {}",
-                get_question_type(&mother.parent.table)
+                get_question_type(&parent.parent.table)
             );
-            println!("参考答案: {}", mother.parent.answer);
-            println!("知识点: {}", mother.parent.knowledge);
-            println!("分析: {}", mother.parent.analysis);
-            println!("详解: {}", mother.parent.detail);
-            for v in &mother.children {
+            println!("参考答案: {}", parent.parent.answer);
+            println!("知识点: {}", parent.parent.knowledge);
+            println!("分析: {}", parent.parent.analysis);
+            println!("详解: {}", parent.parent.detail);
+            for v in &parent.children {
                 println!("  -- 变式标题：{}", v.title);
                 println!("     题干: {}", v.stem);
                 println!("     选项: {:?}", v.choices);

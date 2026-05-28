@@ -160,18 +160,19 @@ impl Question {
     // 注意事务签名类型 tx: &mut Transaction<'_, Postgres>,
     pub async fn tx_batch_insert(
         tx: &mut Transaction<'_, Postgres>,
-        reqs: Vec<CreateQuestionReq>,
+        req_list: Vec<CreateQuestionReq>,
     ) -> Result<Vec<i64>, sqlx::Error> {
-        if reqs.is_empty() {
+        // 请求参数为空则返回空即可
+        if req_list.is_empty() {
             return Ok(vec![]);
         }
 
         // 预分配容量
-        let mut all_ids = Vec::with_capacity(reqs.len());
+        let mut all_ids = Vec::with_capacity(req_list.len());
 
         // 避免 SQL 语句过大
         // 简单看了下一个中等规模的题直接存为 .md 是 1.6k 500*1.6=800k, 大部分题都是选择填空一次性写300条应该暂时没什么风险
-        for chunk in reqs.chunks(300) {
+        for chunk in req_list.chunks(300) {
             let mut query_builder = QueryBuilder::new(
                 r#"
             INSERT INTO question (
