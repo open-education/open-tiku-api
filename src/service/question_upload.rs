@@ -217,6 +217,11 @@ fn to_req(
         question_type_str = "填空题".to_string();
     }
 
+    // todo 临时将选择题映射为 单选题
+    if question_type_str.eq("选择题") || question_type_str.contains("选择") {
+        question_type_str = "单选题".to_string();
+    }
+
     // 2. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
     let question_type_info = question_type_list
         .iter()
