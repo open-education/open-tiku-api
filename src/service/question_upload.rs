@@ -104,6 +104,9 @@ async fn single(
     task_info: Task,
     question_type_list: &Vec<TextbookDict>,
 ) -> Result<(), Error> {
+    // 记录结果日志
+    let mut result: Vec<String> = vec![];
+
     // 读取文件内容 url 字段存取的是文件名称, 路径需要系统设计补完整
     let file_path = format!(
         "{}/{}/{}",
@@ -113,11 +116,16 @@ async fn single(
     );
     let content = fs::read_to_string(file_path)?;
 
+    result.push("读取文件".to_string());
+
     let all_questions = markdown_parse::get_questions(&content)?;
     if all_questions.is_empty() {
-        warn!("Task name: {} all questions is empty", task_info.name);
-        return Ok(());
-    }
+        error!("Task name: {} all questions is empty", task_info.name);
+        return Err(Error::new(
+            ErrorKind::Other,
+            "该文件没有读取到任何有效的题目",
+        ));
+    };
 
     // 这部分更新使用事务
     let mut tx = app_config.db.begin().await.map_err(|e| {
@@ -128,8 +136,8 @@ async fn single(
     // 一个文件作为一个事务单位
     for question_info in all_questions {
         // 母题
+        let simple_parent_title = question_info.parent.title.clone();
         let parent_req = to_req(question_info.parent, None, &task_info, &question_type_list);
-        let simple_parent_title = parent_req.content_plain.clone().unwrap_or_default();
         info!("Add parent question name: {} begin", simple_parent_title);
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
@@ -138,16 +146,20 @@ async fn single(
                 Error::new(ErrorKind::Other, "母题添加失败")
             })?;
 
+        result.push(format!("添加 {}", simple_parent_title));
+
         // 变式题列表为空正常
         if question_info.children.is_empty() {
             continue;
         }
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
+            let simple_child_title = child.title.clone();
             let child_req = to_req(child, Some(parent.id), &task_info, &question_type_list);
-            let simple_child_title = child_req.content_plain.clone().unwrap_or_default();
             info!("Add child question name: {} begin", simple_child_title);
             children_req.push(child_req);
+
+            result.push(format!("添加 {}", simple_child_title));
         }
 
         // 得到所有添加的变式题主键列表
@@ -174,6 +186,8 @@ async fn single(
             })?;
         info!("Add relation parent child question end");
 
+        result.push("关联母题和变式题".to_string());
+
         info!("Add parent question name: {} end", simple_parent_title);
     }
 
@@ -182,12 +196,14 @@ async fn single(
         Error::new(ErrorKind::Other, "提交事务失败")
     })?;
 
+    result.push("文件处理完成".to_string());
+
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
         &app_config.db,
         &task_info.id,
         TaskStatus::Success as i16,
-        "".to_string(), // 后续可以统计成功了多少个母题 多少个变式题
+        result.join("\n"),
     )
     .await
     {
