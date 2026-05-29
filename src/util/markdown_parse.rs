@@ -222,24 +222,12 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
 }
 
 // 解析出题目难度, 解析失败等均返回 1
-pub fn get_difficulty_level(table: &Vec<Vec<String>>) -> Decimal {
+pub fn get_difficulty_level(val: &str) -> Decimal {
     // 允许的分数集合（使用 Decimal）
     const ALLOWED: [&str; 9] = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
 
-    // 获取第一个单元格
-    let first_cell = match table.first().and_then(|row| row.first()) {
-        Some(s) => s,
-        None => return Decimal::from(1),
-    };
-
-    // 提取【】中的内容
-    let content = first_cell
-        .strip_prefix('【')
-        .and_then(|s| s.strip_suffix('】'))
-        .unwrap_or("");
-
     // 解析为 Decimal
-    let num = Decimal::from_str(content.trim()).unwrap_or_else(|_| Decimal::from(1));
+    let num = Decimal::from_str(val.trim()).unwrap_or_else(|_| Decimal::from(1));
 
     // 检查是否在允许列表中（通过字符串比较或转为字符串后比较）
     let num_str = num.to_string();
@@ -305,7 +293,7 @@ pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::markdown_parse::{get_questions};
+    use crate::util::markdown_parse::get_questions;
 
     #[test]
     fn test_parse() {
@@ -315,11 +303,11 @@ mod tests {
 
 A．3　　B．5　　C．4　　D．6
 
-** 难度：** 1
+**难度：** 1
 
-** 适用学期：** 71
+**适用学期：** 71
 
-** 题目类型：** 选择题
+**题目类型：** 选择题
 
 **涉及知识点：** 【求代数式的值】
 
@@ -339,11 +327,11 @@ A．3　　B．5　　C．4　　D．6
 
 A．2　　B．$-2$　　C．4　　D．$-4$
 
-** 难度：** 1
+**难度：** 1
 
-** 适用学期：** 71
+**适用学期：** 71
 
-** 题目类型：** 选择题
+**题目类型：** 选择题
 
 **涉及知识点：** 【求代数式的值】
 
@@ -360,11 +348,11 @@ A．2　　B．$-2$　　C．4　　D．$-4$
 
 有一列数 $a_{1},a_{2},a_{3},\ldots,a_{n}$， 其中 $a_{1} = 5 \times 2 + 1$，$a_{2} = 5 \times 3 + 2$，$a_{3} = 5 \times 4 + 3$，$a_{4} = 5 \times 5 + 4$，则 $a_{10} =$ \_\_\_\_\_\_ ，当 $a_{n} = 2021$ 时，$n =$ \_\_\_\_\_\_ 。
 
-** 难度：** 1
+**难度：** 1
 
-** 适用学期：** 71
+**适用学期：** 71
 
-** 题目类型：** 选择题
+**题目类型：** 填空题
 
 **涉及知识点：** 【求代数式的值，整体求值】
 
@@ -386,18 +374,18 @@ $a_{10} = 6 \times 10 + 5 = 65$，
         let all_questions = get_questions(content);
 
         // 输出结构
-        for mother in all_questions.unwrap_or_default() {
-            println!("\n=== 标题：{} ===", mother.parent.title);
-            println!("题干: {}", mother.parent.stem);
-            println!("选项: {:?}", mother.parent.choices);
-            println!("难度: {:?}", mother.parent.difficulty_level);
-            println!("适用学期: {:?}", mother.parent.stage);
-            println!("题目类型: {:?}", mother.parent.question_type);
-            println!("参考答案: {}", mother.parent.answer);
-            println!("知识点: {}", mother.parent.knowledge);
-            println!("分析: {}", mother.parent.analysis);
-            println!("详解: {}", mother.parent.detail);
-            for v in &mother.children {
+        for parent in all_questions.unwrap_or_default() {
+            println!("\n=== 标题：{} ===", parent.parent.title);
+            println!("题干: {}", parent.parent.stem);
+            println!("选项: {:?}", parent.parent.choices);
+            println!("难度: {:?}", parent.parent.difficulty_level);
+            println!("适用学期: {:?}", parent.parent.stage);
+            println!("题目类型: {:?}", parent.parent.question_type);
+            println!("参考答案: {}", parent.parent.answer);
+            println!("知识点: {}", parent.parent.knowledge);
+            println!("分析: {}", parent.parent.analysis);
+            println!("详解: {}", parent.parent.detail);
+            for v in &parent.children {
                 println!("  -- 变式标题：{}", v.title);
                 println!("     题干: {}", v.stem);
                 println!("     选项: {:?}", v.choices);

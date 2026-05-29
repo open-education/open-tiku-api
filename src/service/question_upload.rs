@@ -122,7 +122,7 @@ async fn single(
     // 这部分更新使用事务
     let mut tx = app_config.db.begin().await.map_err(|e| {
         error!("Error beginning transaction: {}", e);
-        Error::new(ErrorKind::Other, "更新失败")
+        Error::new(ErrorKind::Other, "启动事物失败")
     })?;
 
     // 一个文件作为一个事务单位
@@ -138,7 +138,7 @@ async fn single(
                 Error::new(ErrorKind::Other, "母题添加失败")
             })?;
 
-        // 变式题列表
+        // 变式题列表为空正常
         if question_info.children.is_empty() {
             continue;
         }
@@ -158,9 +158,6 @@ async fn single(
                 Error::new(ErrorKind::Other, "批量添加变式题失败")
             })?;
         info!("Add all child question end");
-        if children_ids.is_empty() {
-            continue;
-        }
 
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64)> = children_ids
@@ -182,7 +179,7 @@ async fn single(
 
     tx.commit().await.map_err(|e| {
         error!("Error committing transaction: {}", e);
-        Error::new(ErrorKind::Other, "题目上传任务提交失败")
+        Error::new(ErrorKind::Other, "提交事务失败")
     })?;
 
     // 更新任务列表为执行成功
@@ -190,7 +187,7 @@ async fn single(
         &app_config.db,
         &task_info.id,
         TaskStatus::Success as i16,
-        "".to_string(),
+        "".to_string(), // 后续可以统计成功了多少个母题 多少个变式题
     )
     .await
     {
@@ -211,21 +208,10 @@ fn to_req(
     task_info: &Task,
     question_type_list: &[TextbookDict],
 ) -> CreateQuestionReq {
-    // 1. 获取题型字符串，默认填空
-    let mut question_type_str = markdown_parse::get_question_type(&raw.table);
-    if question_type_str.is_empty() {
-        question_type_str = "填空题".to_string();
-    }
-
-    // todo 临时将选择题映射为 单选题
-    if question_type_str.eq("选择题") || question_type_str.contains("选择") {
-        question_type_str = "单选题".to_string();
-    }
-
-    // 2. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
+    // 1. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
     let question_type_info = question_type_list
         .iter()
-        .find(|item| item.item_value.contains(&question_type_str))
+        .find(|item| item.item_value.contains(&raw.question_type))
         .or_else(|| question_type_list.iter().find(|item| !item.is_select));
 
     // 3. 获取题型 ID，若未找到则 -1
@@ -262,7 +248,7 @@ fn to_req(
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,
-        difficulty_level: markdown_parse::get_difficulty_level(&raw.table),
+        difficulty_level: markdown_parse::get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
@@ -276,6 +262,6 @@ fn to_req(
             content: raw.detail,
             images: None,
         })),
-        remark: Some("题目上传添加".to_string()),
+        remark: Some("题目上传".to_string()),
     }
 }

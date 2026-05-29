@@ -43,6 +43,7 @@ impl QuestionSimilar {
         tx: &mut Transaction<'_, sqlx::Postgres>,
         pairs: Vec<(i64, i64)>,
     ) -> Result<(), sqlx::Error> {
+        // 空参数处理外面嵌套少一些
         if pairs.is_empty() {
             return Ok(());
         }
