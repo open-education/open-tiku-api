@@ -1,4 +1,4 @@
-use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
 use rust_decimal::Decimal;
 use std::io::Error;
@@ -11,14 +11,16 @@ use std::str::FromStr;
 // 原始题目内容
 #[derive(Debug)]
 pub struct RawQuestion {
-    pub title: String,           // 标题
-    pub stem: String,            // 题干
-    pub choices: Vec<String>,    // 选项内容
-    pub table: Vec<Vec<String>>, // 表格内容, 这里会有争议, 题目中本身有表格
-    pub knowledge: String,       // 知识点
-    pub answer: String,          // 参考答案
-    pub analysis: String,        // 解题分析
-    pub detail: String,          // 详解, 对应解题过程
+    pub title: String,            // 标题
+    pub stem: String,             // 题干
+    pub difficulty_level: String, // 难度
+    pub stage: String,            // 学段
+    pub question_type: String,    // 题目类型
+    pub choices: Vec<String>,     // 选项内容
+    pub knowledge: String,        // 知识点
+    pub answer: String,           // 参考答案
+    pub analysis: String,         // 解题分析
+    pub detail: String,           // 详解, 对应解题过程
 }
 
 #[derive(Debug)]
@@ -85,14 +87,8 @@ fn split_parents_and_children(block: &str) -> Vec<(String, String)> {
 }
 
 // 题干&选项切割正则，兼容全角半角
-fn extract_choices_and_stem(text: &str, table_cells: &Vec<Vec<String>>) -> (String, Vec<String>) {
-    if table_cells.is_empty() {
-        return (text.to_string(), Vec::new());
-    }
-
-    // 只有选择题才需要
-    let last = table_cells[0].last().unwrap().trim();
-    if !last.eq("【选择题】") {
+fn extract_choices_and_stem(text: &str, question_type: &str) -> (String, Vec<String>) {
+    if !question_type.eq("选择题") {
         return (text.to_string(), Vec::new());
     }
 
@@ -115,28 +111,27 @@ fn extract_choices_and_stem(text: &str, table_cells: &Vec<Vec<String>>) -> (Stri
 #[derive(PartialEq, Debug)]
 enum Section {
     None,
-    Head5,     // 母题变式题标题
-    Table, // 目前只解析固定的 | 难度  | 适用学期 | 题目类型   | -- todo 需要完善目前其它表会有问题
-    Knowledge, // 知识点
-    Answer, // 参考答案
-    Analysis, // 解题分析
-    Detail, // 解题过程, 详解
+    Head5,           // 母题变式题标题
+    DifficultyLevel, // 难度
+    Stage,           // 学段
+    QuestionType,    // 题目类型
+    Knowledge,       // 知识点
+    Answer,          // 参考答案
+    Analysis,        // 解题分析
+    Detail,          // 解题过程, 详解
 }
 
 // 主Markdown->结构化题的解析
 fn parse_question(title: String, markdown: &str) -> RawQuestion {
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES); // 启用表格读取支持
-    let parser = Parser::new_ext(markdown, options);
+    let parser = Parser::new(markdown);
 
     let mut state = Section::None;
 
     let mut head5 = String::new(); // 母题变式题标题
     let mut main_content = String::new(); // 题目主体内容包括选项等
-    let mut table_cells: Vec<Vec<String>> = Vec::new(); // 表格的内容
-    let mut current_row = Vec::new(); // 记录表格中的行
-    let mut in_table_row = false; // 在表格内容行中
-
+    let mut difficulty_level = String::new(); // 难度
+    let mut stage = String::new(); // 学段
+    let mut question_type = String::new(); // 题目类型
     let mut knowledge = String::new(); // 知识点
     let mut answer = String::new(); // 参考答案
     let mut analysis = String::new(); // 解题分析
@@ -155,23 +150,6 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
                     state = Section::None;
                 }
             }
-            // 非特定的表格内容实际上我们是不需要处理的
-            Event::Start(Tag::Table(_)) => {
-                state = Section::Table;
-            }
-            Event::End(TagEnd::Table) => {
-                state = Section::None;
-            }
-            Event::Start(Tag::TableRow) => {
-                in_table_row = true;
-                current_row = Vec::new();
-            }
-            Event::End(TagEnd::TableRow) => {
-                in_table_row = false;
-                if !current_row.is_empty() {
-                    table_cells.push(current_row.clone());
-                }
-            }
             Event::Start(Tag::Strong) => {
                 in_strong = true;
             }
@@ -180,8 +158,19 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
             }
             Event::Text(t) => {
                 let s = t.trim();
+
+                // 加粗的类型
                 if in_strong {
-                    if s == "涉及知识点：" {
+                    if s == "难度：" {
+                        state = Section::DifficultyLevel;
+                        continue;
+                    } else if s == "适用学期：" {
+                        state = Section::Stage;
+                        continue;
+                    } else if s == "题目类型：" {
+                        state = Section::QuestionType;
+                        continue;
+                    } else if s == "涉及知识点：" {
                         state = Section::Knowledge;
                         continue;
                     } else if s == "参考答案：" {
@@ -196,25 +185,23 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
                     }
                 }
                 match state {
-                    Section::Head5 => head5.push_str(&format!(" {}", s)),
-                    Section::Table => {
-                        if in_table_row {
-                            current_row.push(s.to_string());
-                        }
-                    }
+                    Section::Head5 => head5.push_str(s),
+                    Section::DifficultyLevel => difficulty_level.push_str(&s),
+                    Section::Stage => stage.push_str(&s),
+                    Section::QuestionType => question_type.push_str(&s),
                     Section::Knowledge => knowledge.push_str(s),
                     Section::Answer => answer.push_str(s),
                     Section::Analysis => analysis.push_str(s),
                     Section::Detail => detail.push_str(s),
                     Section::None => {
-                        main_content.push_str(&format!(" {}", s));
+                        main_content.push_str(s);
                     }
                 }
             }
             _ => {}
         }
     }
-    let (stem, choices) = extract_choices_and_stem(&main_content, &table_cells);
+    let (stem, choices) = extract_choices_and_stem(&main_content, &question_type);
 
     RawQuestion {
         title: if title.is_empty() {
@@ -224,7 +211,9 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
         },
         stem,
         choices,
-        table: table_cells,
+        difficulty_level: difficulty_level.trim().to_string(),
+        stage: stage.trim().to_string(),
+        question_type: question_type.trim().to_string(),
         knowledge: knowledge.trim().to_string(),
         answer: answer.trim().to_string(),
         analysis: analysis.trim().to_string(),
@@ -259,16 +248,6 @@ pub fn get_difficulty_level(table: &Vec<Vec<String>>) -> Decimal {
     } else {
         Decimal::from(1)
     }
-}
-
-// 解析出题型类型
-pub fn get_question_type(table: &Vec<Vec<String>>) -> String {
-    table
-        .first() // 取第一个子数组
-        .and_then(|row| row.get(2)) // 取索引 2 的元素
-        .and_then(|s| s.strip_prefix('【').and_then(|s| s.strip_suffix('】')))
-        .map(|s| s.to_string())
-        .unwrap_or_default()
 }
 
 // 解析出选项列表
@@ -326,7 +305,7 @@ pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::markdown_parse::{get_question_type, get_questions};
+    use crate::util::markdown_parse::{get_questions};
 
     #[test]
     fn test_parse() {
@@ -336,9 +315,11 @@ mod tests {
 
 A．3　　B．5　　C．4　　D．6
 
-| 难度  | 适用学期 | 题目类型   |
-| :---- | :------- | :--------- |
-| 【1】 | 【71】   | 【选择题】 |
+** 难度：** 1
+
+** 适用学期：** 71
+
+** 题目类型：** 选择题
 
 **涉及知识点：** 【求代数式的值】
 
@@ -358,9 +339,11 @@ A．3　　B．5　　C．4　　D．6
 
 A．2　　B．$-2$　　C．4　　D．$-4$
 
-| 难度  | 适用学期 | 题目类型   |
-| :---- | :------- | :--------- |
-| 【1】 | 【71】   | 【选择题】 |
+** 难度：** 1
+
+** 适用学期：** 71
+
+** 题目类型：** 选择题
 
 **涉及知识点：** 【求代数式的值】
 
@@ -377,9 +360,11 @@ A．2　　B．$-2$　　C．4　　D．$-4$
 
 有一列数 $a_{1},a_{2},a_{3},\ldots,a_{n}$， 其中 $a_{1} = 5 \times 2 + 1$，$a_{2} = 5 \times 3 + 2$，$a_{3} = 5 \times 4 + 3$，$a_{4} = 5 \times 5 + 4$，则 $a_{10} =$ \_\_\_\_\_\_ ，当 $a_{n} = 2021$ 时，$n =$ \_\_\_\_\_\_ 。
 
-| 难度  | 适用学期 | 题目类型   |
-| :---- | :------- | :--------- |
-| 【5】 | 【71】   | 【填空题】 |
+** 难度：** 1
+
+** 适用学期：** 71
+
+** 题目类型：** 选择题
 
 **涉及知识点：** 【求代数式的值，整体求值】
 
@@ -405,11 +390,9 @@ $a_{10} = 6 \times 10 + 5 = 65$，
             println!("\n=== 标题：{} ===", mother.parent.title);
             println!("题干: {}", mother.parent.stem);
             println!("选项: {:?}", mother.parent.choices);
-            println!("表格: {:?}", mother.parent.table);
-            println!(
-                "解析出来的题型名称: {}",
-                get_question_type(&mother.parent.table)
-            );
+            println!("难度: {:?}", mother.parent.difficulty_level);
+            println!("适用学期: {:?}", mother.parent.stage);
+            println!("题目类型: {:?}", mother.parent.question_type);
             println!("参考答案: {}", mother.parent.answer);
             println!("知识点: {}", mother.parent.knowledge);
             println!("分析: {}", mother.parent.analysis);
@@ -418,8 +401,9 @@ $a_{10} = 6 \times 10 + 5 = 65$，
                 println!("  -- 变式标题：{}", v.title);
                 println!("     题干: {}", v.stem);
                 println!("     选项: {:?}", v.choices);
-                println!("     表格: {:?}", v.table);
-                println!("解析出来的题型名称: {}", get_question_type(&v.table));
+                println!("     难度: {:?}", v.difficulty_level);
+                println!("     试用学期: {:?}", v.stage);
+                println!("     题目类型: {:?}", v.question_type);
                 println!("     参考答案: {}", v.answer);
                 println!("     知识点: {}", v.knowledge);
                 println!("     分析: {}", v.analysis);
