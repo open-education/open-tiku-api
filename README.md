@@ -65,8 +65,8 @@ pub const IMAGE_READ_PREFIX: &str = "api";
 
 目前仅提供了基于 Debian 的部署脚本 [deploy.sh](deploy.sh), 详情可查看该文件内容.
 
-部署时需要先指定线上 .env 文件, 类似
+首次部署时需要先指定线上 .env 文件, 后续部署项目会自动查找 .env 文件, 不需要 `source .env` 重复指定
 
 ```
-source .env && sh deploy.sh start -v v0.0.1-beta
+sh deploy.sh start -v v0.0.1-beta
 ```
