@@ -1,3 +1,4 @@
+use log::error;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
 use rust_decimal::Decimal;
@@ -161,27 +162,43 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
 
                 // 加粗的类型
                 if in_strong {
-                    if s == "难度：" {
-                        state = Section::DifficultyLevel;
-                        continue;
-                    } else if s == "适用学期：" {
-                        state = Section::Stage;
-                        continue;
-                    } else if s == "题目类型：" {
-                        state = Section::QuestionType;
-                        continue;
-                    } else if s == "涉及知识点：" {
-                        state = Section::Knowledge;
-                        continue;
-                    } else if s == "参考答案：" {
-                        state = Section::Answer;
-                        continue;
-                    } else if s == "【分析】" {
-                        state = Section::Analysis;
-                        continue;
-                    } else if s == "【详解】" {
-                        state = Section::Detail;
-                        continue;
+                    // 去除一些特殊的字符
+                    match s.trim_end_matches(|c| c == ':' || c == '：') {
+                        "难度" => {
+                            state = Section::DifficultyLevel;
+                            continue;
+                        }
+                        "适用学期" => {
+                            state = Section::Stage;
+                            continue;
+                        }
+                        "题目类型" => {
+                            state = Section::QuestionType;
+                            continue;
+                        }
+                        "涉及知识点" => {
+                            state = Section::Knowledge;
+                            continue;
+                        }
+                        "参考答案" => {
+                            state = Section::Answer;
+                            continue;
+                        }
+                        "【分析】" => {
+                            state = Section::Analysis;
+                            continue;
+                        }
+                        "【详解】" => {
+                            state = Section::Detail;
+                            continue;
+                        }
+                        _ => {
+                            error!(
+                                "{}",
+                                format!("Parse markdown question doc, unknown strong tag: {}", s)
+                            );
+                            continue;
+                        }
                     }
                 }
                 match state {

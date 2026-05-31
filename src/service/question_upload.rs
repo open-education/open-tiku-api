@@ -7,7 +7,7 @@ use crate::model::question_similar::QuestionSimilar;
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::markdown_parse;
-use log::{error, info, warn};
+use log::{error, info};
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
@@ -116,7 +116,7 @@ async fn single(
     );
     let content = fs::read_to_string(file_path)?;
 
-    result.push("读取文件".to_string());
+    result.push("读取文件\n".to_string());
 
     let all_questions = markdown_parse::get_questions(&content)?;
     if all_questions.is_empty() {
@@ -146,7 +146,7 @@ async fn single(
                 Error::new(ErrorKind::Other, "母题添加失败")
             })?;
 
-        result.push(format!("添加 {}", simple_parent_title));
+        result.push(format!("添加 {}\n", simple_parent_title));
 
         // 变式题列表为空正常
         if question_info.children.is_empty() {
@@ -159,7 +159,7 @@ async fn single(
             info!("Add child question name: {} begin", simple_child_title);
             children_req.push(child_req);
 
-            result.push(format!("添加 {}", simple_child_title));
+            result.push(format!("添加 {}\n", simple_child_title));
         }
 
         // 得到所有添加的变式题主键列表
@@ -186,7 +186,7 @@ async fn single(
             })?;
         info!("Add relation parent child question end");
 
-        result.push("关联母题和变式题".to_string());
+        result.push("关联母题和变式题\n".to_string());
 
         info!("Add parent question name: {} end", simple_parent_title);
     }
@@ -196,7 +196,7 @@ async fn single(
         Error::new(ErrorKind::Other, "提交事务失败")
     })?;
 
-    result.push("文件处理完成".to_string());
+    result.push("文件处理完成\n".to_string());
 
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
