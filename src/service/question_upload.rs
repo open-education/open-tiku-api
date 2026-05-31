@@ -130,7 +130,7 @@ async fn single(
     // 这部分更新使用事务
     let mut tx = app_config.db.begin().await.map_err(|e| {
         error!("Error beginning transaction: {}", e);
-        Error::new(ErrorKind::Other, "启动事物失败")
+        Error::new(ErrorKind::Other, "启动事务失败")
     })?;
 
     // 一个文件作为一个事务单位
@@ -278,6 +278,6 @@ fn to_req(
             content: raw.detail,
             images: None,
         })),
-        remark: Some("题目上传".to_string()),
+        remark: Some("批量题目上传".to_string()),
     }
 }
