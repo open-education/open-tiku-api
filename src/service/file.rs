@@ -1,26 +1,44 @@
-use crate::AppConfig;
 use crate::api::file::DeleteImageReq;
 use crate::util::{file, upload};
+use crate::AppConfig;
 use actix_multipart::Multipart;
-use actix_web::{HttpResponse, web};
+use actix_web::{web, HttpResponse};
 use std::io::Error;
 
-// 上传
-pub async fn upload_small_image(
+// 上传图片
+pub async fn upload_image(
     app_conf: web::Data<AppConfig>,
     payload: Multipart,
-) -> Result<Vec<upload::UploadImageResp>, Error> {
-    let resp = upload::upload_small_image(&app_conf.get_ref().meta_path, payload).await?;
+) -> Result<upload::UploadFileResp, Error> {
+    let resp = upload::upload_file(&app_conf.get_ref().meta_path, payload, &true).await?;
 
     Ok(resp)
 }
 
-// 读取
-pub fn read_small_image(
+// 上传文件
+pub async fn upload_file(
+    app_conf: web::Data<AppConfig>,
+    payload: Multipart,
+) -> Result<upload::UploadFileResp, Error> {
+    let resp = upload::upload_file(&app_conf.get_ref().meta_path, payload, &false).await?;
+
+    Ok(resp)
+}
+
+// 读取图片
+pub fn read_image(
     app_conf: web::Data<AppConfig>,
     filename: &str,
 ) -> actix_web::Result<HttpResponse> {
-    file::read_small_image(app_conf.meta_path.as_str(), filename)
+    file::read_file(app_conf.meta_path.as_str(), true, filename)
+}
+
+// 读取文件
+pub fn read_file(
+    app_conf: web::Data<AppConfig>,
+    filename: &str,
+) -> actix_web::Result<HttpResponse> {
+    file::read_file(app_conf.meta_path.as_str(), false, filename)
 }
 
 // 删除

@@ -1,12 +1,18 @@
 use actix_web::web;
 
-use crate::api::{chapter_knowledge, edit, file, other_dict, question, question_cate, textbook};
+use crate::api::{
+    chapter_knowledge, edit, file, other_dict, question, question_cate, task, textbook,
+};
+
+/// web 服务路由配置
 
 // 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
-    cfg.service(file::upload)
-        .service(file::read)
-        .service(file::delete);
+    cfg.service(file::upload_image)
+        .service(file::upload_file)
+        .service(file::read_image)
+        .service(file::read_file)
+        .service(file::delete_image);
 }
 
 // 题目
@@ -67,4 +73,8 @@ pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
     cfg.service(other_dict::add)
         .service(other_dict::remove)
         .service(other_dict::list);
+}
+
+pub fn task(cfg: &mut web::ServiceConfig) {
+    cfg.service(task::add).service(task::list);
 }

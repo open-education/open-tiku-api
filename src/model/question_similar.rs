@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, QueryBuilder, Transaction};
 
 /// 变式题
 #[allow(dead_code)]
@@ -35,5 +35,29 @@ impl QuestionSimilar {
 
         // 如果已存在则返回 0 或错误，取决于你的业务逻辑
         Ok(row.map(|r| r.id).unwrap_or(0))
+    }
+
+    /// 批量建立题目关联
+    /// 关联的数量是上一步添加的变式题数量决定的, 而且只有id, 考虑到每次上传的题目我们会控制不要太大, 一次性写入变式题应该暂时不会有什么问题
+    pub async fn batch_insert(
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        pairs: Vec<(i64, i64)>,
+    ) -> Result<(), sqlx::Error> {
+        // 空参数处理外面嵌套少一些
+        if pairs.is_empty() {
+            return Ok(());
+        }
+
+        let mut query_builder =
+            QueryBuilder::new("INSERT INTO question_similar (question_id, child_id) ");
+
+        query_builder.push_values(pairs, |mut b, (question_id, child_id)| {
+            b.push_bind(question_id).push_bind(child_id);
+        });
+
+        query_builder.push(" ON CONFLICT (question_id, child_id) DO NOTHING");
+
+        query_builder.build().execute(&mut **tx).await?;
+        Ok(())
     }
 }
