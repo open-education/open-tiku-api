@@ -1,4 +1,5 @@
 use log::error;
+use pulldown_cmark::utils::TextMergeStream;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
 use rust_decimal::Decimal;
@@ -123,8 +124,14 @@ enum Section {
 }
 
 // 主Markdown->结构化题的解析
+// 原始 Markdown（以及 CommonMark、GFM 等主流实现）的核心规则
+// 行末两个空格 + 换行符 → 产生 <br> 换行（软换行）
+// 单纯的换行符 → 被当作普通空格处理，不会产生新行（即相邻两行会合并成一行）
 fn parse_question(title: String, markdown: &str) -> RawQuestion {
     let parser = Parser::new(markdown);
+    // markdown 会将一些特殊的符号当作语法处理, 比如 _ $a_{1},a_{2},a_{3},\ldots,a_{n}$
+    // a1,a2,...,an 此时就会因为 _ 导致被拆成片段, TextMergeStream 就是将这样的片段合并为一行, 避免后续添加 换行时被折断
+    let events = TextMergeStream::new(parser);
 
     let mut state = Section::None;
 
@@ -139,7 +146,7 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
     let mut detail = String::new(); // 解题过程-详解
     let mut in_strong = false; // 是否在后续的几个加粗标签中
 
-    for event in parser {
+    for event in events {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
                 if level == pulldown_cmark::HeadingLevel::H5 {
@@ -207,11 +214,21 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
                     Section::Stage => stage.push_str(&s),
                     Section::QuestionType => question_type.push_str(&s),
                     Section::Knowledge => knowledge.push_str(s),
-                    Section::Answer => answer.push_str(s),
-                    Section::Analysis => analysis.push_str(s),
-                    Section::Detail => detail.push_str(s),
+                    Section::Answer => {
+                        answer.push_str(s);
+                        answer.push_str("  \n");
+                    }
+                    Section::Analysis => {
+                        analysis.push_str(s);
+                        analysis.push_str("  \n");
+                    }
+                    Section::Detail => {
+                        detail.push_str(s);
+                        detail.push_str("  \n");
+                    }
                     Section::None => {
                         main_content.push_str(s);
+                        main_content.push_str("  \n");
                     }
                 }
             }
@@ -387,6 +404,28 @@ $a_{10} = 6 \times 10 + 5 = 65$，
 当 $a_{n} = 2021$ 时，$6n + 5 = 2021$，解得：$n = 336$。
 故答案为：65，336。
 
+---
+
+##### 变式9
+
+> 观察下列等式：
+> $1 = 2 \times 1 - 1 = 1^{2}$
+> $1 + 3 = 1 + (2 \times 2 - 1) = 2^{2}$
+> $1 + 3 + 5 = 1 + 3 + (2 \times 3 - 1) = 3^{2}$
+> $1 + 3 + 5 + 7 = 1 + 3 + 5 + (2 \times 4 - 1) = 4^{2}$
+> ...
+> (1) 试猜想 $1 + 3 + 5 + 7 + \cdots + (2n - 1) =$ ______ （$n$ 为正整数）；
+> (2) 根据（1）中的规律，计算：$1 + 3 + 5 + 7 + \cdots + 199$；
+> (3) 根据（1）中的规律，计算：$31 + 33 + 35 + \cdots + 199$.
+
+- **难度：** 3
+- **适用学期：** 71
+- **题目类型：** 解答题
+- **涉及知识点：** 数字类规律探索，求代数式的值
+- **参考答案：** (1) $n^2$；(2) 10000；(3) 9775
+**【详解】** (1) 由规律得 $1+3+5+...+(2n-1)=n^2$.
+(2) $2n-1=199$ 得 $n=100$，原式 $=100^2=10000$.
+(3) 原式 $= (1+3+...+199) - (1+3+...+29) = 100^2 - 15^2 = 10000-225=9775$.
 ---"#;
         let all_questions = get_questions(content);
 
