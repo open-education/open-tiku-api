@@ -42,17 +42,30 @@ struct EnvConfig {
 可参考这类方法 [edit](src/service/textbook.rs), [tx_insert](src/service/question.rs), [tx_batch_insert](src/service/question.rs)
 等不同方式的事务写法，
 
-#### 常量
-
-[meta.rs](src/constant/meta.rs) 中有这么一行
-
-```
-// 图片访问 api 前缀, 由代理服务决定(目前使用 caddy)
-// 其实部分前端接口也需要固定拼接该前缀, 非必要不要去修改
-pub const IMAGE_READ_PREFIX: &str = "api";
-```
-
 由于没有提供文件服务, 因此图片等资源是跟随服务存储在本机, 只能通过接口自行读取文件, 如果你配置了 caddy 等代理需要关注该常量的值
+
+### 静态文件目录
+
+静态文件目录, 比如线上的 `/var/www/meta` 目录, 首次需要创建共享组并添加用户, 本地完全可以直接给予 `sudo chmod -R 777 /var/www/meta/*` 权限
+
+```bash
+# 1. 创建共享组并添加用户
+sudo groupadd www-media
+
+# 把所有需要写入权限的用户都加入这个组
+sudo usermod -a -G www-media zhangguangxun # 部署后端应用的用户
+sudo usermod -a -G www-media caddy # caddy 服务
+
+# 2. 设置目录权限
+# 目录所有者设为你的登录用户，所属组设为 www-media
+sudo chown -R zhangguangxun:www-media /var/www/meta
+
+# 权限：用户和组可读写，其他人只读
+sudo chmod -R 775 /var/www/meta
+
+# 设置 setgid，让新建文件自动继承 media 组
+sudo chmod g+s /var/www/meta
+```
 
 ### 构建
 

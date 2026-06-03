@@ -1,7 +1,7 @@
 use crate::constant::meta;
 use actix_multipart::Multipart;
 use futures_util::StreamExt;
-use serde::{Serialize};
+use serde::Serialize;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
@@ -90,15 +90,6 @@ async fn save_file(field: &mut actix_multipart::Field, file_path: &str) -> Resul
     Ok(file_size)
 }
 
-// 读取图片的路径要加上 nginx 代理指定的前缀, 此时默认为 api
-pub fn get_read_file_url(safe_name: &str, is_image: bool) -> String {
-    if is_image {
-        format!("/{}/file/read/image/{}", meta::IMAGE_READ_PREFIX, safe_name)
-    } else {
-        format!("/{}/file/read/file/{}", meta::IMAGE_READ_PREFIX, safe_name)
-    }
-}
-
 // 实际上传文件至本地
 pub async fn upload_file(
     meta_path: &str,
@@ -137,6 +128,6 @@ pub async fn upload_file(
         original_name: original_filename,
         name: safe_filename.clone(),
         size: file_size,
-        url: get_read_file_url(&safe_filename, *is_image),
+        url: safe_filename,
     })
 }
