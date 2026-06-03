@@ -11,7 +11,6 @@ use std::str::FromStr;
 /// 2. 图片不支持, 因为文档本身无法提供图片
 
 // 原始题目内容
-#[derive(Debug)]
 pub struct RawQuestion {
     pub title: String,            // 标题
     pub stem: String,             // 题干
