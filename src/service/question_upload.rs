@@ -8,6 +8,7 @@ use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::markdown_parse;
 use log::{error, info};
+use sqlx::PgPool;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
@@ -31,30 +32,20 @@ pub async fn batch(app_conf: &AppConfig) -> Result<(), Error> {
 
     // 缓存题型类型列表
     let mut question_type_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
+    // 缓存标签
+    let mut question_tag_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
 
     // 遍历待处理的任务列表
     for task_info in waiting_task_list {
-        // 获取题型类型列表
         let textbook_id = task_info.textbook_id;
 
-        let question_type_list = if let Some(list) = question_type_cache.get(&textbook_id) {
-            list
-        } else {
-            // 未缓存，查询数据库（异步）
-            let list =
-                match TextbookDict::find_by_textbook_and_type(db, textbook_id, "question_type")
-                    .await
-                {
-                    Ok(list) if !list.is_empty() => list,
-                    Ok(_) => vec![], // 空结果也缓存
-                    Err(e) => {
-                        error!("查询 textbook_id {} 失败: {}", textbook_id, e);
-                        vec![] // 失败也缓存空列表，避免反复尝试
-                    }
-                };
-            question_type_cache.insert(textbook_id, list);
-            question_type_cache.get(&textbook_id).unwrap()
-        };
+        // 获取题型类型列表
+        let question_type_list =
+            get_or_load_dict(db, textbook_id, "question_type", &mut question_type_cache).await;
+
+        // 获取标签类型列表
+        let question_tag_list =
+            get_or_load_dict(db, textbook_id, "question_tag", &mut question_tag_cache).await;
 
         // 修改任务为执行中, 后续的失败不回滚, 而是继续更新状态
         // 如果文件内容本身正常只是程序问题导致, 后续需要手动修改为待执行等待下一批次重新执行
@@ -75,7 +66,7 @@ pub async fn batch(app_conf: &AppConfig) -> Result<(), Error> {
         // 处理一个任务, 一个任务的事务是独立的
         let task_name = task_info.name.clone();
         info!("Process single task info process start: {}", task_name);
-        if let Err(e) = single(app_conf, task_info, question_type_list).await {
+        if let Err(e) = single(app_conf, task_info, &question_type_list, &question_tag_list).await {
             error!("Process single task info err: {}", e);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
             if let Err(e) =
@@ -98,11 +89,39 @@ pub async fn batch(app_conf: &AppConfig) -> Result<(), Error> {
     Ok(())
 }
 
+// 获取题型列表和标签列表
+async fn get_or_load_dict(
+    db: &PgPool,
+    textbook_id: i32,
+    dict_type: &str,
+    cache: &mut HashMap<i32, Vec<TextbookDict>>,
+) -> Vec<TextbookDict> {
+    if let Some(list) = cache.get(&textbook_id) {
+        list.clone()
+    } else {
+        let list = match TextbookDict::find_by_textbook_and_type(db, textbook_id, dict_type).await {
+            Ok(list) if !list.is_empty() => list,
+            Ok(_) => vec![],
+            Err(e) => {
+                error!(
+                    "查询 textbook_id {} 的 {} 失败: {}",
+                    textbook_id, dict_type, e
+                );
+                vec![]
+            }
+        };
+        let cloned_list = list.clone();
+        cache.insert(textbook_id, list);
+        cloned_list
+    }
+}
+
 // 上传单个题目文件
 async fn single(
     app_config: &AppConfig,
     task_info: Task,
     question_type_list: &Vec<TextbookDict>,
+    question_tag_list: &Vec<TextbookDict>,
 ) -> Result<(), Error> {
     // 记录结果日志
     let mut result: Vec<String> = vec![];
@@ -137,7 +156,13 @@ async fn single(
     for question_info in all_questions {
         // 母题
         let simple_parent_title = question_info.parent.title.clone();
-        let parent_req = to_req(question_info.parent, None, &task_info, &question_type_list);
+        let parent_req = to_req(
+            question_info.parent,
+            None,
+            &task_info,
+            &question_type_list,
+            &question_tag_list,
+        );
         info!("Add parent question name: {} begin", simple_parent_title);
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
@@ -155,7 +180,13 @@ async fn single(
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
             let simple_child_title = child.title.clone();
-            let child_req = to_req(child, Some(parent.id), &task_info, &question_type_list);
+            let child_req = to_req(
+                child,
+                Some(parent.id),
+                &task_info,
+                &question_type_list,
+                &question_tag_list,
+            );
             info!("Add child question name: {} begin", simple_child_title);
             children_req.push(child_req);
 
@@ -223,6 +254,7 @@ fn to_req(
     parent_id: Option<i64>,
     task_info: &Task,
     question_type_list: &[TextbookDict],
+    question_tag_list: &[TextbookDict],
 ) -> CreateQuestionReq {
     // 1. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
     let question_type_info = question_type_list
@@ -247,10 +279,20 @@ fn to_req(
                     order: (idx + 1) as i32,
                 })
                 .collect();
-            Some(Json(opts)) // 假设 options 类型是 Option<Json<Vec<QuestionOption>>>
+            Some(Json(opts))
         } else {
             None
         }
+    } else {
+        None
+    };
+
+    // 5. 查找变式题标签
+    let question_tag_info = question_tag_list
+        .iter()
+        .find(|item| item.item_value.contains("变式题"));
+    let question_tag_ids: Option<Vec<i32>> = if parent_id.is_some() {
+        question_tag_info.map(|tag_info| vec![tag_info.id])
     } else {
         None
     };
@@ -259,7 +301,7 @@ fn to_req(
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         question_type_id,
-        question_tag_ids: None,
+        question_tag_ids,
         author_id: Some(meta::TEMP_ADMIN_ID),
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),

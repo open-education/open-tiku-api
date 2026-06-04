@@ -3,7 +3,7 @@ use sqlx::{FromRow, PgPool};
 
 /// 教材其它字典
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct TextbookDict {
     pub id: i32,
     pub textbook_id: i32,
