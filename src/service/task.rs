@@ -1,8 +1,8 @@
 use crate::AppConfig;
 use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
 use crate::model::task::{Task, TaskStatus};
+use crate::util::local::to_local_datetime;
 use actix_web::web;
-use chrono::Local;
 use log::error;
 use std::io::{Error, ErrorKind};
 
@@ -40,16 +40,8 @@ fn to_base_resp(row: &Task) -> TaskInfoResp {
         status_desc: TaskStatus::desc(row.status).to_string(),
         email: row.email.clone(),
         result: row.result.clone(),
-        created_at: row
-            .created_at
-            .with_timezone(&Local)
-            .format("%Y-%m-%d %H:%M")
-            .to_string(),
-        updated_at: row
-            .updated_at
-            .with_timezone(&Local)
-            .format("%Y-%m-%d %H:%M")
-            .to_string(),
+        created_at: to_local_datetime(row.created_at),
+        updated_at: to_local_datetime(row.updated_at),
     }
 }
 

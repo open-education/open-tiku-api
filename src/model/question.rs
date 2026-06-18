@@ -1,5 +1,5 @@
 use crate::api::question::CreateQuestionReq;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
@@ -61,14 +61,14 @@ pub struct Question {
     pub remark: Option<String>,          // 备注
 
     // 审核相关
-    pub status: i16,                                       // 审核状态
-    pub approve_id: i64,                                   // 审核人
-    pub reject_reason: Option<String>,                     // 拒绝原因
-    pub approve_at: Option<chrono::DateTime<chrono::Utc>>, // 审核时间
+    pub status: i16,                       // 审核状态
+    pub approve_id: i64,                   // 审核人
+    pub reject_reason: Option<String>,     // 拒绝原因
+    pub approve_at: Option<DateTime<Utc>>, // 审核时间
 
     // 创建更新时间
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Question {

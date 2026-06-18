@@ -5,3 +5,6 @@ pub mod other_dict;
 pub mod question;
 pub mod question_similar;
 pub mod task;
+pub mod paper;
+pub mod paper_group;
+pub mod paper_question;
