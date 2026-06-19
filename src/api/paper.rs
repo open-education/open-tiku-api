@@ -167,3 +167,11 @@ pub async fn list(
 ) -> ApiResponse<PaperListResp> {
     ApiResponse::response(paper::list(app_conf, req.into_inner()).await)
 }
+
+#[get("/latest/{count}")]
+pub async fn latest(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i64,)>,
+) -> ApiResponse<Vec<PaperResp>> {
+    ApiResponse::response(paper::latest(app_conf, path.into_inner().0).await)
+}

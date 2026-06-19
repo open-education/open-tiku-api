@@ -240,4 +240,22 @@ impl Paper {
         let papers = query.fetch_all(pool).await?;
         Ok(papers)
     }
+
+    // 获取最新的部分试卷
+    pub async fn get_latest_papers(
+        pool: &PgPool,
+        limit: i64, // 传入需要获取的条数
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        // 若 limit <= 0，直接返回空向量（或视业务需求抛错）
+        if limit <= 0 {
+            return Ok(vec![]);
+        }
+
+        let papers = sqlx::query_as::<_, Self>("SELECT * FROM paper ORDER BY id DESC LIMIT $1")
+            .bind(limit) // 绑定参数
+            .fetch_all(pool)
+            .await?;
+
+        Ok(papers)
+    }
 }

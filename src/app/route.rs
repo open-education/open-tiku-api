@@ -82,5 +82,6 @@ pub fn task(cfg: &mut web::ServiceConfig) {
 pub fn paper(cfg: &mut web::ServiceConfig) {
     cfg.service(paper::add)
         .service(paper::info)
-        .service(paper::list);
+        .service(paper::list)
+        .service(paper::latest);
 }

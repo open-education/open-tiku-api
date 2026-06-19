@@ -378,3 +378,18 @@ pub async fn list(
         total,
     })
 }
+
+// 最新试卷
+pub async fn latest(app_conf: web::Data<AppConfig>, count: i64) -> Result<Vec<PaperResp>, Error> {
+    let papers = Paper::get_latest_papers(&app_conf.db, count)
+        .await
+        .map_err(|err| {
+            error!("Select paper list err: {}", err);
+            Error::new(ErrorKind::Other, "查询试卷列表失败")
+        })?;
+
+    // 后续还要拼接状态等
+    let list: Vec<PaperResp> = papers.into_iter().map(to_paper_resp).collect();
+
+    Ok(list)
+}
