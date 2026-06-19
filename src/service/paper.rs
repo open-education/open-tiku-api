@@ -81,7 +81,7 @@ fn validate_paper_request(req: &PaperReq) -> Result<(), Error> {
             "考点名称/学段导航不能为空",
         ));
     }
-    if (req.tag.is_empty()) {
+    if req.tag.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "标签不能为空"));
     }
     if req.title.trim().is_empty() {
@@ -297,6 +297,8 @@ fn to_paper_resp(row: Paper) -> PaperResp {
         title: row.title,
         score: row.score,
         source: row.source,
+        author_id: row.author_id,
+        author_name: row.author_name,
         status: row.status,
         status_desc: PaperStatus::desc(row.status),
         approve_id: row.approve_id,
@@ -344,6 +346,11 @@ pub async fn list(
     req: PaperListReq,
 ) -> Result<PaperListResp, Error> {
     let db = &app_conf.db;
+    // 检查参数
+    if req.related_id <= 0 {
+        return Err(Error::new(ErrorKind::InvalidInput, "考点/学段分类不能为空"));
+    }
+
     // 1. 构建过滤条件
     let (where_clause, param_count) = Paper::build_condition(&req);
 

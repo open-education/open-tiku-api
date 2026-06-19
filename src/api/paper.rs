@@ -70,6 +70,11 @@ pub struct PaperResp {
     pub score: i32,
     pub source: String,
 
+    #[serde(rename(serialize = "authorId"))]
+    pub author_id: i64,
+    #[serde(rename(serialize = "authorName"))]
+    pub author_name: String,
+
     // 审核相关
     pub status: i16, // 审核状态
     #[serde(rename(deserialize = "statusDesc"))]
@@ -86,7 +91,9 @@ pub struct PaperResp {
     pub groups: Vec<PaperGroupResp>,
 
     // 创建更新时间
+    #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
+    #[serde(rename(serialize = "updatedAt"))]
     pub updated_at: String,
 }
 

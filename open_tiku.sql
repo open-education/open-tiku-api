@@ -150,7 +150,7 @@ CREATE TABLE paper
     score         INTEGER      NOT NULL DEFAULT 0, -- 总分
     source        VARCHAR(500) NOT NULL,           -- 来源, 需要记录试卷来源
     remark        TEXT,                            -- 试卷备注
-    author_id     INTEGER      NOT NULL,           -- 上传者
+    author_id     BIGINT       NOT NULL,           -- 上传者
     author_name   VARCHAR(100) NOT NULL,           -- 上传者原始昵称
     count         INTEGER      NOT NULL DEFAULT 0, -- 小题数量
     remark_ext    TEXT,                            -- 备注

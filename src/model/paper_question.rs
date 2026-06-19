@@ -6,7 +6,7 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 pub struct PaperQuestion {
     pub id: i64,
     pub paper_id: i64,
-    pub group_id: i64, // 由业务生成
+    pub group_id: i64,
     pub gen_id: String,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,

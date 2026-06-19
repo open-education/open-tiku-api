@@ -1,7 +1,7 @@
 use crate::api::paper::PaperListReq;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{query_as, query_scalar, FromRow, PgPool, Postgres, Transaction, Type};
+use sqlx::{FromRow, PgPool, Postgres, Transaction, Type, query_as, query_scalar};
 
 /// 试卷相关
 
@@ -18,7 +18,7 @@ pub struct Paper {
     pub score: i32,
     pub source: String,
     pub remark: Option<String>,
-    pub author_id: i32,
+    pub author_id: i64,
     pub author_name: String,
     pub count: i32,
     pub remark_ext: Option<String>,
@@ -57,7 +57,6 @@ impl Paper {
         tx: &mut Transaction<'_, Postgres>,
         paper: &Self,
     ) -> Result<i64, sqlx::Error> {
-        // 💡 使用 sqlx::query 函数，通过连续调用 .bind() 来绑定参数
         let row = sqlx::query(
             r#"
             INSERT INTO paper (
@@ -90,7 +89,6 @@ impl Paper {
         .bind(paper.approve_id)
         .bind(&paper.reject_reason)
         .bind(paper.approve_at)
-        // 💡 因为不使用 Row 映射结构体，我们通过 map 闭包或者 get 方法直接提取 RETURNING 的 id
         .map(|row: sqlx::postgres::PgRow| {
             use sqlx::Row;
             row.get::<i64, _>("id")
@@ -103,7 +101,6 @@ impl Paper {
 
     // 通过主键 id 查询单个试卷（使用 &Pool）
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
-        // 💡 使用普通的 query_as 函数，运行时自动依赖您的 #[derive(FromRow)] 规则进行对齐
         let paper = sqlx::query_as::<_, Self>(
             r#"
             SELECT 
