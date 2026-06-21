@@ -101,37 +101,10 @@ impl Paper {
 
     // 通过主键 id 查询单个试卷（使用 &Pool）
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
-        let paper = sqlx::query_as::<_, Self>(
-            r#"
-            SELECT 
-                id,
-                related_id,
-                related_name,
-                tag,
-                year,
-                grade,
-                semester,
-                title,
-                score,
-                source,
-                remark,
-                author_id,
-                author_name,
-                count,
-                remark_ext,
-                status,
-                approve_id,
-                reject_reason,
-                approve_at,
-                created_at,
-                updated_at
-            FROM paper
-            WHERE id = $1
-            "#,
-        )
-        .bind(paper_id)
-        .fetch_optional(pool)
-        .await?;
+        let paper = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = $1"#)
+            .bind(paper_id)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(paper)
     }

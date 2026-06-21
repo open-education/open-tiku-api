@@ -1,15 +1,15 @@
+use crate::AppConfig;
 use crate::api::question::{
     CreateQuestionReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp, QuestionListReq,
     QuestionListResp, QuestionSimilarListReq,
 };
+use crate::constant::meta;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use regex::Regex;
 use std::io::{Error, ErrorKind};
-use crate::constant::meta;
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {
@@ -63,6 +63,8 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         question_type_id: row.question_type_id,
         question_tag_ids: row.question_tag_ids.clone(),
         author_id: row.author_id,
+        source: row.source.clone(),
+        original_name: row.original_name.clone(),
         title: row.title.clone(),
         content_plain: Some(row.content_plain.clone()),
         comment: row.comment.clone(),
@@ -74,6 +76,7 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         approve_id: row.approve_id,
         reject_reason: row.reject_reason.clone(),
         approve_at: row.approve_at,
+        steps: row.steps.clone(),
         created_at: row.created_at,
         updated_at: row.updated_at,
     }

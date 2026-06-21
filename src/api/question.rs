@@ -1,7 +1,7 @@
-use crate::model::question::{Content, QuestionOption};
+use crate::AppConfig;
+use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,9 @@ pub struct CreateQuestionReq {
     #[serde(rename(deserialize = "questionTagIds"))]
     pub question_tag_ids: Option<Vec<i32>>, // 题型标签主键
     pub author_id: Option<i64>, // 作者, 内部逻辑生成
+    pub source: String,         // 来源
+    #[serde(rename(deserialize = "originalName"))]
+    pub original_name: String, // 原创者昵称
 
     pub title: String,                 // 标题
     pub content_plain: Option<String>, // 去除公式等特殊字符的标题, 为了搜索用, 内部逻辑生成
@@ -39,7 +42,10 @@ pub struct CreateQuestionReq {
     pub knowledge: Option<String>,       // 知识点文本描述
     pub analysis: Option<Json<Content>>, // 解题分析
     pub process: Option<Json<Content>>,  // 解题过程
-    pub remark: Option<String>,          // 备注
+    pub steps: Option<Json<Vec<Step>>>,  // 解题步骤
+    pub remark: Option<String>,          // 易错备注
+    #[serde(rename(deserialize = "remarkExt"))]
+    pub remark_ext: Option<String>, // 其它备注
 }
 
 // 添加题目
@@ -63,6 +69,9 @@ pub struct QuestionBaseResp {
     pub question_tag_ids: Option<Json<Vec<i32>>>, // 题型标签主键
     #[serde(rename(serialize = "authorId"))]
     pub author_id: i64, // 作者, 内部逻辑生成
+    pub source: String,
+    #[serde(rename(serialize = "originalName"))]
+    pub original_name: String,
 
     pub title: String, // 标题
     #[serde(rename(serialize = "contentPlain"))]
@@ -89,6 +98,8 @@ pub struct QuestionBaseResp {
     pub reject_reason: Option<String>, // 拒绝原因
     #[serde(rename(serialize = "approveAt"))]
     pub approve_at: Option<chrono::DateTime<chrono::Utc>>, // 审核时间
+
+    pub steps: Option<Json<Vec<Step>>>, // 解题步骤需要返回
 
     // 创建更新时间
     pub created_at: chrono::DateTime<chrono::Utc>,

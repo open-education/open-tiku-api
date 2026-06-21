@@ -33,6 +33,12 @@ pub struct Content {
     pub images: Option<Vec<String>>,
 }
 
+#[derive(Default, Serialize, Deserialize, Clone)]
+pub struct Step {
+    pub id: i16,         // 步骤顺序
+    pub content: String, // 该步骤的内容
+}
+
 #[derive(FromRow)]
 pub struct Question {
     pub id: i64,
@@ -40,6 +46,8 @@ pub struct Question {
     pub question_type_id: i32,                    // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>, // 题型标签主键
     pub author_id: i64,                           // 作者
+    pub source: String,                           // 来源
+    pub original_name: String,                    // 原创者昵称
 
     pub title: String,           // 标题
     pub content_plain: String,   // 去除公式等特殊字符的标题, 为了搜索用
@@ -58,7 +66,9 @@ pub struct Question {
     pub knowledge: Option<String>,       // 知识点文本描述
     pub analysis: Option<Json<Content>>, // 解题分析
     pub process: Option<Json<Content>>,  // 解题过程
+    pub steps: Option<Json<Vec<Step>>>,  // 解题步骤, 学生做题时提示
     pub remark: Option<String>,          // 备注
+    pub remark_ext: Option<String>,      // 其它备注
 
     // 审核相关
     pub status: i16,                       // 审核状态
@@ -76,38 +86,37 @@ impl Question {
     pub async fn simple_insert(pool: &PgPool, req: CreateQuestionReq) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            INSERT INTO question (
-                question_cate_id, question_type_id, question_tag_ids, author_id,
-                title, content_plain, comment, difficulty_level, 
-                images, options, options_layout, 
-                answer, knowledge, analysis, process, remark
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-            RETURNING 
-                id, question_cate_id, question_type_id, question_tag_ids, author_id, 
-                title, content_plain, comment, difficulty_level, 
-                images, options, options_layout, 
-                answer, knowledge, analysis, process, remark,
-                status, approve_id, reject_reason, approve_at,
-                created_at, updated_at
-            "#,
+        INSERT INTO question (
+            question_cate_id, question_type_id, question_tag_ids, author_id,
+            source, original_name,
+            title, content_plain, comment, difficulty_level,
+            images, options, options_layout,
+            answer, knowledge, analysis, process, remark, remark_ext
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        RETURNING *
+        "#,
         )
         .bind(req.question_cate_id)
         .bind(req.question_type_id)
         .bind(Json(req.question_tag_ids.unwrap_or_default()))
         .bind(req.author_id)
+        .bind(req.source)
+        .bind(req.original_name)
         .bind(req.title)
         .bind(req.content_plain)
         .bind(req.comment)
         .bind(req.difficulty_level)
-        .bind(Json(req.images.unwrap_or_default())) // 确保 JSONB 字段正确包装, 不提供默认值会存入 NULL
+        .bind(Json(req.images.unwrap_or_default()))
         .bind(Json(req.options.unwrap_or_default()))
-        .bind(req.options_layout) // 显式转为 i16 对应 SMALLINT
+        .bind(req.options_layout) // SMALLINT
         .bind(req.answer)
         .bind(req.knowledge)
         .bind(Json(req.analysis.unwrap_or_default()))
         .bind(Json(req.process.unwrap_or_default()))
         .bind(req.remark)
+        .bind(req.remark_ext)
         .fetch_one(pool)
         .await
     }
@@ -122,24 +131,22 @@ impl Question {
             r#"
         INSERT INTO question (
             question_cate_id, question_type_id, question_tag_ids, author_id,
-            title, content_plain, comment, difficulty_level, 
-            images, options, options_layout, 
-            answer, knowledge, analysis, process, remark
+            source, original_name,
+            title, content_plain, comment, difficulty_level,
+            images, options, options_layout,
+            answer, knowledge, analysis, process, remark, remark_ext
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        RETURNING 
-            id, question_cate_id, question_type_id, question_tag_ids, author_id, 
-            title, content_plain, comment, difficulty_level, 
-            images, options, options_layout, 
-            answer, knowledge, analysis, process, remark,
-            status, approve_id, reject_reason, approve_at,
-            created_at, updated_at
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        RETURNING *
         "#,
         )
         .bind(req.question_cate_id)
         .bind(req.question_type_id)
         .bind(Json(req.question_tag_ids.unwrap_or_default()))
         .bind(req.author_id)
+        .bind(req.source)
+        .bind(req.original_name)
         .bind(req.title)
         .bind(req.content_plain)
         .bind(req.comment)
@@ -152,7 +159,8 @@ impl Question {
         .bind(Json(req.analysis.unwrap_or_default()))
         .bind(Json(req.process.unwrap_or_default()))
         .bind(req.remark)
-        .fetch_one(&mut **tx) // 关键：使用 &mut **tx 作为 executor
+        .bind(req.remark_ext)
+        .fetch_one(&mut **tx)
         .await
     }
 
@@ -176,10 +184,10 @@ impl Question {
             let mut query_builder = QueryBuilder::new(
                 r#"
             INSERT INTO question (
-                question_cate_id, question_type_id, question_tag_ids, author_id,
+                question_cate_id, question_type_id, question_tag_ids, author_id,source,original_name,
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
-                answer, knowledge, analysis, process, remark
+                answer, knowledge, analysis, process, remark,remark_ext
             )
             "#,
             );
@@ -189,6 +197,8 @@ impl Question {
                     .push_bind(req.question_type_id)
                     .push_bind(Json(req.question_tag_ids.clone().unwrap_or_default()))
                     .push_bind(req.author_id)
+                    .push_bind(&req.source)
+                    .push_bind(&req.original_name)
                     .push_bind(&req.title)
                     .push_bind(&req.content_plain)
                     .push_bind(&req.comment)
@@ -200,7 +210,8 @@ impl Question {
                     .push_bind(&req.knowledge)
                     .push_bind(Json(req.analysis.clone().unwrap_or_default()))
                     .push_bind(Json(req.process.clone().unwrap_or_default()))
-                    .push_bind(&req.remark);
+                    .push_bind(&req.remark)
+                    .push_bind(&req.remark_ext);
             });
 
             // 添加 RETURNING id 子句
@@ -272,13 +283,7 @@ impl Question {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            SELECT 
-                id, question_cate_id, question_type_id, question_tag_ids, author_id,
-                title, content_plain, comment, difficulty_level, 
-                images, options, options_layout, 
-                answer, knowledge, analysis, process, remark,
-                status, approve_id, reject_reason, approve_at,
-                created_at, updated_at
+            SELECT *
             FROM question
             WHERE question_cate_id = $1
               AND status = $2

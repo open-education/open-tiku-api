@@ -131,19 +131,7 @@ impl Task {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-        SELECT
-            id,
-            question_cate_id,
-            author_id,
-            task_type,
-            name,
-            email,
-            textbook_id,
-            url,
-            status,
-            result,
-            created_at,
-            updated_at
+        SELECT *
         FROM task
         WHERE question_cate_id = $1
           AND author_id = $2
@@ -165,19 +153,7 @@ impl Task {
     pub async fn get_waiting_list(pool: &PgPool, task_type: i16) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-        SELECT
-            id,
-            question_cate_id,
-            task_type,
-            name,
-            email,
-            textbook_id,
-            url,
-            author_id,
-            status,
-            result,
-            created_at,
-            updated_at
+        SELECT *
         FROM task
         WHERE status = 1
         AND task_type = $1

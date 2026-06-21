@@ -39,12 +39,7 @@ impl PaperGroup {
     pub async fn find_by_paper_id(pool: &PgPool, paper_id: i64) -> Result<Vec<Self>, sqlx::Error> {
         let groups = sqlx::query_as::<_, Self>(
             r#"
-            SELECT 
-                id,
-                paper_id,
-                gen_id,
-                type_name,
-                sub_title
+            SELECT *
             FROM paper_group
             WHERE paper_id = $1
             ORDER BY id ASC

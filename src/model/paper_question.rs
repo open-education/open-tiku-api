@@ -54,17 +54,7 @@ impl PaperQuestion {
 
         let questions = sqlx::query_as::<_, Self>(
             r#"
-            SELECT 
-                id,
-                paper_id,
-                group_id,
-                gen_id,
-                stem,
-                images, 
-                options,
-                answer,
-                analysis,
-                score
+            SELECT *
             FROM paper_question
             WHERE paper_id = $1 AND group_id = ANY($2)
             ORDER BY group_id, id ASC

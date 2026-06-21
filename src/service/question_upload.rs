@@ -303,6 +303,8 @@ fn to_req(
         question_type_id,
         question_tag_ids,
         author_id: Some(meta::TEMP_ADMIN_ID),
+        source: "".to_string(),
+        original_name: "".to_string(),
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,
@@ -320,6 +322,8 @@ fn to_req(
             content: raw.detail,
             images: None,
         })),
-        remark: Some("批量题目上传".to_string()),
+        steps: None,
+        remark: None,
+        remark_ext: Some("批量题目上传".to_string()),
     }
 }
