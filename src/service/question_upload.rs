@@ -2,7 +2,7 @@ use crate::AppConfig;
 use crate::api::question::CreateQuestionReq;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
-use crate::model::question::{Content, Question, QuestionOption};
+use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
@@ -305,6 +305,7 @@ fn to_req(
         author_id: Some(meta::TEMP_ADMIN_ID),
         source: "".to_string(),
         original_name: "".to_string(),
+        status: QuestionStatus::Draft as i16,
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,

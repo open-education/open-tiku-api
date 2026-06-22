@@ -88,13 +88,14 @@ impl Question {
             r#"
         INSERT INTO question (
             question_cate_id, question_type_id, question_tag_ids, author_id,
-            source, original_name,
+            source, original_name, status,
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
-            answer, knowledge, analysis, process, remark, remark_ext
+            answer, knowledge, analysis, process, remark, remark_ext,
+            steps
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *
         "#,
         )
@@ -104,6 +105,7 @@ impl Question {
         .bind(req.author_id)
         .bind(req.source)
         .bind(req.original_name)
+        .bind(req.status)
         .bind(req.title)
         .bind(req.content_plain)
         .bind(req.comment)
@@ -117,6 +119,7 @@ impl Question {
         .bind(Json(req.process.unwrap_or_default()))
         .bind(req.remark)
         .bind(req.remark_ext)
+        .bind(Json(req.steps.unwrap_or_default()))
         .fetch_one(pool)
         .await
     }
@@ -131,13 +134,14 @@ impl Question {
             r#"
         INSERT INTO question (
             question_cate_id, question_type_id, question_tag_ids, author_id,
-            source, original_name,
+            source, original_name, status,
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
-            answer, knowledge, analysis, process, remark, remark_ext
+            answer, knowledge, analysis, process, remark, remark_ext,
+            steps
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         RETURNING *
         "#,
         )
@@ -147,6 +151,7 @@ impl Question {
         .bind(req.author_id)
         .bind(req.source)
         .bind(req.original_name)
+        .bind(req.status)
         .bind(req.title)
         .bind(req.content_plain)
         .bind(req.comment)
@@ -160,6 +165,7 @@ impl Question {
         .bind(Json(req.process.unwrap_or_default()))
         .bind(req.remark)
         .bind(req.remark_ext)
+        .bind(Json(req.steps.unwrap_or_default()))
         .fetch_one(&mut **tx)
         .await
     }
@@ -187,7 +193,8 @@ impl Question {
                 question_cate_id, question_type_id, question_tag_ids, author_id,source,original_name,
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
-                answer, knowledge, analysis, process, remark,remark_ext
+                answer, knowledge, analysis, process, remark,remark_ext,
+                steps
             )
             "#,
             );
@@ -211,7 +218,8 @@ impl Question {
                     .push_bind(Json(req.analysis.clone().unwrap_or_default()))
                     .push_bind(Json(req.process.clone().unwrap_or_default()))
                     .push_bind(&req.remark)
-                    .push_bind(&req.remark_ext);
+                    .push_bind(&req.remark_ext)
+                    .push_bind(Json(req.steps.clone().unwrap_or_default()));
             });
 
             // 添加 RETURNING id 子句

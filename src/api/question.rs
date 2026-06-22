@@ -22,6 +22,7 @@ pub struct CreateQuestionReq {
     pub source: String,         // 来源
     #[serde(rename(deserialize = "originalName"))]
     pub original_name: String, // 原创者昵称
+    pub status: i16,
 
     pub title: String,                 // 标题
     pub content_plain: Option<String>, // 去除公式等特殊字符的标题, 为了搜索用, 内部逻辑生成
