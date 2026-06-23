@@ -298,6 +298,7 @@ fn to_req(
     };
 
     CreateQuestionReq {
+        id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         question_type_id,

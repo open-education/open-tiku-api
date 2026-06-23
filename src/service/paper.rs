@@ -3,6 +3,7 @@ use crate::api::paper::{
     PaperGroupReq, PaperGroupResp, PaperListReq, PaperListResp, PaperQuestionResp, PaperReq,
     PaperResp,
 };
+use crate::constant::meta;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
@@ -12,8 +13,10 @@ use log::{error, info};
 use std::io::{Error, ErrorKind};
 
 // 添加试卷
+// 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
 pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, Error> {
     let db = &app_conf.db;
+    let is_update = req.id.is_some();
 
     // 1. 参数验证
     validate_paper_request(&req)?;
@@ -36,6 +39,26 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, E
 
     // 5. 构建题型和题目
     let (paper_groups, paper_questions) = build_groups_and_questions(paper_id, &req.groups);
+
+    // 如果是编辑则需要先删除题型分类和题目列表
+    if is_update {
+        let del_group_rows = PaperGroup::delete_by_paper_id(&mut tx, req.id.unwrap_or_default())
+            .await
+            .map_err(|err| {
+                error!("Failed to delete paper group: {}", err);
+                Error::new(ErrorKind::Other, "删除题型分类失败")
+            })?;
+        info!("Deleted paper paper group rows: {:?}", del_group_rows);
+
+        let del_question_rows =
+            PaperQuestion::delete_by_paper_id(&mut tx, req.id.unwrap_or_default())
+                .await
+                .map_err(|err| {
+                    error!("Failed to delete paper question: {}", err);
+                    Error::new(ErrorKind::Other, "删除题目列表失败")
+                })?;
+        info!("Deleted paper paper question rows: {:?}", del_question_rows);
+    }
 
     // 6. 批量插入题型
     if !paper_groups.is_empty() {
@@ -137,7 +160,7 @@ fn validate_paper_request(req: &PaperReq) -> Result<(), Error> {
 // 构建试卷对象（包含总题目数）
 fn build_paper_from_request(req: &PaperReq, total_question_count: i32) -> Paper {
     Paper {
-        id: 0,
+        id: req.id,
         related_id: req.related_id,
         related_name: req.related_name.clone(),
         tag: req.tag.clone(),
@@ -148,11 +171,11 @@ fn build_paper_from_request(req: &PaperReq, total_question_count: i32) -> Paper 
         score: req.score,
         source: req.source.clone(),
         remark: req.remark.clone(),
-        author_id: 1, // TODO: 从认证上下文获取
+        author_id: meta::TEMP_ADMIN_ID, // TODO: 从认证上下文获取
         author_name: "admin".to_string(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
-        status: PaperStatus::Draft as i16,
+        status: req.status,
         approve_id: 0,
         reject_reason: None,
         approve_at: None,
@@ -195,6 +218,7 @@ fn build_groups_and_questions(
                 stem: question.stem.clone(),
                 images: question.images.clone(),
                 options: question.options.clone(),
+                options_layout: question.options_layout,
                 answer: question.answer.clone(),
                 analysis: question.analysis.clone(),
                 score: question.score,
@@ -222,10 +246,14 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<PaperResp, 
         })?;
 
     // 2. 查询题型
-    let paper_groups = PaperGroup::find_by_paper_id(db, paper.id)
+    let paper_groups = PaperGroup::find_by_paper_id(db, paper.id.unwrap_or_default())
         .await
         .map_err(|err| {
-            error!("Select paper group, paper_id: {}, error: {}", paper.id, err);
+            error!(
+                "Select paper group, paper_id: {}, error: {}",
+                paper.id.unwrap_or_default(),
+                err
+            );
             Error::new(ErrorKind::Other, "查询试卷题型失败")
         })?;
 
@@ -234,12 +262,13 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<PaperResp, 
         Vec::new()
     } else {
         let group_ids: Vec<i64> = paper_groups.iter().map(|g| g.id).collect();
-        PaperQuestion::find_by_group_ids(db, paper.id, &group_ids)
+        PaperQuestion::find_by_group_ids(db, paper.id.unwrap_or_default(), &group_ids)
             .await
             .map_err(|err| {
                 error!(
                     "Select paper question paper_id: {}, error: {}",
-                    paper.id, err
+                    paper.id.unwrap_or_default(),
+                    err
                 );
                 Error::new(ErrorKind::Other, "查询试卷题目失败")
             })?
@@ -334,6 +363,7 @@ fn to_paper_question_resp(row: PaperQuestion) -> PaperQuestionResp {
         stem: row.stem,
         images: row.images,
         options: row.options,
+        options_layout: row.options_layout,
         answer: row.answer,
         analysis: row.analysis,
         score: row.score,

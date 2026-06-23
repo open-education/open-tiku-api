@@ -51,4 +51,22 @@ impl PaperGroup {
 
         Ok(groups)
     }
+
+    // 根据paper_id删除所有题型分类
+    pub async fn delete_by_paper_id(
+        tx: &mut Transaction<'_, Postgres>,
+        paper_id: i64,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+        DELETE FROM paper_group
+        WHERE paper_id = $1
+        "#,
+            paper_id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
 }

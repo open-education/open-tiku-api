@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS question
 
     -- 选项：仅选择题使用，存储为 [{ "label": "A", "content": "..." }]
     options          JSONB                 DEFAULT '[]'::jsonb,
-    options_layout   SMALLINT              DEFAULT 3,                                           -- 布局方案: 1: 一行(inline), 2: 两行(双列), 3: 一列(垂直)
+    options_layout   SMALLINT              DEFAULT 3,                                           -- 布局方案: 1: 1列 2: 2列 3: 4列
 
     -- 答案与解析
     answer           TEXT,                                                                      -- 参考答案
@@ -193,15 +193,16 @@ CREATE INDEX idx_paper_group_paper_id ON paper_group (paper_id);
 -- 4.2 题目表
 CREATE TABLE paper_question
 (
-    id       BIGSERIAL PRIMARY KEY,
-    paper_id BIGINT      NOT NULL,                     -- 试卷主表标识
-    group_id BIGINT      NOT NULL,                     -- 题型分类标识
-    gen_id   VARCHAR(50) NOT NULL,                     -- 前端生成标识
-    stem     TEXT        NOT NULL,                     -- 题干
-    images   JSONB                DEFAULT '[]'::jsonb, -- 题目包含的图片地址标识
-    options  JSONB                DEFAULT '[]'::jsonb, -- 选项内容
-    answer   TEXT,                                     -- 参考答案
-    analysis JSONB                DEFAULT '{}'::jsonb, -- 解题分析, 解题过程等
-    score    INTEGER     NOT NULL DEFAULT 0            -- 题目分数, 不校验
+    id             BIGSERIAL PRIMARY KEY,
+    paper_id       BIGINT      NOT NULL,                     -- 试卷主表标识
+    group_id       BIGINT      NOT NULL,                     -- 题型分类标识
+    gen_id         VARCHAR(50) NOT NULL,                     -- 前端生成标识
+    stem           TEXT        NOT NULL,                     -- 题干
+    images         JSONB                DEFAULT '[]'::jsonb, -- 题目包含的图片地址标识
+    options        JSONB                DEFAULT '[]'::jsonb, -- 选项内容
+    options_layout SMALLINT             DEFAULT 3,           -- 布局方案: 1: 1列 2: 2列 3: 4列
+    answer         TEXT,                                     -- 参考答案
+    analysis       JSONB                DEFAULT '{}'::jsonb, -- 解题分析, 解题过程等
+    score          INTEGER     NOT NULL DEFAULT 0            -- 题目分数, 不校验
 );
 CREATE INDEX idx_paper_question_group_id ON paper_question (paper_id, group_id);

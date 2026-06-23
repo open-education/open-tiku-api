@@ -10,6 +10,7 @@ use sqlx::types::Json;
 
 #[derive(Deserialize)]
 pub struct PaperReq {
+    pub id: Option<i64>,
     #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
     #[serde(rename(deserialize = "relatedName"))]
@@ -20,6 +21,7 @@ pub struct PaperReq {
     pub semester: String,
     pub title: String,
     pub score: i32,
+    pub status: i16,
     pub source: String,
     pub remark: Option<String>,
     pub groups: Vec<PaperGroupReq>,
@@ -43,6 +45,8 @@ pub struct PaperQuestionReq {
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
+    #[serde(rename(deserialize = "optionsLayout"))]
+    pub options_layout: Option<i16>,
     pub answer: Option<String>,
     pub analysis: Option<Json<Content>>,
     pub score: i32,
@@ -57,7 +61,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<PaperReq>) -> Ap
 // 查看详情
 #[derive(Serialize)]
 pub struct PaperResp {
-    pub id: i64,
+    pub id: Option<i64>,
     #[serde(rename(serialize = "relatedId"))]
     pub related_id: i32,
     #[serde(rename(serialize = "relatedName"))]
@@ -123,6 +127,8 @@ pub struct PaperQuestionResp {
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
+    #[serde(rename(serialize = "optionsLayout"))]
+    pub options_layout: Option<i16>,
     pub answer: Option<String>,
     pub analysis: Option<Json<Content>>,
     pub score: i32,

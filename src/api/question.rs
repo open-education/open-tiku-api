@@ -10,6 +10,7 @@ use sqlx::types::Json;
 // 添加题目请求
 #[derive(Deserialize)]
 pub struct CreateQuestionReq {
+    pub id: Option<i64>,
     #[serde(rename(deserialize = "questionCateId"))]
     pub question_cate_id: i32, // 题型主键
     #[serde(rename(deserialize = "sourceId"))]

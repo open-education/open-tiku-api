@@ -11,6 +11,7 @@ pub struct PaperQuestion {
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
+    pub options_layout: Option<i16>,
     pub answer: Option<String>,
     pub analysis: Option<Json<Content>>,
     pub score: i32,
@@ -23,7 +24,7 @@ impl PaperQuestion {
         questions: &[Self],
     ) -> Result<(), sqlx::Error> {
         let mut builder = QueryBuilder::<Postgres>::new(
-            "INSERT INTO paper_question (paper_id, group_id, gen_id, stem, images, options, answer, analysis, score) ",
+            "INSERT INTO paper_question (paper_id, group_id, gen_id, stem, images, options, options_layout, answer, analysis, score) ",
         );
 
         builder.push_values(questions, |mut b, q| {
@@ -33,6 +34,7 @@ impl PaperQuestion {
                 .push_bind(&q.stem)
                 .push_bind(&q.images)
                 .push_bind(&q.options)
+                .push_bind(&q.options_layout)
                 .push_bind(&q.answer)
                 .push_bind(&q.analysis)
                 .push_bind(q.score);
@@ -66,5 +68,23 @@ impl PaperQuestion {
         .await?;
 
         Ok(questions)
+    }
+
+    // 根据 paper_id 删除所有题目
+    pub async fn delete_by_paper_id(
+        tx: &mut Transaction<'_, Postgres>,
+        paper_id: i64,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+        DELETE FROM paper_question
+        WHERE paper_id = $1
+        "#,
+            paper_id
+        )
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 }

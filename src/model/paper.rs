@@ -7,7 +7,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction, Type, query_as, query_scalar}
 
 #[derive(FromRow)]
 pub struct Paper {
-    pub id: i64,
+    pub id: Option<i64>,
     pub related_id: i32,
     pub related_name: String,
     pub tag: String,
@@ -53,6 +53,7 @@ impl PaperStatus {
 
 // 试卷主表
 impl Paper {
+    // 根据 id 主键判断是新增还是更新
     pub async fn insert(
         tx: &mut Transaction<'_, Postgres>,
         paper: &Self,
@@ -60,17 +61,37 @@ impl Paper {
         let row = sqlx::query(
             r#"
             INSERT INTO paper (
-                related_id, related_name, tag, year, grade, semester,
+                id, related_id, related_name, tag, year, grade, semester,
                 title, score, source, remark, author_id, author_name,
                 count, remark_ext, status, approve_id, reject_reason, approve_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6,
+                COALESCE($1, nextval('paper_id_seq')), $2, $3, $4, $5, $6,
                 $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18
+                $13, $14, $15, $16, $17, $18, $19
             )
+            ON CONFLICT (id) DO UPDATE SET
+                related_id = EXCLUDED.related_id,
+                related_name = EXCLUDED.related_name,
+                tag = EXCLUDED.tag,
+                year = EXCLUDED.year,
+                grade = EXCLUDED.grade,
+                semester = EXCLUDED.semester,
+                title = EXCLUDED.title,
+                score = EXCLUDED.score,
+                source = EXCLUDED.source,
+                remark = EXCLUDED.remark,
+                author_id = EXCLUDED.author_id,
+                author_name = EXCLUDED.author_name,
+                count = EXCLUDED.count,
+                remark_ext = EXCLUDED.remark_ext,
+                status = EXCLUDED.status,
+                approve_id = EXCLUDED.approve_id,
+                reject_reason = EXCLUDED.reject_reason,
+                approve_at = EXCLUDED.approve_at
             RETURNING id
-            "#,
+        "#,
         )
+        .bind(paper.id)
         .bind(paper.related_id)
         .bind(&paper.related_name)
         .bind(&paper.tag)

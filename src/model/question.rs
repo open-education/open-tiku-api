@@ -82,46 +82,65 @@ pub struct Question {
 }
 
 impl Question {
-    // 添加题目-不包含事务
-    pub async fn simple_insert(pool: &PgPool, req: CreateQuestionReq) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
+    // 添加题目-根据主键判断是新增还是更新
+    pub async fn simple_insert(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
+        let id: i64 = sqlx::query_scalar(
             r#"
-        INSERT INTO question (
-            question_cate_id, question_type_id, question_tag_ids, author_id,
-            source, original_name, status,
-            title, content_plain, comment, difficulty_level,
-            images, options, options_layout,
-            answer, knowledge, analysis, process, remark, remark_ext,
-            steps
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-        RETURNING *
+            INSERT INTO question (
+                id, question_cate_id, question_type_id, question_tag_ids, author_id,
+                source, original_name, status,
+                title, content_plain, comment, difficulty_level,
+                images, options, options_layout,
+                answer, knowledge, analysis, process, remark, remark_ext,
+                steps
+            )
+            VALUES (
+                COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
+                $6, $7, $8, $9, $10, $11,
+                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                (question_cate_id, question_type_id, question_tag_ids, author_id,
+                 source, original_name, status,
+                 title, content_plain, comment, difficulty_level,
+                 images, options, options_layout,
+                 answer, knowledge, analysis, process, remark, remark_ext,
+                 steps)
+                = (EXCLUDED.question_cate_id, EXCLUDED.question_type_id, EXCLUDED.question_tag_ids, EXCLUDED.author_id,
+                   EXCLUDED.source, EXCLUDED.original_name, EXCLUDED.status,
+                   EXCLUDED.title, EXCLUDED.content_plain, EXCLUDED.comment, EXCLUDED.difficulty_level,
+                   EXCLUDED.images, EXCLUDED.options, EXCLUDED.options_layout,
+                   EXCLUDED.answer, EXCLUDED.knowledge, EXCLUDED.analysis, EXCLUDED.process, EXCLUDED.remark, EXCLUDED.remark_ext,
+                   EXCLUDED.steps)
+            RETURNING id
         "#,
         )
-        .bind(req.question_cate_id)
-        .bind(req.question_type_id)
-        .bind(Json(req.question_tag_ids.unwrap_or_default()))
-        .bind(req.author_id)
-        .bind(req.source)
-        .bind(req.original_name)
-        .bind(req.status)
-        .bind(req.title)
-        .bind(req.content_plain)
-        .bind(req.comment)
-        .bind(req.difficulty_level)
-        .bind(Json(req.images.unwrap_or_default()))
-        .bind(Json(req.options.unwrap_or_default()))
-        .bind(req.options_layout) // SMALLINT
-        .bind(req.answer)
-        .bind(req.knowledge)
-        .bind(Json(req.analysis.unwrap_or_default()))
-        .bind(Json(req.process.unwrap_or_default()))
-        .bind(req.remark)
-        .bind(req.remark_ext)
-        .bind(Json(req.steps.unwrap_or_default()))
-        .fetch_one(pool)
-        .await
+            .bind(req.id)
+            .bind(req.question_cate_id)
+            .bind(req.question_type_id)
+            .bind(Json(req.question_tag_ids.unwrap_or_default()))
+            .bind(req.author_id)
+            .bind(req.source)
+            .bind(req.original_name)
+            .bind(req.status)
+            .bind(req.title)
+            .bind(req.content_plain)
+            .bind(req.comment)
+            .bind(req.difficulty_level)
+            .bind(Json(req.images.unwrap_or_default()))
+            .bind(Json(req.options.unwrap_or_default()))
+            .bind(req.options_layout)
+            .bind(req.answer)
+            .bind(req.knowledge)
+            .bind(Json(req.analysis.unwrap_or_default()))
+            .bind(Json(req.process.unwrap_or_default()))
+            .bind(req.remark)
+            .bind(req.remark_ext)
+            .bind(Json(req.steps.unwrap_or_default()))
+            .fetch_one(pool)
+            .await?;
+
+        Ok(id)
     }
 
     // tx 事务方式写入
