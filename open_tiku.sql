@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS task
     task_type        SMALLINT     NOT NULL, -- 任务类型 1 题目上传
     name             VARCHAR(128) NOT NULL, -- 文件名称
     author_id        BIGINT       NOT NULL, -- 创作者标识
-    textbook_id      INTEGER      NOT NULL, -- 教材标识
+    textbook_id      INTEGER      NOT NULL, -- 教材标识, 目前在第2层上, 跟题型标签一个维度
     url              VARCHAR(128) NOT NULL, -- 文件路径
     email            VARCHAR(128) NOT NULL, -- 接收任务结果的邮箱
     status           SMALLINT     NOT NULL, -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败

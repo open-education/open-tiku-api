@@ -1,8 +1,8 @@
-use crate::api::file::DeleteImageReq;
-use crate::util::{file, upload};
 use crate::AppConfig;
+use crate::api::file::DeleteFileReq;
+use crate::util::{file, upload};
 use actix_multipart::Multipart;
-use actix_web::{web, HttpResponse};
+use actix_web::{HttpResponse, web};
 use std::io::Error;
 
 // 上传图片
@@ -42,11 +42,16 @@ pub fn read_file(
 }
 
 // 删除
-pub async fn delete_image(
+pub async fn delete_file(
     app_conf: web::Data<AppConfig>,
-    req: DeleteImageReq,
+    req: DeleteFileReq,
 ) -> Result<bool, Error> {
-    file::delete_image(&app_conf.get_ref().meta_path, req.filename.as_str()).await?;
+    file::delete_file(
+        &app_conf.get_ref().meta_path,
+        req.is_image,
+        req.filename.as_str(),
+    )
+    .await?;
 
     Ok(true)
 }
