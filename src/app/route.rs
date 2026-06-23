@@ -1,7 +1,7 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task, textbook,
+    chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task, text, textbook,
 };
 
 /// web 服务路由配置
@@ -71,4 +71,8 @@ pub fn paper(cfg: &mut web::ServiceConfig) {
         .service(paper::info)
         .service(paper::list)
         .service(paper::latest);
+}
+
+pub fn text(cfg: &mut web::ServiceConfig) {
+    cfg.service(text::question_snippet);
 }

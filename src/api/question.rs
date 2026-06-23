@@ -8,20 +8,20 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 
 // 添加题目请求
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CreateQuestionReq {
     pub id: Option<i64>,
-    #[serde(rename(deserialize = "questionCateId"))]
+    #[serde(rename(deserialize = "questionCateId", serialize = "questionCateId"))]
     pub question_cate_id: i32, // 题型主键
-    #[serde(rename(deserialize = "sourceId"))]
+    #[serde(rename(deserialize = "sourceId", serialize = "sourceId"))]
     pub source_id: Option<i64>, // 变式题父主键
-    #[serde(rename(deserialize = "questionTypeId"))]
+    #[serde(rename(deserialize = "questionTypeId", serialize = "questionTypeId"))]
     pub question_type_id: i32, // 题型类型主键
-    #[serde(rename(deserialize = "questionTagIds"))]
+    #[serde(rename(deserialize = "questionTagIds", serialize = "questionTagIds"))]
     pub question_tag_ids: Option<Vec<i32>>, // 题型标签主键
     pub author_id: Option<i64>, // 作者, 内部逻辑生成
     pub source: String,         // 来源
-    #[serde(rename(deserialize = "originalName"))]
+    #[serde(rename(deserialize = "originalName", serialize = "originalName"))]
     pub original_name: String, // 原创者昵称
     pub status: i16,
 
@@ -30,13 +30,13 @@ pub struct CreateQuestionReq {
     pub comment: Option<String>,       // 标题补充说明
 
     // 使用 rust_decimal 处理 0.5 精度问题
-    #[serde(rename(deserialize = "difficultyLevel"))]
+    #[serde(rename(deserialize = "difficultyLevel", serialize = "difficultyLevel"))]
     pub difficulty_level: Decimal, // 题目难易程度
 
     pub images: Option<Json<Vec<String>>>, // 题目图片列表
 
     pub options: Option<Json<Vec<QuestionOption>>>, // 选项内容
-    #[serde(rename(deserialize = "optionsLayout"))]
+    #[serde(rename(deserialize = "optionsLayout", serialize = "optionsLayout"))]
     pub options_layout: Option<i16>, // 使用 i16 对应数据库 SMALLINT
 
     // 答案与解析
@@ -46,7 +46,7 @@ pub struct CreateQuestionReq {
     pub process: Option<Json<Content>>,  // 解题过程
     pub steps: Option<Json<Vec<Step>>>,  // 解题步骤
     pub remark: Option<String>,          // 易错备注
-    #[serde(rename(deserialize = "remarkExt"))]
+    #[serde(rename(deserialize = "remarkExt", serialize = "remarkExt"))]
     pub remark_ext: Option<String>, // 其它备注
 }
 

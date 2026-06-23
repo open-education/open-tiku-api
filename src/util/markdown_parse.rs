@@ -273,7 +273,7 @@ pub fn get_difficulty_level(val: &str) -> Decimal {
 }
 
 // 解析出选项列表
-pub fn get_choices(choices: Vec<String>) -> Vec<(char, String)> {
+pub fn get_choices(choices: &Vec<String>) -> Vec<(char, String)> {
     let mut result: Vec<(char, String)> = choices
         .into_iter()
         .filter_map(|s| {
@@ -323,6 +323,11 @@ pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
     }
 
     Ok(all_questions)
+}
+
+// 将一段 markdown 片段尝试解析出一个题目
+pub fn get_question(content: &str) -> RawQuestion {
+    parse_question("".to_string(), content)
 }
 
 #[cfg(test)]

@@ -27,6 +27,7 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/other/dict").configure(route::textbook_dict))
             .service(web::scope("/task").configure(route::task))
             .service(web::scope("/paper").configure(route::paper))
+            .service(web::scope("/text").configure(route::text))
     })
     .bind(&addr)?
     .run()
