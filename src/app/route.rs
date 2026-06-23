@@ -25,20 +25,7 @@ pub fn question(cfg: &mut web::ServiceConfig) {
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
 pub fn edit(cfg: &mut web::ServiceConfig) {
-    cfg.service(edit::question_type)
-        .service(edit::tags)
-        .service(edit::rate)
-        .service(edit::title)
-        .service(edit::mention)
-        .service(edit::images)
-        .service(edit::options_layout)
-        .service(edit::options)
-        .service(edit::answer)
-        .service(edit::knowledge)
-        .service(edit::analyze)
-        .service(edit::process)
-        .service(edit::remark)
-        .service(edit::status);
+    cfg.service(edit::status);
 }
 
 // 教材菜单
