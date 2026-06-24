@@ -197,6 +197,7 @@ CREATE TABLE paper_question
     paper_id       BIGINT      NOT NULL,                     -- 试卷主表标识
     group_id       BIGINT      NOT NULL,                     -- 题型分类标识
     gen_id         VARCHAR(50) NOT NULL,                     -- 前端生成标识
+    order_num      SMALLINT    NOT NULL DEFAULT 1,           -- 题目顺序编号
     stem           TEXT        NOT NULL,                     -- 题干
     images         JSONB                DEFAULT '[]'::jsonb, -- 题目包含的图片地址标识
     options        JSONB                DEFAULT '[]'::jsonb, -- 选项内容

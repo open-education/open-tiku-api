@@ -42,6 +42,8 @@ pub struct PaperGroupReq {
 pub struct PaperQuestionReq {
     #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
+    #[serde(rename(deserialize = "orderNum"))]
+    pub order_num: i16,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
@@ -124,6 +126,8 @@ pub struct PaperQuestionResp {
     pub group_id: i64,
     #[serde(rename(serialize = "genId"))]
     pub gen_id: String,
+    #[serde(rename(serialize = "orderNum"))]
+    pub order_num: i16,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,

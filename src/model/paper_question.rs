@@ -8,6 +8,7 @@ pub struct PaperQuestion {
     pub paper_id: i64,
     pub group_id: i64,
     pub gen_id: String,
+    pub order_num: i16,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
@@ -24,13 +25,14 @@ impl PaperQuestion {
         questions: &[Self],
     ) -> Result<(), sqlx::Error> {
         let mut builder = QueryBuilder::<Postgres>::new(
-            "INSERT INTO paper_question (paper_id, group_id, gen_id, stem, images, options, options_layout, answer, analysis, score) ",
+            "INSERT INTO paper_question (paper_id, group_id, gen_id, order_num, stem, images, options, options_layout, answer, analysis, score) ",
         );
 
         builder.push_values(questions, |mut b, q| {
             b.push_bind(&q.paper_id)
                 .push_bind(q.group_id)
                 .push_bind(&q.gen_id)
+                .push_bind(&q.order_num)
                 .push_bind(&q.stem)
                 .push_bind(&q.images)
                 .push_bind(&q.options)
