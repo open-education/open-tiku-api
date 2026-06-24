@@ -45,15 +45,17 @@ pub async fn read_file(
 }
 
 #[derive(Deserialize)]
-pub struct DeleteImageReq {
+pub struct DeleteFileReq {
+    #[serde(rename(deserialize = "isImage"))]
+    pub is_image: bool,
     pub filename: String,
 }
 
 // 图片删除
-#[post("/delete/image")]
-pub async fn delete_image(
+#[post("/delete/file")]
+pub async fn delete_file(
     app_conf: web::Data<AppConfig>,
-    req: web::Json<DeleteImageReq>,
+    req: web::Json<DeleteFileReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(service::file::delete_image(app_conf, req.into_inner()).await)
+    ApiResponse::response(service::file::delete_file(app_conf, req.into_inner()).await)
 }

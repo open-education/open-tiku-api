@@ -1,7 +1,7 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, edit, file, other_dict, question, question_cate, task, textbook,
+    chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task, text, textbook,
 };
 
 /// web 服务路由配置
@@ -12,7 +12,7 @@ pub fn file(cfg: &mut web::ServiceConfig) {
         .service(file::upload_file)
         .service(file::read_image)
         .service(file::read_file)
-        .service(file::delete_image);
+        .service(file::delete_file);
 }
 
 // 题目
@@ -25,20 +25,7 @@ pub fn question(cfg: &mut web::ServiceConfig) {
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
 pub fn edit(cfg: &mut web::ServiceConfig) {
-    cfg.service(edit::question_type)
-        .service(edit::tags)
-        .service(edit::rate)
-        .service(edit::title)
-        .service(edit::mention)
-        .service(edit::images)
-        .service(edit::options_layout)
-        .service(edit::options)
-        .service(edit::answer)
-        .service(edit::knowledge)
-        .service(edit::analyze)
-        .service(edit::process)
-        .service(edit::remark)
-        .service(edit::status);
+    cfg.service(edit::status);
 }
 
 // 教材菜单
@@ -77,4 +64,15 @@ pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
 
 pub fn task(cfg: &mut web::ServiceConfig) {
     cfg.service(task::add).service(task::list);
+}
+
+pub fn paper(cfg: &mut web::ServiceConfig) {
+    cfg.service(paper::add)
+        .service(paper::info)
+        .service(paper::list)
+        .service(paper::latest);
+}
+
+pub fn text(cfg: &mut web::ServiceConfig) {
+    cfg.service(text::question_snippet);
 }

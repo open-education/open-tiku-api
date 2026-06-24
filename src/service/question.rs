@@ -1,15 +1,15 @@
+use crate::AppConfig;
 use crate::api::question::{
     CreateQuestionReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp, QuestionListReq,
     QuestionListResp, QuestionSimilarListReq,
 };
+use crate::constant::meta;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
-use crate::AppConfig;
 use actix_web::web;
-use log::error;
+use log::{error};
 use regex::Regex;
 use std::io::{Error, ErrorKind};
-use crate::constant::meta;
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {
@@ -31,20 +31,21 @@ pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> 
     let db = &app_conf.get_ref().db;
 
     let source_id = req.source_id;
+    let is_add = req.id.is_none();
 
     // todo 从登录信息中解析出作者
     req.author_id = Some(meta::TEMP_ADMIN_ID);
 
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
-    let row = Question::simple_insert(db, req).await.map_err(|e| {
+    let id = Question::simple_insert(db, req).await.map_err(|e| {
         error!("question add err: {:?}", e);
         Error::new(ErrorKind::Other, "题目添加失败")
     })?;
 
-    // 如果存在变式题则关联
-    if source_id.is_some() {
-        let _ = QuestionSimilar::insert(db, source_id.unwrap(), row.id)
+    // 新增如果存在变式题则关联变式题
+    if is_add && source_id.is_some() {
+        let _ = QuestionSimilar::insert(db, source_id.unwrap(), id)
             .await
             .map_err(|e| {
                 error!("question add err: {:?}", e);
@@ -52,7 +53,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> 
             })?;
     }
 
-    Ok(row.id)
+    Ok(id)
 }
 
 // 题目基本信息, 基本够列表使用
@@ -63,6 +64,8 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         question_type_id: row.question_type_id,
         question_tag_ids: row.question_tag_ids.clone(),
         author_id: row.author_id,
+        source: row.source.clone(),
+        original_name: row.original_name.clone(),
         title: row.title.clone(),
         content_plain: Some(row.content_plain.clone()),
         comment: row.comment.clone(),
@@ -74,6 +77,7 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         approve_id: row.approve_id,
         reject_reason: row.reject_reason.clone(),
         approve_at: row.approve_at,
+        steps: row.steps.clone(),
         created_at: row.created_at,
         updated_at: row.updated_at,
     }

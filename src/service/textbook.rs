@@ -162,11 +162,12 @@ pub async fn list_children(
     for item in resp.iter_mut() {
         // 使用 If-Let Chains (Rust 1.64+)
         if let (Some(6), Some(children_list)) = (item.path_depth, &mut item.children) {
+            // 遍历第7层菜单
             for row in children_list.iter_mut() {
                 // 获取对应的关联 ID 列表引用
                 if let Some(rel_ids) = relation_map.get(&row.id) {
                     let row_children = row.children.get_or_insert_with(Vec::new);
-
+                    // 第8层菜单是拼接的题型列表
                     for &rel_id in rel_ids {
                         if let Some(questions) = question_id_map.get(&rel_id) {
                             // 直接遍历 questions 并克隆数据
@@ -176,7 +177,7 @@ pub async fn list_children(
                                     path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
                                     parent_id: None,
                                     label: q.label.clone(),
-                                    key: String::new(),
+                                    key: format!("{}-{}", row.key, q.id), // 题型本身没有key， 拼接一个
                                     sort_order: q.sort_order,
                                     path_depth: None,
                                     table_name: Some("question_cate".to_string()),

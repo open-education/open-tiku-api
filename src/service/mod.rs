@@ -7,3 +7,4 @@ pub mod question_upload;
 pub mod task;
 pub mod textbook;
 pub mod textbook_dict;
+pub mod paper;

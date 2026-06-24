@@ -46,8 +46,12 @@ fn get_content_type(filename: &str) -> &'static str {
     }
 }
 
-pub async fn delete_image(meta_path: &str, filename: &str) -> Result<bool, Error> {
-    let image_path = format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename);
-    let _ = tokio::fs::remove_file(image_path).await?;
+pub async fn delete_file(meta_path: &str, is_image: bool, filename: &str) -> Result<bool, Error> {
+    let file_path = if is_image {
+        format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename)
+    } else {
+        format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
+    };
+    let _ = tokio::fs::remove_file(file_path).await?;
     Ok(true)
 }

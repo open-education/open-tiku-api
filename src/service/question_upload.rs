@@ -1,12 +1,14 @@
 use crate::AppConfig;
 use crate::api::question::CreateQuestionReq;
+use crate::api::text::QuestionSnippetReq;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
-use crate::model::question::{Content, Question, QuestionOption};
+use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::markdown_parse;
+use crate::util::markdown_parse::RawQuestion;
 use log::{error, info};
 use sqlx::PgPool;
 use sqlx::types::Json;
@@ -248,18 +250,15 @@ async fn single(
     Ok(())
 }
 
-// 通过 markdown 文档文本内容转为请求体
-fn to_req(
-    raw: markdown_parse::RawQuestion,
-    parent_id: Option<i64>,
-    task_info: &Task,
+// 根据题目类型列表获取对应的题目类型标识和选项内容
+fn get_question_type_and_options(
+    raw: &RawQuestion,
     question_type_list: &[TextbookDict],
-    question_tag_list: &[TextbookDict],
-) -> CreateQuestionReq {
+) -> (i32, Option<Json<Vec<QuestionOption>>>) {
     // 1. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
     let question_type_info = question_type_list
         .iter()
-        .find(|item| item.item_value.contains(&raw.question_type))
+        .find(|item| item.item_value.contains(raw.question_type.as_str()))
         .or_else(|| question_type_list.iter().find(|item| !item.is_select));
 
     // 3. 获取题型 ID，若未找到则 -1
@@ -268,7 +267,7 @@ fn to_req(
     // 4. 处理选择题选项
     let options = if let Some(info) = question_type_info {
         if info.is_select {
-            let choices = markdown_parse::get_choices(raw.choices);
+            let choices = markdown_parse::get_choices(&raw.choices);
             let opts: Vec<QuestionOption> = choices
                 .into_iter()
                 .enumerate()
@@ -287,7 +286,20 @@ fn to_req(
         None
     };
 
-    // 5. 查找变式题标签
+    (question_type_id, options)
+}
+
+// 通过 markdown 文档文本内容转为请求体
+fn to_req(
+    raw: RawQuestion,
+    parent_id: Option<i64>,
+    task_info: &Task,
+    question_type_list: &[TextbookDict],
+    question_tag_list: &[TextbookDict],
+) -> CreateQuestionReq {
+    let (question_type_id, options) = get_question_type_and_options(&raw, question_type_list);
+
+    // 查找变式题标签
     let question_tag_info = question_tag_list
         .iter()
         .find(|item| item.item_value.contains("变式题"));
@@ -298,11 +310,15 @@ fn to_req(
     };
 
     CreateQuestionReq {
+        id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         question_type_id,
         question_tag_ids,
         author_id: Some(meta::TEMP_ADMIN_ID),
+        source: "".to_string(),
+        original_name: "".to_string(),
+        status: QuestionStatus::Draft as i16,
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,
@@ -320,6 +336,89 @@ fn to_req(
             content: raw.detail,
             images: None,
         })),
-        remark: Some("批量题目上传".to_string()),
+        steps: None,
+        remark: None,
+        remark_ext: Some("批量题目上传".to_string()),
     }
+}
+
+// 从markdown片段文本中解析出题目信息
+pub async fn parse_question_snippet(req: QuestionSnippetReq) -> Result<CreateQuestionReq, Error> {
+    if req.type_list.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "章节/考点信息不能为空"));
+    }
+    if req.tag_list.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "题型不能为空"));
+    }
+    if req.content.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "接收内容不能为空"));
+    }
+
+    let raw = markdown_parse::get_question(req.content.as_str());
+    if raw.stem.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "解析后无法查找到题目题干",
+        ));
+    }
+
+    let question_tag_info = req
+        .tag_list
+        .iter()
+        .find(|item| item.item_value.contains("变式题"));
+    let question_tag_ids: Option<Vec<i32>> = question_tag_info.map(|tag_info| vec![tag_info.id]);
+
+    // 临时处理类型转化
+    let type_list: Vec<TextbookDict> = req
+        .type_list
+        .into_iter()
+        .map(|r| TextbookDict {
+            id: r.id,
+            textbook_id: r.textbook_id,
+            type_code: r.type_code,
+            item_value: r.item_value,
+            sort_order: r.sort_order,
+            is_select: r.is_select,
+        })
+        .collect();
+
+    let (question_type_id, options) = get_question_type_and_options(&raw, &type_list);
+    if question_type_id <= 0 {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "解析后无法匹配上题目类型",
+        ));
+    }
+
+    Ok(CreateQuestionReq {
+        id: None,
+        question_cate_id: 0,
+        source_id: None,
+        question_type_id,
+        question_tag_ids,
+        author_id: None,
+        source: "".to_string(),
+        original_name: "".to_string(),
+        status: QuestionStatus::Draft as i16,
+        title: raw.stem.clone(),
+        content_plain: Some(question::to_plain_text(&raw.stem)),
+        comment: None,
+        difficulty_level: markdown_parse::get_difficulty_level(&raw.difficulty_level),
+        images: None,
+        options,
+        options_layout: Some(1),
+        answer: Some(raw.answer),
+        knowledge: Some(raw.knowledge),
+        analysis: Some(Json(Content {
+            content: raw.analysis,
+            images: None,
+        })),
+        process: Some(Json(Content {
+            content: raw.detail,
+            images: None,
+        })),
+        steps: None,
+        remark: None,
+        remark_ext: Some("文本片段解析".to_string()),
+    })
 }

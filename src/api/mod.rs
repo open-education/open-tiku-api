@@ -6,3 +6,5 @@ pub mod question_cate;
 pub mod textbook;
 pub mod file;
 pub mod task;
+pub mod paper;
+pub mod text;
