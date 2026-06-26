@@ -99,13 +99,15 @@ pub struct QuestionBaseResp {
     #[serde(rename(serialize = "rejectReason"))]
     pub reject_reason: Option<String>, // 拒绝原因
     #[serde(rename(serialize = "approveAt"))]
-    pub approve_at: Option<chrono::DateTime<chrono::Utc>>, // 审核时间
+    pub approve_at: Option<String>, // 审核时间
 
     pub steps: Option<Json<Vec<Step>>>, // 解题步骤需要返回
 
     // 创建更新时间
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[serde(rename(serialize = "createdAt"))]
+    pub created_at: String,
+    #[serde(rename(serialize = "updatedAt"))]
+    pub updated_at: String,
 }
 
 // 其它额外信息, 后续非列表字段再这里补充
