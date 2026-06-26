@@ -6,8 +6,10 @@ use crate::api::question::{
 use crate::constant::meta;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
+use crate::util::local::to_local_datetime;
 use actix_web::web;
-use log::{error};
+use actix_web::web::to;
+use log::error;
 use regex::Regex;
 use std::io::{Error, ErrorKind};
 
@@ -76,10 +78,14 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         status: row.status,
         approve_id: row.approve_id,
         reject_reason: row.reject_reason.clone(),
-        approve_at: row.approve_at,
+        approve_at: if let Some(at) = row.approve_at {
+            Some(to_local_datetime(at))
+        } else {
+            None
+        },
         steps: row.steps.clone(),
-        created_at: row.created_at,
-        updated_at: row.updated_at,
+        created_at: to_local_datetime(row.created_at),
+        updated_at: to_local_datetime(row.updated_at),
     }
 }
 

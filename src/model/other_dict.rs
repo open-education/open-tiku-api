@@ -15,21 +15,33 @@ pub struct TextbookDict {
 
 impl TextbookDict {
     // 添加字典项
-    pub async fn insert(pool: &PgPool, req: CreateTextbookDictReq) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
+    pub async fn insert(pool: &PgPool, req: CreateTextbookDictReq) -> Result<i32, sqlx::Error> {
+        let id: i32 = sqlx::query_scalar(
             r#"
-            INSERT INTO textbook_dict (textbook_id, type_code, item_value, sort_order, is_select)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *
-            "#,
+        INSERT INTO textbook_dict (id, textbook_id, type_code, item_value, sort_order, is_select)
+        VALUES (
+            COALESCE(NULLIF($1, 0), nextval('textbook_dict_id_seq')),
+            $2, $3, $4, $5, $6
         )
+        ON CONFLICT (id) DO UPDATE SET
+            textbook_id = EXCLUDED.textbook_id,
+            type_code = EXCLUDED.type_code,
+            item_value = EXCLUDED.item_value,
+            sort_order = EXCLUDED.sort_order,
+            is_select = EXCLUDED.is_select
+        RETURNING id
+        "#,
+        )
+        .bind(req.id)
         .bind(req.textbook_id)
         .bind(req.type_code)
         .bind(req.item_value)
         .bind(req.sort_order)
         .bind(req.is_select)
         .fetch_one(pool)
-        .await
+        .await?;
+
+        Ok(id)
     }
 
     // 根据类型和字典值查询是否已存在

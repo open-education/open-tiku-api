@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct CreateTextbookDictReq {
+    pub id: Option<i32>,
     #[serde(rename(deserialize = "textbookId"))]
     pub textbook_id: i32,
     #[serde(rename(deserialize = "typeCode"))]
@@ -38,7 +39,7 @@ pub struct TextbookDictResp {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookDictReq>,
-) -> ApiResponse<TextbookDictResp> {
+) -> ApiResponse<i32> {
     ApiResponse::response(textbook_dict::add(app_conf, req.into_inner()).await)
 }
 
