@@ -197,3 +197,16 @@ pub async fn similar(
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::similar(app_conf, req.into_inner()).await)
 }
+
+#[derive(Deserialize)]
+pub struct DeleteReq {
+    pub id: i64
+}
+
+#[post("/delete")]
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<DeleteReq>,
+) -> ApiResponse<bool> {
+    ApiResponse::response(question::delete(app_conf, req.into_inner()).await)
+}
