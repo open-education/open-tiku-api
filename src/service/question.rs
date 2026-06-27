@@ -1,12 +1,13 @@
 use crate::AppConfig;
 use crate::api::question::{
-    CreateQuestionReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp, QuestionListReq,
-    QuestionListResp, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp,
+    QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
 use crate::constant::meta;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
 use crate::util::local::to_local_datetime;
+use actix_web::http::header::q;
 use actix_web::web;
 use actix_web::web::to;
 use log::error;
@@ -252,4 +253,22 @@ pub async fn similar(
         page_size: req.page_size,
         total,
     })
+}
+
+// 删除题目
+pub async fn delete(app_conf: web::Data<AppConfig>, req: DeleteReq) -> Result<bool, Error> {
+    if req.id <= 0 {
+        return Err(Error::new(ErrorKind::Other, "题目标识为空"));
+    }
+
+    let rows = Question::delete(&app_conf.db, req.id)
+        .await
+        .map_err(|err| {
+            error!("question delete by id err: {:?}", err);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    //todo 需校验只能删除自己的题目
+
+    Ok(rows > 0)
 }

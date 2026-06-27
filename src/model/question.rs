@@ -449,4 +449,12 @@ impl Question {
         .fetch_all(pool)
         .await
     }
+
+    /// 根据 ID 删除记录
+    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!("DELETE FROM question WHERE id = $1", id)
+            .execute(pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
 }
