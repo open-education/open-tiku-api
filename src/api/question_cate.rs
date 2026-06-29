@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct CreateQuestionCateReq {
+    pub id: Option<i32>,
     #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
     pub label: String,
@@ -29,7 +30,7 @@ pub struct QuestionCateResp {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateQuestionCateReq>,
-) -> ApiResponse<QuestionCateResp> {
+) -> ApiResponse<i32> {
     ApiResponse::response(question_cate::add(app_conf, req.into_inner()).await)
 }
 

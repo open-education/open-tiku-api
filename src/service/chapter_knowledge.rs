@@ -1,3 +1,4 @@
+use crate::AppConfig;
 use crate::api::chapter_knowledge::{
     ChapterKnowledgeIdsReq, ChapterKnowledgeResp, CreateChapterKnowledgeReq,
     RemoveChapterKnowledgeReq,
@@ -6,7 +7,6 @@ use crate::api::textbook::TextbookResp;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::service::textbook;
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
@@ -122,15 +122,20 @@ pub async fn remove(
     app_conf: web::Data<AppConfig>,
     req: RemoveChapterKnowledgeReq,
 ) -> Result<bool, Error> {
-    let req_id: i32 = req.id;
-    if req_id <= 0 {
-        return Err(Error::new(ErrorKind::Other, "删除数据标识为空"));
+    let chapter_id: i32 = req.chapter_id;
+    if chapter_id <= 0 {
+        return Err(Error::new(ErrorKind::Other, "章节标识为空"));
+    }
+
+    let knowledge_id: i32 = req.knowledge_id;
+    if knowledge_id <= 0 {
+        return Err(Error::new(ErrorKind::Other, "考点标识为空"));
     }
 
     let db = &app_conf.get_ref().db;
 
     // 如果有题型关联就不能解除了
-    let rows = QuestionCate::find_all_by_related_ids(db, vec![req_id])
+    let rows = QuestionCate::find_all_by_related_ids(db, vec![chapter_id, knowledge_id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -141,7 +146,7 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
     }
 
-    let res = ChapterKnowledge::delete_by_chapter_or_knowledge_id(db, req_id)
+    let res = ChapterKnowledge::delete_by_chapter_knowledge_id(db, chapter_id, knowledge_id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);

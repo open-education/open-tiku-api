@@ -14,21 +14,34 @@ pub struct QuestionCate {
 
 impl QuestionCate {
     /// 新增记录
-    /// 返回生成的完整结构体（包含数据库生成的 ID 和时间戳）
-    pub async fn insert(pool: &PgPool, req: CreateQuestionCateReq) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
+    pub async fn insert(pool: &PgPool, req: CreateQuestionCateReq) -> Result<i32, sqlx::Error> {
+        let key = format!("{:x}", md5::compute(&req.label))[..10].to_string();
+
+        let row = sqlx::query(
             r#"
-            INSERT INTO question_cate (related_id, label, key, sort_order)
-            VALUES ($1, $2, $3, $4)
-            RETURNING id, related_id, label, key, sort_order
-            "#,
+        INSERT INTO question_cate (id, related_id, label, key, sort_order)
+        VALUES (COALESCE($1, nextval('question_cate_id_seq')), $2, $3, $4, $5)
+        ON CONFLICT (id) DO UPDATE SET
+            related_id = EXCLUDED.related_id,
+            label = EXCLUDED.label,
+            key = EXCLUDED.key,
+            sort_order = EXCLUDED.sort_order
+        RETURNING id
+        "#,
         )
+        .bind(req.id) // Option<i32>
         .bind(req.related_id)
         .bind(&req.label)
-        .bind((&format!("{:x}", md5::compute(&req.label))[..10]).to_string())
+        .bind(&key)
         .bind(req.sort_order)
+        .map(|row: sqlx::postgres::PgRow| {
+            use sqlx::Row;
+            row.get::<i32, _>("id")
+        })
         .fetch_one(pool)
-        .await
+        .await?;
+
+        Ok(row)
     }
 
     /// 根据 ID 删除记录

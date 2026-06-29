@@ -33,6 +33,7 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
 pub fn textbook(cfg: &mut web::ServiceConfig) {
     cfg.service(textbook::list_all)
         .service(textbook::list_part)
+        .service(textbook::list_level)
         .service(textbook::list_children)
         .service(textbook::add)
         .service(textbook::edit)

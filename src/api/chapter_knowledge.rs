@@ -16,9 +16,9 @@ pub struct CreateChapterKnowledgeReq {
 #[derive(Serialize)]
 pub struct ChapterKnowledgeResp {
     pub id: Option<i32>,
-    #[serde(rename(deserialize = "chapterId"))]
+    #[serde(rename(serialize = "chapterId"))]
     pub chapter_id: i32,
-    #[serde(rename(deserialize = "knowledgeId"))]
+    #[serde(rename(serialize = "knowledgeId"))]
     pub knowledge_id: i32,
 }
 
@@ -37,9 +37,7 @@ pub async fn info(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
 ) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
-    ApiResponse::response(
-        chapter_knowledge::info_by_knowledge(app_conf, path.into_inner().0).await,
-    )
+    ApiResponse::response(chapter_knowledge::info_by_knowledge(app_conf, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -67,7 +65,10 @@ pub async fn chapter(
 
 #[derive(Deserialize)]
 pub struct RemoveChapterKnowledgeReq {
-    pub id: i32,
+    #[serde(rename(deserialize = "chapterId"))]
+    pub chapter_id: i32,
+    #[serde(rename(deserialize = "knowledgeId"))]
+    pub knowledge_id: i32,
 }
 
 // 解除绑定关系
