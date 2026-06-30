@@ -42,12 +42,13 @@ pub struct Step {
 #[derive(FromRow)]
 pub struct Question {
     pub id: i64,
-    pub question_cate_id: i32,                    // 题型主键
-    pub question_type_id: i32,                    // 题型类型主键
-    pub question_tag_ids: Option<Json<Vec<i32>>>, // 题型标签主键
-    pub author_id: i64,                           // 作者
-    pub source: String,                           // 来源
-    pub original_name: String,                    // 原创者昵称
+    pub question_cate_id: i32,                          // 题型主键
+    pub question_type_id: i32,                          // 题型类型主键
+    pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
+    pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养标识
+    pub author_id: i64,                                 // 作者
+    pub source: String,                                 // 来源
+    pub original_name: String,                          // 原创者昵称
 
     pub title: String,           // 标题
     pub content_plain: String,   // 去除公式等特殊字符的标题, 为了搜索用
@@ -92,12 +93,12 @@ impl Question {
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark, remark_ext,
-                steps
+                steps, question_dimension_ids
             )
             VALUES (
                 COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
                 $6, $7, $8, $9, $10, $11,
-                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
             )
             ON CONFLICT (id) DO UPDATE SET
                 (question_cate_id, question_type_id, question_tag_ids, author_id,
@@ -105,13 +106,13 @@ impl Question {
                  title, content_plain, comment, difficulty_level,
                  images, options, options_layout,
                  answer, knowledge, analysis, process, remark, remark_ext,
-                 steps)
+                 steps, question_dimension_ids)
                 = (EXCLUDED.question_cate_id, EXCLUDED.question_type_id, EXCLUDED.question_tag_ids, EXCLUDED.author_id,
                    EXCLUDED.source, EXCLUDED.original_name, EXCLUDED.status,
                    EXCLUDED.title, EXCLUDED.content_plain, EXCLUDED.comment, EXCLUDED.difficulty_level,
                    EXCLUDED.images, EXCLUDED.options, EXCLUDED.options_layout,
                    EXCLUDED.answer, EXCLUDED.knowledge, EXCLUDED.analysis, EXCLUDED.process, EXCLUDED.remark, EXCLUDED.remark_ext,
-                   EXCLUDED.steps)
+                   EXCLUDED.steps, EXCLUDED.question_dimension_ids)
             RETURNING id
         "#,
         )
@@ -137,6 +138,7 @@ impl Question {
             .bind(req.remark)
             .bind(req.remark_ext)
             .bind(Json(req.steps.unwrap_or_default()))
+            .bind(Json(req.question_dimension_ids.unwrap_or_default()))
             .fetch_one(pool)
             .await?;
 
@@ -157,10 +159,10 @@ impl Question {
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
-            steps
+            steps, question_dimension_ids
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
         RETURNING *
         "#,
         )
@@ -185,6 +187,7 @@ impl Question {
         .bind(req.remark)
         .bind(req.remark_ext)
         .bind(Json(req.steps.unwrap_or_default()))
+        .bind(Json(req.question_dimension_ids.unwrap_or_default()))
         .fetch_one(&mut **tx)
         .await
     }
@@ -213,7 +216,7 @@ impl Question {
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark,remark_ext,
-                steps
+                steps, question_dimension_ids
             )
             "#,
             );
@@ -238,7 +241,8 @@ impl Question {
                     .push_bind(Json(req.process.clone().unwrap_or_default()))
                     .push_bind(&req.remark)
                     .push_bind(&req.remark_ext)
-                    .push_bind(Json(req.steps.clone().unwrap_or_default()));
+                    .push_bind(Json(req.steps.clone().unwrap_or_default()))
+                    .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()));
             });
 
             // 添加 RETURNING id 子句
@@ -273,6 +277,7 @@ impl Question {
         ids: Option<Vec<i64>>,
         title_val: Option<String>,
         tag_ids: Option<Vec<i32>>,
+        dimension_ids: Option<Vec<i32>>,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -283,6 +288,7 @@ impl Question {
               AND ($4 IS NULL OR id = ANY($4))
               AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
               AND ($6 IS NULL OR question_tag_ids @> $7)
+              AND ($8 IS NULL OR question_dimension_ids @> $9)
             "#,
         )
         .bind(cate_id)
@@ -292,6 +298,8 @@ impl Question {
         .bind(title_val)
         .bind(tag_ids.as_ref().map(|_| true))
         .bind(tag_ids.map(Json))
+        .bind(dimension_ids.as_ref().map(|_| true))
+        .bind(dimension_ids.map(Json))
         .fetch_one(pool)
         .await
     }
@@ -305,6 +313,7 @@ impl Question {
         ids: Option<Vec<i64>>,
         title_val: Option<String>,
         tag_ids: Option<Vec<i32>>,
+        dimension_ids: Option<Vec<i32>>,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -318,8 +327,9 @@ impl Question {
               AND ($4 IS NULL OR id = ANY($4))
               AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
               AND ($6 IS NULL OR question_tag_ids @> $7)
+              AND ($8 IS NULL OR question_dimension_ids @> $9)
             ORDER BY id DESC
-            LIMIT $8 OFFSET $9
+            LIMIT $10 OFFSET $11
             "#,
         )
         .bind(cate_id)
@@ -329,6 +339,8 @@ impl Question {
         .bind(title_val)
         .bind(tag_ids.as_ref().map(|_| true))
         .bind(tag_ids.map(Json))
+        .bind(dimension_ids.as_ref().map(|_| true))
+        .bind(dimension_ids.map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
@@ -390,6 +402,7 @@ impl Question {
         cate_id: i32,
         type_id: Option<i32>,
         tag_ids: Option<Vec<i32>>,
+        dimension_ids: Option<Vec<i32>>,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -401,6 +414,7 @@ impl Question {
               AND q.question_cate_id = $3
               AND ($4 IS NULL OR q.question_type_id = $4)
               AND ($5 IS NULL OR q.question_tag_ids @> $6)
+              AND ($7 IS NULL OR q.question_dimension_ids @> $8)
             "#,
         )
         .bind(question_id)
@@ -409,6 +423,8 @@ impl Question {
         .bind(type_id)
         .bind(tag_ids.as_ref().map(|_| true))
         .bind(tag_ids.map(Json))
+        .bind(dimension_ids.as_ref().map(|_| true))
+        .bind(dimension_ids.map(Json))
         .fetch_one(pool)
         .await
     }
@@ -421,6 +437,7 @@ impl Question {
         cate_id: i32,
         type_id: Option<i32>,
         tag_ids: Option<Vec<i32>>,
+        dimension_ids: Option<Vec<i32>>,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -434,8 +451,9 @@ impl Question {
               AND q.question_cate_id = $3
               AND ($4 IS NULL OR q.question_type_id = $4)
               AND ($5 IS NULL OR q.question_tag_ids @> $6)
+              AND ($7 IS NULL OR q.question_dimension_ids @> $8)
             ORDER BY qs.id ASC
-            LIMIT $7 OFFSET $8
+            LIMIT $9 OFFSET $10
             "#,
         )
         .bind(question_id)
@@ -444,6 +462,8 @@ impl Question {
         .bind(type_id)
         .bind(tag_ids.as_ref().map(|_| true))
         .bind(tag_ids.map(Json))
+        .bind(dimension_ids.as_ref().map(|_| true))
+        .bind(dimension_ids.map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
