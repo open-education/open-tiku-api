@@ -10,8 +10,6 @@ use crate::api::{
 pub fn file(cfg: &mut web::ServiceConfig) {
     cfg.service(file::upload_image)
         .service(file::upload_file)
-        .service(file::read_image)
-        .service(file::read_file)
         .service(file::delete_file);
 }
 
@@ -32,22 +30,18 @@ pub fn edit(cfg: &mut web::ServiceConfig) {
 // 教材菜单
 pub fn textbook(cfg: &mut web::ServiceConfig) {
     cfg.service(textbook::list_all)
-        .service(textbook::list_part)
         .service(textbook::list_level)
         .service(textbook::list_children)
         .service(textbook::add)
         .service(textbook::edit)
-        .service(textbook::info)
         .service(textbook::delete);
 }
 
 // 教材章节和知识点关联
 pub fn chapter_knowledge(cfg: &mut web::ServiceConfig) {
     cfg.service(chapter_knowledge::add)
-        .service(chapter_knowledge::edit)
-        .service(chapter_knowledge::knowledge)
-        .service(chapter_knowledge::chapter)
-        .service(chapter_knowledge::info);
+        .service(chapter_knowledge::list)
+        .service(chapter_knowledge::remove);
 }
 
 // 教材题型

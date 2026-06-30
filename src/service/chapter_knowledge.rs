@@ -1,15 +1,15 @@
-use crate::AppConfig;
 use crate::api::chapter_knowledge::{
-    ChapterKnowledgeIdsReq, ChapterKnowledgeResp, CreateChapterKnowledgeReq,
-    RemoveChapterKnowledgeReq,
+    ChapterKnowledgeResp, CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq,
 };
-use crate::api::textbook::TextbookResp;
+
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
-use crate::service::textbook;
+
+use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
+
 use std::io::{Error, ErrorKind};
 
 // 查询唯一绑定关系是否一存在
@@ -26,7 +26,7 @@ async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<
     } else {
         Err(Error::new(
             ErrorKind::Other,
-            "当前选择的章节和知识点已关联过",
+            "当前选择的章节和知识点已存在关联关系, 无需重复关联",
         ))
     }
 }
@@ -40,11 +40,11 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 }
 
 // 通过章节或者知识点获取关联信息
-pub async fn info_by_knowledge(
+pub async fn list(
     app_conf: web::Data<AppConfig>,
     id: i32,
 ) -> Result<Vec<ChapterKnowledgeResp>, Error> {
-    let rows = ChapterKnowledge::find_by_knowledge_ids(&app_conf.get_ref().db, vec![id])
+    let rows = ChapterKnowledge::find_by_ids(&app_conf.get_ref().db, vec![id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -54,7 +54,7 @@ pub async fn info_by_knowledge(
     if !rows.is_empty() {
         Ok(rows.into_iter().map(to_resp).collect())
     } else {
-        Err(Error::new(ErrorKind::Other, "未做章节和知识点关联"))
+        Ok(Vec::new())
     }
 }
 
@@ -62,59 +62,17 @@ pub async fn info_by_knowledge(
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateChapterKnowledgeReq,
-) -> Result<ChapterKnowledgeResp, Error> {
+) -> Result<i32, Error> {
     let db = &app_conf.get_ref().db;
 
     check_unique(db, &req).await?;
 
-    let row = ChapterKnowledge::insert(db, &req).await.map_err(|err| {
+    let row_id = ChapterKnowledge::insert(db, &req).await.map_err(|err| {
         error!("error adding chapter knowledge: {}", err);
         Error::new(ErrorKind::Other, "添加失败")
     })?;
 
-    Ok(to_resp(row))
-}
-
-// 通过章节小节获取知识点类信息
-pub async fn get_by_chapter(
-    app_conf: web::Data<AppConfig>,
-    req: ChapterKnowledgeIdsReq,
-) -> Result<Vec<TextbookResp>, Error> {
-    if req.ids.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let rows = ChapterKnowledge::find_by_chapter_ids(&app_conf.get_ref().db, req.ids)
-        .await
-        .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
-
-    let knowledge_ids: Vec<i32> = rows.iter().map(|row| row.knowledge_id).collect();
-    let res = textbook::info_list_by_ids(app_conf, knowledge_ids).await?;
-    Ok(res)
-}
-
-// 通过知识点小类获取章节信息
-pub async fn get_by_knowledge(
-    app_conf: web::Data<AppConfig>,
-    req: ChapterKnowledgeIdsReq,
-) -> Result<Vec<TextbookResp>, Error> {
-    if req.ids.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let rows = ChapterKnowledge::find_by_knowledge_ids(&app_conf.get_ref().db, req.ids)
-        .await
-        .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
-
-    let chapter_ids: Vec<i32> = rows.iter().map(|row| row.chapter_id).collect();
-    let res = textbook::info_list_by_ids(app_conf, chapter_ids).await?;
-    Ok(res)
+    Ok(row_id)
 }
 
 // 解除关联关系
@@ -134,8 +92,22 @@ pub async fn remove(
 
     let db = &app_conf.get_ref().db;
 
-    // 如果有题型关联就不能解除了
-    let rows = QuestionCate::find_all_by_related_ids(db, vec![chapter_id, knowledge_id])
+    // 查询关联记录
+    let relation_row = ChapterKnowledge::find_unique(&db, chapter_id, knowledge_id)
+        .await
+        .map_err(|err| {
+            error!("error fetching chapter knowledge: {}", err);
+            Error::new(ErrorKind::Other, "考点章节关联查询失败")
+        })?;
+    if relation_row.is_none() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            "章节/考点没有关联关系, 无需解绑",
+        ));
+    }
+
+    // 如果有题型关联就不能解除了, 后续如果需要放开重新绑定再处理
+    let rows = QuestionCate::find_all_by_related_ids(db, vec![relation_row.unwrap().id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);

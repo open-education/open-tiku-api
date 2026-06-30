@@ -1,6 +1,5 @@
 use crate::AppConfig;
 use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
-use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use actix_web::web;
@@ -23,22 +22,8 @@ pub async fn list(
     related_id: i32,
 ) -> Result<Vec<QuestionCateResp>, Error> {
     let db = &app_conf.get_ref().db;
-    let chapter_or_knowledge_rows =
-        ChapterKnowledge::find_by_chapter_or_knowledge_id(db, related_id)
-            .await
-            .map_err(|e| {
-                error!("error finding question cat: {}", e);
-                Error::new(ErrorKind::Other, "查询失败")
-            })?;
-    if chapter_or_knowledge_rows.is_empty() {
-        return Ok(Vec::new());
-    }
-    let related_ids: Vec<i32> = chapter_or_knowledge_rows
-        .into_iter()
-        .map(|row| row.id)
-        .collect();
 
-    let rows = QuestionCate::find_all_by_related_ids(db, related_ids)
+    let rows = QuestionCate::find_all_by_related_ids(db, vec![related_id])
         .await
         .map_err(|err| {
             error!("error finding question cat: {}", err);

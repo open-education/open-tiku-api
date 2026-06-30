@@ -35,12 +35,14 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_id ON chapter_knowledge (knowledge_id);
 CREATE TABLE IF NOT EXISTS question_cate
 (
     id         SERIAL PRIMARY KEY,
-    related_id INTEGER REFERENCES chapter_knowledge (id) ON DELETE CASCADE, -- 关联标识
-    label      VARCHAR(255) NOT NULL,                                       -- 题型名称
-    key        VARCHAR(120) NOT NULL,                                       -- 题型标识
-    sort_order INTEGER     DEFAULT 0,                                       -- 排序
+    related_id INTEGER      NOT NULL, -- 关联标识
+    label      VARCHAR(255) NOT NULL, -- 题型名称
+    key        VARCHAR(120) NOT NULL, -- 题型标识
+    sort_order INTEGER     DEFAULT 0, -- 排序
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+-- ALTER TABLE question_cate DROP CONSTRAINT question_cate_related_id_fkey;
+-- ALTER TABLE question_cate ALTER COLUMN related_id SET NOT NULL;
 
 -- 关联标识创建普通索引
 CREATE INDEX IF NOT EXISTS idx_related_id ON question_cate (related_id);

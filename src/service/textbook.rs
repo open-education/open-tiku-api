@@ -276,22 +276,6 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookRes
     Ok(to_resp(row))
 }
 
-pub async fn info_list_by_ids(
-    app_conf: web::Data<AppConfig>,
-    ids: Vec<i32>,
-) -> Result<Vec<TextbookResp>, Error> {
-    let items = Textbook::find_by_ids(&app_conf.get_ref().db, ids)
-        .await
-        .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
-
-    let res: Vec<TextbookResp> = items.into_iter().map(to_resp).collect();
-
-    Ok(res)
-}
-
 // 编辑
 // 编辑如果调整了父级id则所有的子级深度都需要更新, 更新的基准是按父级深度依次加1
 pub async fn edit(

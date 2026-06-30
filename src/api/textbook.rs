@@ -31,15 +31,6 @@ pub async fn list_all(
     ApiResponse::response(textbook::list_all(app_conf, path.into_inner().0).await)
 }
 
-// 获取指定深度的菜单标识获取所有子菜单列表
-#[get("/list/{parent_id}/part")]
-pub async fn list_part(
-    app_conf: web::Data<AppConfig>,
-    parent_id: web::Path<(u32,)>,
-) -> ApiResponse<Vec<TextbookResp>> {
-    ApiResponse::response(textbook::list_part(app_conf, parent_id.into_inner().0).await)
-}
-
 // 获取指定深度的菜单标识获取子菜单列表
 #[get("/list/{parent_id}/level")]
 pub async fn list_level(
@@ -102,15 +93,6 @@ pub async fn edit(
     req: web::Json<UpdateTextbookReq>,
 ) -> ApiResponse<TextbookResp> {
     ApiResponse::response(textbook::edit(app_conf, req.into_inner()).await)
-}
-
-// 获取菜单详情
-#[get("/info/{id}")]
-pub async fn info(
-    app_conf: web::Data<AppConfig>,
-    path: web::Path<(i32,)>,
-) -> ApiResponse<TextbookResp> {
-    ApiResponse::response(textbook::info(app_conf, path.into_inner().0).await)
 }
 
 // 删除菜单

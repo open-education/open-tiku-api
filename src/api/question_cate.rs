@@ -35,7 +35,7 @@ pub async fn add(
 }
 
 // 题型列表 - 通过章节或者考点标识
-#[get("/list/{chapter_or_knowledge_id}")]
+#[get("/list/{related_id}")]
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
