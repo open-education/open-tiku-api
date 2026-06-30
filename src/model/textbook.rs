@@ -124,14 +124,6 @@ impl Textbook {
             .await
     }
 
-    // 通过章节查询已关联的知识点类
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i32>) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(pool)
-            .await
-    }
-
     /// 场景：在指定目录下根据 parent_id 查找一条数据
     pub async fn find_one_by_parent_id(
         pool: &PgPool,
