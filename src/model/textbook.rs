@@ -28,7 +28,7 @@ pub struct Textbook {
 
 // 类似 dao 逻辑直接实现即可
 impl Textbook {
-    // 每个菜单的标识, 可能暂时没什么需要
+    // 每个菜单的标识
     fn get_label_key(parent_id: Option<i32>, label: &str) -> String {
         if let Some(parent_id) = parent_id {
             (&format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10]).to_string()
@@ -39,22 +39,39 @@ impl Textbook {
 
     /// 新增记录
     /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
-    pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
+    pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
+        let row = sqlx::query(
             r#"
-            INSERT INTO textbook (parent_id, label, key, path_depth, sort_order, path_type)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
-            "#,
+        INSERT INTO textbook (
+            id, parent_id, label, key, path_depth, sort_order, path_type
+        ) VALUES (
+            COALESCE($1, nextval('textbook_id_seq')), $2, $3, $4, $5, $6, $7
         )
+        ON CONFLICT (id) DO UPDATE SET
+            parent_id = EXCLUDED.parent_id,
+            label = EXCLUDED.label,
+            key = EXCLUDED.key,
+            path_depth = EXCLUDED.path_depth,
+            sort_order = EXCLUDED.sort_order,
+            path_type = EXCLUDED.path_type
+        RETURNING id
+        "#,
+        )
+        .bind(data.id) // Option<i64>
         .bind(data.parent_id)
         .bind(&data.label)
         .bind(Self::get_label_key(data.parent_id, &data.label))
         .bind(data.path_depth)
         .bind(data.sort_order)
-        .bind(data.path_type)
+        .bind(&data.path_type)
+        .map(|row: sqlx::postgres::PgRow| {
+            use sqlx::Row;
+            row.get::<i32, _>("id")
+        })
         .fetch_one(pool)
-        .await
+        .await?;
+
+        Ok(row)
     }
 
     /// 修改记录
@@ -107,27 +124,30 @@ impl Textbook {
             .await
     }
 
-    // 通过章节查询已关联的知识点类
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i32>) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(pool)
-            .await
-    }
-
-    /// 场景：在指定目录下根据 parent_id 查找
-    pub async fn find_by_parent_id(
+    /// 场景：在指定目录下根据 parent_id 查找一条数据
+    pub async fn find_one_by_parent_id(
         pool: &PgPool,
         parent_id: i32,
     ) -> Result<Option<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE parent_id = $1")
+        sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE parent_id = $1 LIMIT 1")
             .bind(parent_id)
             .fetch_optional(pool)
             .await
     }
 
+    /// 场景：在指定目录下根据 parent_id 查找子层级列表
+    pub async fn find_list_by_parent_id(
+        pool: &PgPool,
+        parent_id: i32,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE parent_id = $1 ORDER BY sort_order")
+            .bind(parent_id)
+            .fetch_all(pool)
+            .await
+    }
+
     /// 场景：在指定目录下根据名称查找
-    pub async fn find_by_parent_and_label(
+    pub async fn find_one_by_parent_and_label(
         pool: &PgPool,
         parent_id: Option<i32>,
         label: &str,
@@ -140,6 +160,7 @@ impl Textbook {
         WHERE parent_id IS NOT DISTINCT FROM $1 
           AND label = $2
           AND ($3 IS NULL OR id <> $3)
+        LIMIT 1
         "#,
         )
         .bind(parent_id)

@@ -82,7 +82,7 @@ pub async fn list_all(
     Ok(get_levels_by_parent_id(&map, 0, safe_depth))
 }
 
-// 根据父级标识获取子菜单列表
+// 根据父级标识获取所有子菜单列表
 pub async fn list_part(
     app_conf: web::Data<AppConfig>,
     parent_id: u32,
@@ -99,6 +99,21 @@ pub async fn list_part(
 
     // 2. 从根节点（parent_id=0 是根）递归构建
     Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
+}
+
+// 根据父级标识获取子菜单列表
+pub async fn list_level(
+    app_conf: web::Data<AppConfig>,
+    parent_id: u32,
+) -> Result<Vec<TextbookResp>, Error> {
+    let rows = Textbook::find_list_by_parent_id(&app_conf.get_ref().db, parent_id as i32)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    Ok(rows.into_iter().map(|row| to_resp(row)).collect())
 }
 
 // 根据父标识列出所有题型列表
@@ -201,7 +216,7 @@ async fn check_parent_and_label_is_exists(
     label: &str,
     id: Option<i32>,
 ) -> Result<(), Error> {
-    let row = Textbook::find_by_parent_and_label(pool, parent_id, label, id)
+    let row = Textbook::find_one_by_parent_and_label(pool, parent_id, label, id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
@@ -219,20 +234,19 @@ async fn check_parent_and_label_is_exists(
 }
 
 // 添加
-pub async fn add(
-    app_conf: web::Data<AppConfig>,
-    req: CreateTextbookReq,
-) -> Result<TextbookResp, Error> {
+pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookReq) -> Result<i32, Error> {
     let db = &app_conf.get_ref().db;
 
-    check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
+    if req.id.is_some() {
+        check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
+    }
 
-    let row = Textbook::insert(db, req).await.map_err(|e| {
+    let row_id = Textbook::insert(db, req).await.map_err(|e| {
         error!("Error inserting textbook: {:?}", e);
         Error::new(ErrorKind::Other, "添加失败")
     })?;
 
-    Ok(to_resp(row))
+    Ok(row_id)
 }
 
 // 数据库结构映射返回, 不直接返回数据库结构对象
@@ -260,22 +274,6 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookRes
         })?;
 
     Ok(to_resp(row))
-}
-
-pub async fn info_list_by_ids(
-    app_conf: web::Data<AppConfig>,
-    ids: Vec<i32>,
-) -> Result<Vec<TextbookResp>, Error> {
-    let items = Textbook::find_by_ids(&app_conf.get_ref().db, ids)
-        .await
-        .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
-
-    let res: Vec<TextbookResp> = items.into_iter().map(to_resp).collect();
-
-    Ok(res)
 }
 
 // 编辑
@@ -381,7 +379,7 @@ pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Err
     let db = &app_conf.get_ref().db;
 
     // 菜单层级检查是否存在子菜单
-    let row = Textbook::find_by_parent_id(db, info.id)
+    let row = Textbook::find_one_by_parent_id(db, info.id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);

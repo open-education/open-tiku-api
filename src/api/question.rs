@@ -19,6 +19,11 @@ pub struct CreateQuestionReq {
     pub question_type_id: i32, // 题型类型主键
     #[serde(rename(deserialize = "questionTagIds", serialize = "questionTagIds"))]
     pub question_tag_ids: Option<Vec<i32>>, // 题型标签主键
+    #[serde(rename(
+        deserialize = "questionDimensionIds",
+        serialize = "questionDimensionIds"
+    ))]
+    pub question_dimension_ids: Option<Vec<i32>>, // 核心素养
     pub author_id: Option<i64>, // 作者, 内部逻辑生成
     pub source: String,         // 来源
     #[serde(rename(deserialize = "originalName", serialize = "originalName"))]
@@ -69,6 +74,8 @@ pub struct QuestionBaseResp {
     pub question_type_id: i32, // 题型类型主键
     #[serde(rename(serialize = "questionTagIds"))]
     pub question_tag_ids: Option<Json<Vec<i32>>>, // 题型标签主键
+    #[serde(rename(serialize = "questionDimensionIds"))]
+    pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
     #[serde(rename(serialize = "authorId"))]
     pub author_id: i64, // 作者, 内部逻辑生成
     pub source: String,
@@ -142,6 +149,8 @@ pub struct QuestionListReq {
     pub question_cate_id: i32,
     #[serde(rename(deserialize = "questionTypeId"))]
     pub question_type_id: Option<i32>,
+    #[serde(rename(deserialize = "dimensionIds",))]
+    pub dimension_ids: Option<Vec<i32>>, // 核心素养
     pub status: Option<i16>,
     pub ids: Option<Vec<i64>>,
     #[serde(rename(deserialize = "titleVal"))]
@@ -181,6 +190,8 @@ pub struct QuestionSimilarListReq {
     pub question_cate_id: i32,
     #[serde(rename(deserialize = "questionTypeId"))]
     pub question_type_id: Option<i32>,
+    #[serde(rename(deserialize = "questionDimensionIds",))]
+    pub question_dimension_ids: Option<Vec<i32>>, // 核心素养
     pub status: Option<i16>,
     #[serde(rename(deserialize = "tagIds"))]
     pub tag_ids: Option<Vec<i32>>,
@@ -200,7 +211,7 @@ pub async fn similar(
 
 #[derive(Deserialize)]
 pub struct DeleteReq {
-    pub id: i64
+    pub id: i64,
 }
 
 #[post("/delete")]

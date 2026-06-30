@@ -64,6 +64,7 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         question_cate_id: row.question_cate_id,
         question_type_id: row.question_type_id,
         question_tag_ids: row.question_tag_ids.clone(),
+        question_dimension_ids: row.question_dimension_ids.clone(),
         author_id: row.author_id,
         source: row.source.clone(),
         original_name: row.original_name.clone(),
@@ -137,6 +138,7 @@ pub async fn list(
         req.ids.clone(),
         req.title_val.clone(),
         req.tag_ids.clone(),
+        req.dimension_ids.clone(),
     )
     .await
     .map_err(|e| {
@@ -165,6 +167,7 @@ pub async fn list(
         req.ids,
         req.title_val,
         req.tag_ids,
+        req.dimension_ids,
         req.page_size,
         offset,
     )
@@ -204,6 +207,7 @@ pub async fn similar(
         req.question_cate_id,
         req.question_type_id,
         req.tag_ids.clone(),
+        req.question_dimension_ids.clone(),
     )
     .await
     .map_err(|e| {
@@ -231,6 +235,7 @@ pub async fn similar(
         req.question_cate_id,
         req.question_type_id,
         req.tag_ids,
+        req.question_dimension_ids,
         req.page_size,
         offset,
     )

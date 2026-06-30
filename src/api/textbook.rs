@@ -31,13 +31,13 @@ pub async fn list_all(
     ApiResponse::response(textbook::list_all(app_conf, path.into_inner().0).await)
 }
 
-// 获取指定深度的所有子菜单列表
-#[get("/list/{parent_id}/part")]
-pub async fn list_part(
+// 获取指定深度的菜单标识获取子菜单列表
+#[get("/list/{parent_id}/level")]
+pub async fn list_level(
     app_conf: web::Data<AppConfig>,
     parent_id: web::Path<(u32,)>,
 ) -> ApiResponse<Vec<TextbookResp>> {
-    ApiResponse::response(textbook::list_part(app_conf, parent_id.into_inner().0).await)
+    ApiResponse::response(textbook::list_level(app_conf, parent_id.into_inner().0).await)
 }
 
 // 获取指定深度的所有子菜单列表-包括题型列表, 所以这个接口只是获取教材目录时有效, 否则跟 /list/{parent_id}/part 一致
@@ -52,6 +52,7 @@ pub async fn list_children(
 // 新增时需要的字段（剔除 id 和 created_at）
 #[derive(Deserialize)]
 pub struct CreateTextbookReq {
+    pub id: Option<i32>,
     #[serde(rename(deserialize = "parentId"))]
     pub parent_id: Option<i32>,
     pub label: String,
@@ -68,7 +69,7 @@ pub struct CreateTextbookReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookReq>,
-) -> ApiResponse<TextbookResp> {
+) -> ApiResponse<i32> {
     ApiResponse::response(textbook::add(app_conf, req.into_inner()).await)
 }
 
@@ -92,15 +93,6 @@ pub async fn edit(
     req: web::Json<UpdateTextbookReq>,
 ) -> ApiResponse<TextbookResp> {
     ApiResponse::response(textbook::edit(app_conf, req.into_inner()).await)
-}
-
-// 获取菜单详情
-#[get("/info/{id}")]
-pub async fn info(
-    app_conf: web::Data<AppConfig>,
-    path: web::Path<(i32,)>,
-) -> ApiResponse<TextbookResp> {
-    ApiResponse::response(textbook::info(app_conf, path.into_inner().0).await)
 }
 
 // 删除菜单
