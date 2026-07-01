@@ -119,7 +119,7 @@ async fn get_github_user(
         token_response.token_type, token_response.scope
     );
 
-    // 请求用户信息
+    // 请求用户信息, 邮箱需要单独请求其它接口, 暂时不考虑获取用户邮箱
     let github_user: GithubUser = client
         .get("https://api.github.com/user")
         .header(
@@ -173,10 +173,10 @@ async fn save_user(db: &PgPool, user: &GithubUser) -> Result<UserIdentity, Error
         user_id: snowflake::generate_id(),
         provider: ProviderType::Github.as_i16(),
         provider_user_id: user.id.to_string(),
-        provider_username: Some(name),
+        provider_username: Some(name.clone()),
         provider_email: user.email.clone(),
         last_login_time: None,
-        login_count: 1,
+        login_count: 0,
         role: RoleType::Normal.as_i16(),
         status: StatusType::Active.as_i16(),
         created_at: Default::default(),
@@ -185,7 +185,7 @@ async fn save_user(db: &PgPool, user: &GithubUser) -> Result<UserIdentity, Error
 
     // 如果是修改数据则只覆盖三方平台字段
     if has_user.user_id > 0 {
-        has_user.provider_username = user.name.clone();
+        has_user.provider_username = Some(name);
         has_user.provider_email = user.email.clone();
     }
 
