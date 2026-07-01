@@ -84,7 +84,7 @@ pub struct Question {
 
 impl Question {
     // 添加题目-根据主键判断是新增还是更新
-    pub async fn simple_insert(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
+    pub async fn simple_save(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
         let id: i64 = sqlx::query_scalar(
             r#"
             INSERT INTO question (
@@ -112,7 +112,7 @@ impl Question {
                    EXCLUDED.title, EXCLUDED.content_plain, EXCLUDED.comment, EXCLUDED.difficulty_level,
                    EXCLUDED.images, EXCLUDED.options, EXCLUDED.options_layout,
                    EXCLUDED.answer, EXCLUDED.knowledge, EXCLUDED.analysis, EXCLUDED.process, EXCLUDED.remark, EXCLUDED.remark_ext,
-                   EXCLUDED.steps, EXCLUDED.question_dimension_ids)
+                   EXCLUDED.steps, EXCLUDED.question_dimension_ids,updated_at = CURRENT_TIMESTAMP)
             RETURNING id
         "#,
         )

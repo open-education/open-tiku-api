@@ -32,7 +32,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, E
 
     // 4. 构建并插入试卷主体（包含总题目数）
     let paper = build_paper_from_request(&req, total_question_count);
-    let paper_id = Paper::insert(&mut tx, &paper).await.map_err(|err| {
+    let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
         error!("Failed to insert paper: {}", err);
         Error::new(ErrorKind::Other, "试卷主体信息添加失败")
     })?;

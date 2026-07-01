@@ -41,8 +41,6 @@ CREATE TABLE IF NOT EXISTS question_cate
     sort_order INTEGER     DEFAULT 0, -- 排序
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
--- ALTER TABLE question_cate DROP CONSTRAINT question_cate_related_id_fkey;
--- ALTER TABLE question_cate ALTER COLUMN related_id SET NOT NULL;
 
 -- 关联标识创建普通索引
 CREATE INDEX IF NOT EXISTS idx_related_id ON question_cate (related_id);
@@ -113,15 +111,6 @@ CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (question_cate_id,
 CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_id, status);
 -- 查看作者自己的题
 CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
--- 对于历史表添加以下4个字段, 对于新表无需操作
-ALTER TABLE question
-    ADD COLUMN IF NOT EXISTS source        VARCHAR(500) NOT NULL DEFAULT '',
-    ADD COLUMN IF NOT EXISTS original_name VARCHAR(500) NOT NULL DEFAULT '',
-    ADD COLUMN IF NOT EXISTS steps         JSONB DEFAULT '[]'::jsonb,
-    ADD COLUMN IF NOT EXISTS remark_ext    TEXT;
--- 增加核心素养字段
-ALTER TABLE question
-    ADD COLUMN IF NOT EXISTS question_dimension_ids JSONB DEFAULT '[]'::jsonb;
 
 -- 2.1. 变式题
 CREATE TABLE IF NOT EXISTS question_similar
@@ -213,3 +202,52 @@ CREATE TABLE paper_question
     score          INTEGER     NOT NULL DEFAULT 0            -- 题目分数, 不校验
 );
 CREATE INDEX idx_paper_question_group_id ON paper_question (paper_id, group_id);
+
+-- 5. 第三方身份认证表（存储所有OAuth登录源）
+CREATE TABLE user_identity
+(
+    id                BIGSERIAL PRIMARY KEY,
+    user_id           BIGINT       NOT NULL,
+
+    -- 三方平台标识
+    provider          SMALLINT     NOT NULL, -- 1 github, 2 qq
+    provider_user_id  VARCHAR(100) NOT NULL, -- 第三方平台返回的 OpenID / UserID
+
+    -- 第三方返回的公开信息
+    provider_username VARCHAR(100),          -- 三方平台昵称
+    provider_email    VARCHAR(255),          -- 三方平台邮箱
+
+    -- 登录
+    last_login_time   TIMESTAMPTZ,           -- 最后一次登录时间
+    login_count       BIGINT      DEFAULT 0,
+
+    role              SMALLINT     NOT NULL, -- 用户角色 1 普通 2 学生 3 教师
+    status            SMALLINT     NOT NULL, -- 用户状态 1 正常 2 暂停 20 封禁
+
+    created_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- 唯一约束：同一平台下的同一个用户ID只能绑定一次
+    CONSTRAINT unique_provider_user UNIQUE (provider, provider_user_id)
+);
+CREATE INDEX idx_user_id ON user_identity (user_id);
+
+-- 5.1 用户登录状态, 目前用户比较少, 登录 session 直接记录在数据库中
+CREATE TABLE user_session
+(
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT       NOT NULL,
+    source     SMALLINT     NOT NULL, -- 用户来源, 1 third 第三方账户登录, 2 student 学生账号
+    token_type SMALLINT     NOT NULL, -- token 类型 1 是临时 token 用于换取真实登录 token, 不可以续期过期删除 2 登录 token，每次访问需要续期
+    token      VARCHAR(100) NOT NULL, -- 登录 token
+    expired_at TIMESTAMPTZ,           -- 过期时间止, 过期后定时任务直接删除该条数据
+    renew_cnt  SMALLINT    DEFAULT 0, -- 续期次数
+    use_cnt    SMALLINT    DEFAULT 0, -- 使用次数
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- 唯一约束
+    CONSTRAINT unique_ust UNIQUE (user_id, source, token_type)
+);
+CREATE INDEX idx_user_id ON user_session (user_id);
+CREATE INDEX idx_token ON user_session (token);

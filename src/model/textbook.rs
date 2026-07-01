@@ -39,7 +39,7 @@ impl Textbook {
 
     /// 新增记录
     /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
-    pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
+    pub async fn save(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
         let row = sqlx::query(
             r#"
         INSERT INTO textbook (

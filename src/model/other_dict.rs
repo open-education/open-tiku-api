@@ -15,7 +15,7 @@ pub struct TextbookDict {
 
 impl TextbookDict {
     // 添加字典项
-    pub async fn insert(pool: &PgPool, req: CreateTextbookDictReq) -> Result<i32, sqlx::Error> {
+    pub async fn save(pool: &PgPool, req: CreateTextbookDictReq) -> Result<i32, sqlx::Error> {
         let id: i32 = sqlx::query_scalar(
             r#"
         INSERT INTO textbook_dict (id, textbook_id, type_code, item_value, sort_order, is_select)

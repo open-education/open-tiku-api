@@ -37,7 +37,7 @@ pub async fn list(
 
 // 添加题型
 pub async fn add(app_conf: web::Data<AppConfig>, req: CreateQuestionCateReq) -> Result<i32, Error> {
-    let row_id = QuestionCate::insert(&app_conf.get_ref().db, req)
+    let row_id = QuestionCate::save(&app_conf.get_ref().db, req)
         .await
         .map_err(|err| {
             error!("error adding question: {}", err);

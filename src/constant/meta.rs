@@ -12,3 +12,7 @@ pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
 pub const IMAGE_NAME_LEN: usize = 10;
 /// 临时管理员标识
 pub const TEMP_ADMIN_ID: i64 = 1;
+/// 临时 token 有效过期分钟数
+pub const TEMP_TOKEN_EXPIRED_MINUTE: i64 = 5;
+/// 登录 token 有效过期小时数
+pub const LOGIN_TOKEN_EXPIRED_HOUR: i64 = 8;

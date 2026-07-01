@@ -241,7 +241,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookReq) -> Resu
         check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
     }
 
-    let row_id = Textbook::insert(db, req).await.map_err(|e| {
+    let row_id = Textbook::save(db, req).await.map_err(|e| {
         error!("Error inserting textbook: {:?}", e);
         Error::new(ErrorKind::Other, "添加失败")
     })?;

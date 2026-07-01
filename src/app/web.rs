@@ -28,6 +28,8 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/task").configure(route::task))
             .service(web::scope("/paper").configure(route::paper))
             .service(web::scope("/text").configure(route::text))
+            .service(web::scope("/callback").configure(route::callback))
+            .service(web::scope("/user").configure(route::user))
     })
     .bind(&addr)?
     .run()

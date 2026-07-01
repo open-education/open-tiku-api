@@ -8,3 +8,5 @@ pub mod task;
 pub mod paper;
 pub mod paper_group;
 pub mod paper_question;
+pub mod user_identity;
+pub mod user_session;

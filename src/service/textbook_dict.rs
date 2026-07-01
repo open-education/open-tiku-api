@@ -34,7 +34,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookDictReq) -> 
         }
     }
 
-    let id = TextbookDict::insert(db, req).await.map_err(|e| {
+    let id = TextbookDict::save(db, req).await.map_err(|e| {
         error!("error adding unique textbook item: {}", e);
         Error::new(ErrorKind::Other, "新增失败")
     })?;

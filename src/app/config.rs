@@ -27,6 +27,11 @@ pub async fn init() -> (EnvConfig, AppConfig) {
     let app_config = AppConfig {
         db: pool,
         meta_path: env_config.meta_path.clone(),
+        github: (
+            env_config.github_client_id.clone(),
+            env_config.github_client_secret.clone(),
+        ),
+        website_home_url: env_config.website_home_url.clone(),
     };
 
     (env_config, app_config)
