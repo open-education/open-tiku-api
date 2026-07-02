@@ -81,5 +81,6 @@ pub fn callback(cfg: &mut web::ServiceConfig) {
 pub fn user(cfg: &mut web::ServiceConfig) {
     cfg.service(user::exchange)
         .service(user::login)
-        .service(user::info);
+        .service(user::info)
+        .service(user::logout);
 }

@@ -3,7 +3,7 @@ use crate::api::paper::{
     PaperGroupReq, PaperGroupResp, PaperListReq, PaperListResp, PaperQuestionResp, PaperReq,
     PaperResp,
 };
-use crate::constant::meta;
+use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
@@ -14,30 +14,48 @@ use std::io::{Error, ErrorKind};
 
 // 添加试卷
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
-pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: PaperReq,
+    user_info: UserInfo,
+) -> Result<i64, Error> {
     let db = &app_conf.db;
     let is_update = req.id.is_some();
 
-    // 1. 参数验证
+    // 参数验证
     validate_paper_request(&req)?;
 
-    // 2. 开启事务
+    // 只允许编辑自己的试卷
+    if let Some(id) = req.id {
+        let has_paper = Paper::find_by_id(db, id)
+            .await
+            .map_err(|err| {
+                error!("Add paper err: {}", err);
+                Error::new(ErrorKind::Other, "查询试卷信息错误")
+            })?
+            .ok_or_else(|| Error::new(ErrorKind::NotFound, "试卷不存在"))?;
+        if has_paper.author_id != user_info.user_id {
+            return Err(Error::new(ErrorKind::NotFound, "只允许编辑自己的试卷"));
+        }
+    }
+
+    // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
         error!("Failed to begin transaction: {}", e);
         Error::new(ErrorKind::Other, "启动事务失败")
     })?;
 
-    // 3. 统计总题目数（在构建 Paper 之前）
+    // 统计总题目数（在构建 Paper 之前）
     let total_question_count = req.groups.iter().map(|g| g.questions.len() as i32).sum();
 
-    // 4. 构建并插入试卷主体（包含总题目数）
-    let paper = build_paper_from_request(&req, total_question_count);
+    // 构建并插入试卷主体（包含总题目数）
+    let paper = build_paper_from_request(&user_info, &req, total_question_count);
     let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
         error!("Failed to insert paper: {}", err);
         Error::new(ErrorKind::Other, "试卷主体信息添加失败")
     })?;
 
-    // 5. 构建题型和题目
+    // 构建题型和题目
     let (paper_groups, paper_questions) = build_groups_and_questions(paper_id, &req.groups);
 
     // 如果是编辑则需要先删除题型分类和题目列表
@@ -60,7 +78,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, E
         info!("Deleted paper paper question rows: {:?}", del_question_rows);
     }
 
-    // 6. 批量插入题型
+    // 批量插入题型
     if !paper_groups.is_empty() {
         PaperGroup::batch_insert(&mut tx, &paper_groups)
             .await
@@ -70,7 +88,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, E
             })?;
     }
 
-    // 7. 批量插入题目
+    // 批量插入题目
     if !paper_questions.is_empty() {
         PaperQuestion::batch_insert(&mut tx, &paper_questions)
             .await
@@ -80,13 +98,13 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: PaperReq) -> Result<i64, E
             })?;
     }
 
-    // 8. 提交事务
+    // 提交事务
     tx.commit().await.map_err(|e| {
         error!("Failed to commit transaction: {}", e);
         Error::new(ErrorKind::Other, "提交事务失败")
     })?;
 
-    // 9. 记录操作日志
+    // 记录操作日志
     info!(
         "Paper added successfully. ID: {}, Title: {}, Total Questions: {}",
         paper_id, req.title, total_question_count
@@ -158,7 +176,11 @@ fn validate_paper_request(req: &PaperReq) -> Result<(), Error> {
 }
 
 // 构建试卷对象（包含总题目数）
-fn build_paper_from_request(req: &PaperReq, total_question_count: i32) -> Paper {
+fn build_paper_from_request(
+    user_info: &UserInfo,
+    req: &PaperReq,
+    total_question_count: i32,
+) -> Paper {
     Paper {
         id: req.id,
         related_id: req.related_id,
@@ -171,8 +193,8 @@ fn build_paper_from_request(req: &PaperReq, total_question_count: i32) -> Paper 
         score: req.score,
         source: req.source.clone(),
         remark: req.remark.clone(),
-        author_id: meta::TEMP_ADMIN_ID, // TODO: 从认证上下文获取
-        author_name: "admin".to_string(),
+        author_id: user_info.user_id,
+        author_name: user_info.username.clone().unwrap_or_default(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
         status: req.status,

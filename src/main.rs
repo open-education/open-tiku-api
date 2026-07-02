@@ -1,6 +1,7 @@
 mod api;
 mod app;
 mod constant;
+mod middleware;
 mod model;
 mod service;
 mod task;

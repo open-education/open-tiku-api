@@ -5,6 +5,7 @@ use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
+use crate::middleware::user::UserInfo;
 
 /// 试卷相关操作
 
@@ -56,8 +57,8 @@ pub struct PaperQuestionReq {
 
 // 添加试卷
 #[post("/add")]
-pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<PaperReq>) -> ApiResponse<i64> {
-    ApiResponse::response(paper::add(app_conf, req.into_inner()).await)
+pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<PaperReq>, user_info: UserInfo) -> ApiResponse<i64> {
+    ApiResponse::response(paper::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 查看详情

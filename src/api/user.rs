@@ -1,10 +1,11 @@
 // 用户相关接口
 
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::user;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct ExchangeTokenReq {
@@ -26,22 +27,12 @@ pub struct UserLoginReq {
     pub token: String,
 }
 
-#[derive(Serialize)]
-pub struct UserInfoResp {
-    #[serde(rename(serialize = "userId"))]
-    pub user_id: i64,
-    pub username: Option<String>,
-    pub email: Option<String>,
-    pub role: i16,
-    pub status: i16,
-}
-
 // 用户登录
 #[post("login")]
 pub async fn login(
     app_conf: web::Data<AppConfig>,
     req: web::Json<UserLoginReq>,
-) -> ApiResponse<UserInfoResp> {
+) -> ApiResponse<UserInfo> {
     ApiResponse::response(user::login(app_conf, req.into_inner()).await)
 }
 
@@ -50,6 +41,12 @@ pub async fn login(
 pub async fn info(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(String,)>,
-) -> ApiResponse<UserInfoResp> {
+) -> ApiResponse<UserInfo> {
     ApiResponse::response(user::info(app_conf, path.into_inner().0.as_str()).await)
+}
+
+// 退出登录
+#[get("logout")]
+pub async fn logout(app_conf: web::Data<AppConfig>, user_info: UserInfo) -> ApiResponse<bool> {
+    ApiResponse::response(user::logout(app_conf, user_info).await)
 }

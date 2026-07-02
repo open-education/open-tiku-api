@@ -45,7 +45,7 @@ pub async fn callback(
     let db = &app_conf.db;
 
     // 保存用户信息
-    let user = save_user(db, &github_user).await?;
+    let user = save_user_identity(db, &github_user).await?;
 
     // 业务逻辑生成内部 token, 此时为临时替换登录用的 token
     let temp_token = Uuid::new_v4().to_string();
@@ -57,7 +57,7 @@ pub async fn callback(
     Ok(HttpResponse::Found()
         .append_header((
             "Location",
-            format!("{}/#temp_token={}", app_conf.website_home_url, temp_token),
+            format!("{}/?token={}", app_conf.website_home_url, temp_token),
         ))
         .finish())
 }
@@ -150,7 +150,7 @@ async fn get_github_user(
 }
 
 // 保存用户信息
-async fn save_user(db: &PgPool, user: &GithubUser) -> Result<UserIdentity, Error> {
+async fn save_user_identity(db: &PgPool, user: &GithubUser) -> Result<UserIdentity, Error> {
     // 名称拼接
     let name = if let Some(name) = user.name.clone() {
         format!("{} <{}>", user.login, name)

@@ -1,12 +1,12 @@
 use crate::AppConfig;
-use crate::api::user::{ExchangeTokenReq, UserInfoResp, UserLoginReq};
+use crate::api::user::{ExchangeTokenReq, UserLoginReq};
 use crate::constant::meta;
-use crate::model::user_identity::{StatusType, UserIdentity};
-use crate::model::user_session::{SourceType, TokenType, UserSession};
+use crate::middleware::user::{UserInfo, get_user_identity, get_user_session};
+use crate::model::user_identity::UserIdentity;
+use crate::model::user_session::{TokenType, UserSession};
 use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
-use sqlx::PgPool;
 use std::io::{Error, ErrorKind};
 use uuid::Uuid;
 
@@ -39,48 +39,8 @@ pub async fn exchange(
     Ok(login_token)
 }
 
-// 根据 token 获取用户 session 信息
-async fn get_user_session(db: &PgPool, token: &str, token_type: i16) -> Result<UserSession, Error> {
-    let session = UserSession::find_one_by_token(db, token, token_type)
-        .await
-        .map_err(|err| {
-            error!("Query user session err: {}", err);
-            Error::new(ErrorKind::InvalidInput, "非法的 token")
-        })?
-        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "token 不存在"))?;
-    if session.expired_at < Utc::now() {
-        return Err(Error::new(ErrorKind::InvalidInput, "已过期请重新登录"));
-    }
-    if session.source != SourceType::Third.as_i16() {
-        return Err(Error::new(ErrorKind::InvalidInput, "暂不支持该渠道登录"));
-    }
-
-    Ok(session)
-}
-
-// 获取用户信息
-async fn get_user_identity(db: &PgPool, user_id: i64) -> Result<UserIdentity, Error> {
-    let user = UserIdentity::find_by_user_id(db, user_id)
-        .await
-        .map_err(|err| {
-            error!("Query user identity err: {}", err);
-            Error::new(ErrorKind::InvalidInput, "读取用户信息错误")
-        })?
-        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "用户不存在"))?;
-
-    // 非法用户不允许登录
-    if user.status != StatusType::Active.as_i16() {
-        return Err(Error::new(ErrorKind::InvalidInput, "该账户已被封禁"));
-    }
-
-    Ok(user)
-}
-
 // 登录
-pub async fn login(
-    app_conf: web::Data<AppConfig>,
-    req: UserLoginReq,
-) -> Result<UserInfoResp, Error> {
+pub async fn login(app_conf: web::Data<AppConfig>, req: UserLoginReq) -> Result<UserInfo, Error> {
     let db = &app_conf.db;
 
     // session 信息
@@ -109,17 +69,18 @@ pub async fn login(
         Error::new(ErrorKind::InvalidInput, "更新用户信息错误")
     })?;
 
-    Ok(UserInfoResp {
-        user_id: user.id.unwrap_or_default(),
+    Ok(UserInfo {
+        user_id: user.user_id,
         username: user.provider_username,
         email: user.provider_email,
         role: user.role,
         status: user.status,
+        token: None,
     })
 }
 
 // 获取用户信息
-pub async fn info(app_conf: web::Data<AppConfig>, token: &str) -> Result<UserInfoResp, Error> {
+pub async fn info(app_conf: web::Data<AppConfig>, token: &str) -> Result<UserInfo, Error> {
     let db = &app_conf.db;
 
     // session 信息
@@ -128,11 +89,38 @@ pub async fn info(app_conf: web::Data<AppConfig>, token: &str) -> Result<UserInf
     // 用户信息
     let user = get_user_identity(db, session.user_id).await?;
 
-    Ok(UserInfoResp {
-        user_id: user.id.unwrap_or_default(),
+    Ok(UserInfo {
+        user_id: user.user_id,
         username: user.provider_username,
         email: user.provider_email,
         role: user.role,
         status: user.status,
+        token: None,
     })
+}
+
+// 退出登录
+pub async fn logout(app_conf: web::Data<AppConfig>, user_info: UserInfo) -> Result<bool, Error> {
+    let db = &app_conf.db;
+
+    // session 信息
+    let session = get_user_session(
+        db,
+        user_info.token.unwrap_or_default().as_str(),
+        TokenType::Login.as_i16(),
+    )
+    .await
+    .map_err(|err| {
+        error!("Login save user session save err: {}", err);
+        Error::new(ErrorKind::Other, err)
+    })?;
+
+    UserSession::delete_by_id(db, session.id.unwrap_or_default())
+        .await
+        .map_err(|err| {
+            error!("Login delete user session save err: {}", err);
+            Error::new(ErrorKind::Other, err)
+        })?;
+
+    Ok(true)
 }

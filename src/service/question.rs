@@ -3,7 +3,7 @@ use crate::api::question::{
     CreateQuestionReq, DeleteReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp,
     QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
-use crate::constant::meta;
+use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
 use crate::util::local::to_local_datetime;
@@ -27,7 +27,11 @@ pub fn to_plain_text(title: &str) -> String {
 }
 
 // 添加题目
-pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> Result<i64, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    mut req: CreateQuestionReq,
+    user_info: UserInfo,
+) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_conf.get_ref().db;
 
@@ -40,8 +44,19 @@ pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> 
         return Err(Error::new(ErrorKind::Other, "不被允许的题目上传操作"));
     }
 
-    // todo 从登录信息中解析出作者
-    req.author_id = Some(meta::TEMP_ADMIN_ID);
+    // 只允许编辑自己的题目
+    if let Some(id) = req.id {
+        let has_question = Question::find_by_id(db, id).await.map_err(|err| {
+            error!("Failed to find question: {}", err);
+            Error::new(ErrorKind::Other, "题目查询错误")
+        })?;
+        if has_question.author_id != user_info.user_id {
+            return Err(Error::new(ErrorKind::Other, "只允许编辑自己的题目"));
+        }
+    }
+
+    // 从登录信息中解析出作者
+    req.author_id = Some(user_info.user_id);
 
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
@@ -265,19 +280,30 @@ pub async fn similar(
 }
 
 // 删除题目
-pub async fn delete(app_conf: web::Data<AppConfig>, req: DeleteReq) -> Result<bool, Error> {
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    req: DeleteReq,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
     if req.id <= 0 {
         return Err(Error::new(ErrorKind::Other, "题目标识为空"));
     }
 
-    let rows = Question::delete(&app_conf.db, req.id)
-        .await
-        .map_err(|err| {
-            error!("question delete by id err: {:?}", err);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
+    let db = &app_conf.db;
 
-    //todo 需校验只能删除自己的题目
+    // 只允许删除自己的题目
+    let has_question = Question::find_by_id(db, req.id).await.map_err(|err| {
+        error!("Failed to find question: {}", err);
+        Error::new(ErrorKind::Other, "题目查询错误")
+    })?;
+    if has_question.author_id != user_info.user_id {
+        return Err(Error::new(ErrorKind::Other, "只允许删除自己的题目"));
+    }
+
+    let rows = Question::delete(db, req.id).await.map_err(|err| {
+        error!("question delete by id err: {:?}", err);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
 
     Ok(rows > 0)
 }

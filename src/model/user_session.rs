@@ -129,4 +129,22 @@ impl UserSession {
         .fetch_optional(pool)
         .await
     }
+
+    // 删除 session
+    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!("DELETE FROM user_session WHERE id = $1", id)
+            .execute(pool)
+            .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    // 删除过期的 session
+    pub async fn delete_expired_sessions(pool: &PgPool) -> Result<u64, sqlx::Error> {
+        let now = Utc::now();
+        let result = sqlx::query!("DELETE FROM user_session WHERE expired_at <= $1", now)
+            .execute(pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
 }

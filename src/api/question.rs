@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
 use crate::util::response::ApiResponse;
@@ -60,8 +61,9 @@ pub struct CreateQuestionReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateQuestionReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(question::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 题库基本信息返回
@@ -218,6 +220,7 @@ pub struct DeleteReq {
 pub async fn delete(
     app_conf: web::Data<AppConfig>,
     req: web::Json<DeleteReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question::delete(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::delete(app_conf, req.into_inner(), user_info).await)
 }
