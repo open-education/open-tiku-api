@@ -26,7 +26,8 @@ pub struct UserInfo {
     pub token: Option<String>,
 }
 
-// 定义一个提取器，用于在 Handler 中方便地获取 UserInfo
+// 定义一个提取器，用于在 Handler 中方便地获取 UserInfo, 不存在时返回 401
+// 对于可选的则使用 Option<UserInfo> 接收, 框架已经实现, 不存在返回 None
 impl actix_web::FromRequest for UserInfo {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
@@ -43,12 +44,11 @@ impl actix_web::FromRequest for UserInfo {
     }
 }
 
-// 不需要认证的白名单路径, 配置时简单浏览下, 需要认证和不需要认证两种配置内容少的一类
+// 完全不需要认证的白名单路径, 配置时简单浏览下, 需要认证和不需要认证两种配置内容少的一类
 // 内容比较少时直接数组即可, 内容多时再更新为 Set
-const WHITELIST: &[&str] = &[
+const PREFIX_LIST: &[&str] = &[
     // 题目
     "/question/info/",
-    "/question/list",
     "/question/similar",
     // 导航菜单
     "/textbook/list/",
@@ -67,6 +67,12 @@ const WHITELIST: &[&str] = &[
     "/callback/github",
 ];
 
+// 如果有登录信息时需要解析的白名单, 没有则不需要解析
+const OPTION_PREFIX_LIST: &[&str] = &[
+    // 题目
+    "/question/list",
+];
+
 pub async fn auth(
     req: ServiceRequest,
     next: Next<impl actix_web::body::MessageBody>,
@@ -81,7 +87,10 @@ pub async fn auth(
 async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     // 前缀匹配 只要路径以某个白名单前缀开头 就跳过认证
     let path = req.path();
-    if WHITELIST.iter().any(|prefix| path.starts_with(prefix)) {
+    if PREFIX_LIST
+        .iter()
+        .any(|prefix| path.starts_with(prefix))
+    {
         return Ok(req);
     }
 
@@ -90,6 +99,14 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     let token = match auth_header.and_then(|h| h.to_str().ok()) {
         Some(h) if h.starts_with("Bearer ") => h.trim_start_matches("Bearer ").trim(),
         _ => {
+            // 如果是部分跳过则不继续处理
+            if OPTION_PREFIX_LIST
+                .iter()
+                .any(|prefix| path.starts_with(prefix))
+            {
+                return Ok(req);
+            }
+
             let err = actix_web::error::ErrorUnauthorized("Missing or invalid token");
             return Err((err, req));
         }

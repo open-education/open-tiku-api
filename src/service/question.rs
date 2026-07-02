@@ -41,7 +41,10 @@ pub async fn add(
     // 题目上传只能上传草稿中和待审核的题目
     if !(req.status == QuestionStatus::Draft as i16 || req.status == QuestionStatus::Pending as i16)
     {
-        return Err(Error::new(ErrorKind::Other, "不被允许的题目上传操作"));
+        return Err(Error::new(
+            ErrorKind::PermissionDenied,
+            "不被允许的题目上传操作",
+        ));
     }
 
     // 只允许编辑自己的题目
@@ -51,7 +54,10 @@ pub async fn add(
             Error::new(ErrorKind::Other, "题目查询错误")
         })?;
         if has_question.author_id != user_info.user_id {
-            return Err(Error::new(ErrorKind::Other, "只允许编辑自己的题目"));
+            return Err(Error::new(
+                ErrorKind::PermissionDenied,
+                "只允许编辑自己的题目",
+            ));
         }
     }
 
@@ -145,8 +151,21 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInf
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     req: QuestionListReq,
+    user_info: Option<UserInfo>,
 ) -> Result<QuestionListResp, Error> {
-    let db = &app_conf.db; // 假设 AppConfig 暴露了 db 字段
+    let db = &app_conf.db;
+
+    // 非普通列表需要登录才能访问
+    if req.source != "list" && user_info.is_none() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"));
+    }
+
+    // 我的题目等时需要登录
+    let author_id = if let Some(user_info) = user_info {
+        Some(user_info.user_id)
+    } else {
+        None
+    };
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
@@ -160,6 +179,7 @@ pub async fn list(
         req.title_val.clone(),
         req.tag_ids.clone(),
         req.dimension_ids.clone(),
+        author_id,
     )
     .await
     .map_err(|e| {
@@ -189,6 +209,7 @@ pub async fn list(
         req.title_val,
         req.tag_ids,
         req.dimension_ids,
+        author_id,
         req.page_size,
         offset,
     )

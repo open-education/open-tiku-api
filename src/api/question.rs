@@ -147,6 +147,8 @@ pub async fn info(
 
 #[derive(Deserialize)]
 pub struct QuestionListReq {
+    // 页面来源 "list" | "myQuestion" | "myReview"
+    pub source: String,
     #[serde(rename(deserialize = "questionCateId"))]
     pub question_cate_id: i32,
     #[serde(rename(deserialize = "questionTypeId"))]
@@ -180,8 +182,9 @@ pub struct QuestionListResp {
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     req: web::Json<QuestionListReq>,
+    user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::list(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::list(app_conf, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]

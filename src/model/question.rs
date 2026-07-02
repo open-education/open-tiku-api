@@ -278,6 +278,7 @@ impl Question {
         title_val: Option<String>,
         tag_ids: Option<Vec<i32>>,
         dimension_ids: Option<Vec<i32>>,
+        author_id: Option<i64>,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -289,6 +290,7 @@ impl Question {
               AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
               AND ($6 IS NULL OR question_tag_ids @> $7)
               AND ($8 IS NULL OR question_dimension_ids @> $9)
+              AND ($10 IS NULL OR author_id = $10)
             "#,
         )
         .bind(cate_id)
@@ -300,6 +302,7 @@ impl Question {
         .bind(tag_ids.map(Json))
         .bind(dimension_ids.as_ref().map(|_| true))
         .bind(dimension_ids.map(Json))
+        .bind(author_id)
         .fetch_one(pool)
         .await
     }
@@ -314,6 +317,7 @@ impl Question {
         title_val: Option<String>,
         tag_ids: Option<Vec<i32>>,
         dimension_ids: Option<Vec<i32>>,
+        author_id: Option<i64>,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -328,8 +332,9 @@ impl Question {
               AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
               AND ($6 IS NULL OR question_tag_ids @> $7)
               AND ($8 IS NULL OR question_dimension_ids @> $9)
+              AND ($10 IS NULL OR author_id = $10)
             ORDER BY id DESC
-            LIMIT $10 OFFSET $11
+            LIMIT $11 OFFSET $12
             "#,
         )
         .bind(cate_id)
@@ -341,6 +346,7 @@ impl Question {
         .bind(tag_ids.map(Json))
         .bind(dimension_ids.as_ref().map(|_| true))
         .bind(dimension_ids.map(Json))
+        .bind(author_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)

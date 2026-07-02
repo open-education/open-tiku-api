@@ -15,7 +15,7 @@ pub async fn run_cron(args: Vec<String>) {
     // 将任务名称注册到匹配条件中
     match task_name.as_str() {
         "question-upload" => task::question::upload(&app_config).await,
-        "cleanup-session" => task::cleanup_session::cleanup(&app_config).await,
+        "cleanup-session" => task::session::cleanup(&app_config).await,
         _ => {
             eprintln!("未知任务: {}", task_name);
             std::process::exit(1);

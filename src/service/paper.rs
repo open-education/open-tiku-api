@@ -35,7 +35,7 @@ pub async fn add(
             })?
             .ok_or_else(|| Error::new(ErrorKind::NotFound, "试卷不存在"))?;
         if has_paper.author_id != user_info.user_id {
-            return Err(Error::new(ErrorKind::NotFound, "只允许编辑自己的试卷"));
+            return Err(Error::new(ErrorKind::PermissionDenied, "只允许编辑自己的试卷"));
         }
     }
 
