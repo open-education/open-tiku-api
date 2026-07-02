@@ -1,5 +1,5 @@
 use crate::AppConfig;
-use crate::api::github::GitHubCallbackQuery;
+use crate::api::callback::GitHubCallbackQuery;
 
 use crate::constant::meta;
 use crate::model::user_identity::{ProviderType, RoleType, StatusType, UserIdentity};
@@ -29,11 +29,11 @@ struct GithubUser {
     email: Option<String>,
 }
 
-pub async fn callback(
+pub async fn github(
     app_conf: web::Data<AppConfig>,
     query: GitHubCallbackQuery,
 ) -> Result<HttpResponse> {
-    let code = get_code(query)?;
+    let code = get_github_code(query)?;
 
     let github_user = get_github_user(
         app_conf.github.0.as_str(),
@@ -65,7 +65,7 @@ pub async fn callback(
 // 解析 github 请求携带的 code
 // 提取 code，缺失或为空时返回 400 错误
 // http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
-fn get_code(query: GitHubCallbackQuery) -> Result<String, Error> {
+fn get_github_code(query: GitHubCallbackQuery) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()

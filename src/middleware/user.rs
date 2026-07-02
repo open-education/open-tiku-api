@@ -65,6 +65,8 @@ const PREFIX_LIST: &[&str] = &[
     "/user/login",
     // 回调
     "/callback/github",
+    // 文本工具
+    "/text/question/snippet",
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析
@@ -87,10 +89,7 @@ pub async fn auth(
 async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     // 前缀匹配 只要路径以某个白名单前缀开头 就跳过认证
     let path = req.path();
-    if PREFIX_LIST
-        .iter()
-        .any(|prefix| path.starts_with(prefix))
-    {
+    if PREFIX_LIST.iter().any(|prefix| path.starts_with(prefix)) {
         return Ok(req);
     }
 

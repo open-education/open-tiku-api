@@ -1,7 +1,7 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, edit, file, github, other_dict, paper, question, question_cate, task, text,
+    chapter_knowledge, edit, file, callback, other_dict, paper, question, question_cate, task, text,
     textbook, user,
 };
 
@@ -75,7 +75,7 @@ pub fn text(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn callback(cfg: &mut web::ServiceConfig) {
-    cfg.service(github::callback);
+    cfg.service(callback::github);
 }
 
 pub fn user(cfg: &mut web::ServiceConfig) {

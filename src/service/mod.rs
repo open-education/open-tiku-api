@@ -8,5 +8,5 @@ pub mod task;
 pub mod textbook;
 pub mod textbook_dict;
 pub mod paper;
-pub mod github;
+pub mod callback;
 pub mod user;
