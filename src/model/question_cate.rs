@@ -14,7 +14,7 @@ pub struct QuestionCate {
 
 impl QuestionCate {
     /// 新增记录
-    pub async fn insert(pool: &PgPool, req: CreateQuestionCateReq) -> Result<i32, sqlx::Error> {
+    pub async fn save(pool: &PgPool, req: CreateQuestionCateReq) -> Result<i32, sqlx::Error> {
         let key = format!("{:x}", md5::compute(&req.label))[..10].to_string();
 
         let row = sqlx::query(

@@ -3,13 +3,17 @@ use crate::api::question::{
     CreateQuestionReq, DeleteReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp,
     QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
-use crate::constant::meta;
+use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::QuestionSimilar;
+use crate::model::user_identity::UserIdentity;
+use crate::service::user;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use log::error;
 use regex::Regex;
+use sqlx::PgPool;
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
@@ -27,19 +31,47 @@ pub fn to_plain_text(title: &str) -> String {
 }
 
 // 添加题目
-pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> Result<i64, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    mut req: CreateQuestionReq,
+    user_info: UserInfo,
+) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_conf.get_ref().db;
 
     let source_id = req.source_id;
     let is_add = req.id.is_none();
 
-    // todo 从登录信息中解析出作者
-    req.author_id = Some(meta::TEMP_ADMIN_ID);
+    // 题目上传只能上传草稿中和待审核的题目
+    if !(req.status == QuestionStatus::Draft.as_i16()
+        || req.status == QuestionStatus::Pending.as_i16())
+    {
+        return Err(Error::new(
+            ErrorKind::PermissionDenied,
+            "不被允许的题目上传操作",
+        ));
+    }
+
+    // 只允许编辑自己的题目
+    if let Some(id) = req.id {
+        let has_question = Question::find_by_id(db, id).await.map_err(|err| {
+            error!("Failed to find question: {}", err);
+            Error::new(ErrorKind::Other, "题目查询错误")
+        })?;
+        if has_question.author_id != user_info.user_id {
+            return Err(Error::new(
+                ErrorKind::PermissionDenied,
+                "只允许编辑自己的题目",
+            ));
+        }
+    }
+
+    // 从登录信息中解析出作者
+    req.author_id = Some(user_info.user_id);
 
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
-    let id = Question::simple_insert(db, req).await.map_err(|e| {
+    let id = Question::simple_save(db, req).await.map_err(|e| {
         error!("question add err: {:?}", e);
         Error::new(ErrorKind::Other, "题目添加失败")
     })?;
@@ -58,7 +90,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, mut req: CreateQuestionReq) -> 
 }
 
 // 题目基本信息, 基本够列表使用
-fn to_base_resp(row: &Question) -> QuestionBaseResp {
+fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
     QuestionBaseResp {
         id: row.id,
         question_cate_id: row.question_cate_id,
@@ -66,6 +98,7 @@ fn to_base_resp(row: &Question) -> QuestionBaseResp {
         question_tag_ids: row.question_tag_ids.clone(),
         question_dimension_ids: row.question_dimension_ids.clone(),
         author_id: row.author_id,
+        author_name: author_name,
         source: row.source.clone(),
         original_name: row.original_name.clone(),
         title: row.title.clone(),
@@ -101,35 +134,45 @@ fn to_extra_resp(row: Question) -> QuestionExtraInfo {
 }
 
 // 完整的题目信息
-fn to_info_resp(row: Question) -> QuestionInfoResp {
+fn to_info_resp(row: Question, author_name: String) -> QuestionInfoResp {
     QuestionInfoResp {
-        base_info: to_base_resp(&row),
+        base_info: to_base_resp(&row, author_name),
         extra_info: to_extra_resp(row),
     }
 }
 
 // 通过主键获取详情
 pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInfoResp, Error> {
-    let row = Question::find_by_id(&app_conf.get_ref().db, id)
-        .await
-        .map_err(|err| {
-            error!("question get by id err: {:?}", err);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
+    let db = &app_conf.get_ref().db;
+    let row = Question::find_by_id(db, id).await.map_err(|err| {
+        error!("question get by id err: {:?}", err);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
 
-    Ok(to_info_resp(row))
+    let author_name = user::get_user_name(db, row.author_id).await;
+
+    Ok(to_info_resp(row, author_name))
 }
 
 // 题目列表
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     req: QuestionListReq,
+    user_info: Option<UserInfo>,
 ) -> Result<QuestionListResp, Error> {
-    let db = &app_conf.db; // 假设 AppConfig 暴露了 db 字段
+    let db = &app_conf.db;
 
-    let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
+    // 我的题目等时需要登录
+    let (author_id, status) = if req.source == "list" {
+        (None, QuestionStatus::Published.as_i16())
+    } else {
+        let user_info =
+            user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
+        let status = req.status.unwrap_or(QuestionStatus::Published.as_i16());
+        (Some(user_info.user_id), status)
+    };
 
-    // 1. 查询总数
+    // 查询总数
     let total = Question::count_by_cate_and_type(
         db,
         req.question_cate_id,
@@ -139,6 +182,7 @@ pub async fn list(
         req.title_val.clone(),
         req.tag_ids.clone(),
         req.dimension_ids.clone(),
+        author_id,
     )
     .await
     .map_err(|e| {
@@ -155,10 +199,10 @@ pub async fn list(
         });
     }
 
-    // 2. 计算偏移量
+    // 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
 
-    // 3. 查询列表 (添加 ? 运算符解包 Result)
+    // 查询列表 (添加 ? 运算符解包 Result)
     let list_data = Question::list_by_cate_and_type(
         db,
         req.question_cate_id,
@@ -168,6 +212,7 @@ pub async fn list(
         req.title_val,
         req.tag_ids,
         req.dimension_ids,
+        author_id,
         req.page_size,
         offset,
     )
@@ -175,19 +220,62 @@ pub async fn list(
     .map_err(|e| {
         error!("question list by id err: {:?}", e);
         Error::new(ErrorKind::Other, "查询失败")
-    })?; // 必须加 ? 才能得到 Vec<Question>
+    })?;
 
-    // 4. 转换并返回
-    Ok(QuestionListResp {
+    // 批量获取作者名称
+    let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
+    let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
+
+    // 转换并返回
+    Ok(to_list_resp(
+        list_data,
+        user_map,
+        req.page_no,
+        req.page_size,
+        total,
+    ))
+}
+
+async fn get_user_map(db: &PgPool, author_ids: Vec<i64>) -> Result<HashMap<i64, String>, Error> {
+    let user_list = UserIdentity::find_by_user_ids(db, &author_ids)
+        .await
+        .map_err(|e| {
+            error!("user list by id err: {:?}", e);
+            Error::new(ErrorKind::Other, "作者信息查询失败")
+        })?;
+    let user_map: HashMap<i64, String> = user_list
+        .into_iter()
+        .map(|user| (user.user_id, user.provider_username.unwrap_or_default()))
+        .collect();
+
+    Ok(user_map)
+}
+
+fn to_list_resp(
+    list_data: Vec<Question>,
+    user_map: HashMap<i64, String>,
+    page_no: i32,
+    page_size: i32,
+    total: i64,
+) -> QuestionListResp {
+    QuestionListResp {
         // 使用 map().collect() 一行转换
         list: list_data
             .into_iter()
-            .map(|row| to_base_resp(&row))
+            .map(|row| {
+                to_base_resp(
+                    &row,
+                    user_map
+                        .get(&row.author_id)
+                        .cloned()
+                        .unwrap_or_else(|| "未知".to_string()),
+                )
+            })
             .collect(),
-        page_no: req.page_no,
-        page_size: req.page_size,
+        page_no,
+        page_size,
         total,
-    })
+    }
 }
 
 // 变式题题目列表
@@ -199,7 +287,7 @@ pub async fn similar(
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
-    // 1. 查询总数
+    // 查询总数
     let total = Question::count_similar_by_params(
         db,
         req.question_id,
@@ -224,10 +312,10 @@ pub async fn similar(
         });
     }
 
-    // 2. 计算偏移量
+    // 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
 
-    // 3. 查询列表 (添加 ? 运算符解包 Result)
+    // 查询列表 (添加 ? 运算符解包 Result)
     let list_data = Question::list_similar_by_params(
         db,
         req.question_id,
@@ -243,35 +331,46 @@ pub async fn similar(
     .map_err(|e| {
         error!("question similar list by id err: {:?}", e);
         Error::new(ErrorKind::Other, "查询失败")
-    })?; // 必须加 ? 才能得到 Vec<Question>
+    })?;
 
-    // 4. 转换并返回
-    Ok(QuestionListResp {
-        // 使用 map().collect() 一行转换
-        list: list_data
-            .into_iter()
-            .map(|row| to_base_resp(&row))
-            .collect(),
-        page_no: req.page_no,
-        page_size: req.page_size,
+    let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
+    let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
+
+    // 转换并返回
+    Ok(to_list_resp(
+        list_data,
+        user_map,
+        req.page_no,
+        req.page_size,
         total,
-    })
+    ))
 }
 
 // 删除题目
-pub async fn delete(app_conf: web::Data<AppConfig>, req: DeleteReq) -> Result<bool, Error> {
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    req: DeleteReq,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
     if req.id <= 0 {
         return Err(Error::new(ErrorKind::Other, "题目标识为空"));
     }
 
-    let rows = Question::delete(&app_conf.db, req.id)
-        .await
-        .map_err(|err| {
-            error!("question delete by id err: {:?}", err);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
+    let db = &app_conf.db;
 
-    //todo 需校验只能删除自己的题目
+    // 只允许删除自己的题目
+    let has_question = Question::find_by_id(db, req.id).await.map_err(|err| {
+        error!("Failed to find question: {}", err);
+        Error::new(ErrorKind::Other, "题目查询错误")
+    })?;
+    if has_question.author_id != user_info.user_id {
+        return Err(Error::new(ErrorKind::Other, "只允许删除自己的题目"));
+    }
+
+    let rows = Question::delete(db, req.id).await.map_err(|err| {
+        error!("question delete by id err: {:?}", err);
+        Error::new(ErrorKind::Other, "查询失败")
+    })?;
 
     Ok(rows > 0)
 }

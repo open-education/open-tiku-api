@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::edit;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
@@ -19,6 +20,7 @@ pub struct EditStatusReq {
 pub async fn status(
     app_conf: web::Data<AppConfig>,
     req: web::Json<EditStatusReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::status(app_conf, req.into_inner()).await)
+    ApiResponse::response(edit::status(app_conf, req.into_inner(), user_info).await)
 }

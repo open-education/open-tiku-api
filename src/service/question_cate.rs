@@ -1,7 +1,9 @@
 use crate::AppConfig;
 use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
+use crate::middleware::user::UserInfo;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
+use crate::model::user_identity::RoleType;
 use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
@@ -36,8 +38,16 @@ pub async fn list(
 }
 
 // 添加题型
-pub async fn add(app_conf: web::Data<AppConfig>, req: CreateQuestionCateReq) -> Result<i32, Error> {
-    let row_id = QuestionCate::insert(&app_conf.get_ref().db, req)
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: CreateQuestionCateReq,
+    user_info: UserInfo,
+) -> Result<i32, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
+    let row_id = QuestionCate::save(&app_conf.get_ref().db, req)
         .await
         .map_err(|err| {
             error!("error adding question: {}", err);
@@ -48,7 +58,15 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: CreateQuestionCateReq) -> 
 }
 
 // 删除题型
-pub async fn remove(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
+pub async fn remove(
+    app_conf: web::Data<AppConfig>,
+    id: i32,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
     let db = &app_conf.get_ref().db;
 
     // 关联题目后就不允许删除了

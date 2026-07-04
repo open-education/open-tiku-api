@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::chapter_knowledge;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -26,8 +27,9 @@ pub struct ChapterKnowledgeResp {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateChapterKnowledgeReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(chapter_knowledge::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(chapter_knowledge::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 通过菜单标识获取关联详情-章节小节或者知识点小类标识
@@ -52,6 +54,7 @@ pub struct RemoveChapterKnowledgeReq {
 pub async fn remove(
     app_conf: web::Data<AppConfig>,
     req: web::Json<RemoveChapterKnowledgeReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(chapter_knowledge::remove(app_conf, req.into_inner()).await)
+    ApiResponse::response(chapter_knowledge::remove(app_conf, req.into_inner(), user_info).await)
 }

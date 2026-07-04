@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -17,6 +18,7 @@ pub struct TextbookResp {
     pub sort_order: i32, // 默认为 0
     #[serde(rename(serialize = "pathDepth"))]
     pub path_depth: Option<i32>,
+    pub path: String,
     #[serde(rename(serialize = "tableName"))]
     pub table_name: Option<String>,
     pub children: Option<Vec<TextbookResp>>,
@@ -62,6 +64,7 @@ pub struct CreateTextbookReq {
     pub sort_order: i32,
     #[serde(rename(deserialize = "pathType"))]
     pub path_type: Option<String>,
+    pub path: String,
 }
 
 // 新增菜单
@@ -69,34 +72,17 @@ pub struct CreateTextbookReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook::add(app_conf, req.into_inner()).await)
-}
-
-// 修改时需要的字段（通常包含 id，其他字段可选或必选）
-#[derive(Deserialize)]
-pub struct UpdateTextbookReq {
-    pub id: i32,
-    #[serde(rename(deserialize = "parentId"))]
-    pub parent_id: Option<i32>,
-    pub label: String,
-    #[serde(rename(deserialize = "sortOrder"))]
-    pub sort_order: i32,
-    #[serde(rename(deserialize = "pathType"))]
-    pub path_type: Option<String>,
-}
-
-// 编辑菜单
-#[post("/edit")]
-pub async fn edit(
-    app_conf: web::Data<AppConfig>,
-    req: web::Json<UpdateTextbookReq>,
-) -> ApiResponse<TextbookResp> {
-    ApiResponse::response(textbook::edit(app_conf, req.into_inner()).await)
+    ApiResponse::response(textbook::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 删除菜单
 #[get("/delete/{id}")]
-pub async fn delete(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
-    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0).await)
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i32,)>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0, user_info).await)
 }

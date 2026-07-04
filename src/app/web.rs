@@ -1,6 +1,7 @@
 use crate::app::config;
 use crate::app::route;
-use actix_web::middleware::Logger;
+use crate::middleware::user::auth;
+use actix_web::middleware::{Logger, from_fn};
 use actix_web::{App, HttpServer, web};
 
 /// web 服务入口
@@ -17,6 +18,7 @@ pub async fn run_web() -> std::io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
+            .wrap(from_fn(auth))
             .app_data(web::Data::new(app_config.clone()))
             .service(web::scope("/file").configure(route::file))
             .service(web::scope("/question").configure(route::question))
@@ -28,6 +30,8 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/task").configure(route::task))
             .service(web::scope("/paper").configure(route::paper))
             .service(web::scope("/text").configure(route::text))
+            .service(web::scope("/callback").configure(route::callback))
+            .service(web::scope("/user").configure(route::user))
     })
     .bind(&addr)?
     .run()

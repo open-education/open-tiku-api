@@ -1,7 +1,8 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task, text, textbook,
+    callback, chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task,
+    text, textbook, user,
 };
 
 /// web 服务路由配置
@@ -33,7 +34,6 @@ pub fn textbook(cfg: &mut web::ServiceConfig) {
         .service(textbook::list_level)
         .service(textbook::list_children)
         .service(textbook::add)
-        .service(textbook::edit)
         .service(textbook::delete);
 }
 
@@ -71,4 +71,15 @@ pub fn paper(cfg: &mut web::ServiceConfig) {
 
 pub fn text(cfg: &mut web::ServiceConfig) {
     cfg.service(text::question_snippet);
+}
+
+pub fn callback(cfg: &mut web::ServiceConfig) {
+    cfg.service(callback::github);
+}
+
+pub fn user(cfg: &mut web::ServiceConfig) {
+    cfg.service(user::exchange)
+        .service(user::login)
+        .service(user::info)
+        .service(user::logout);
 }

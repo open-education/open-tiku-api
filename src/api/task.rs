@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::task;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
@@ -21,8 +22,12 @@ pub struct TaskAddReq {
 
 // 创建任务
 #[post("/add")]
-pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<TaskAddReq>) -> ApiResponse<i64> {
-    ApiResponse::response(task::add(app_conf, req.into_inner()).await)
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<TaskAddReq>,
+    user_info: UserInfo,
+) -> ApiResponse<i64> {
+    ApiResponse::response(task::add(app_conf, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]

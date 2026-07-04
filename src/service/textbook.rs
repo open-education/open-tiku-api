@@ -1,7 +1,9 @@
-use crate::api::textbook::{CreateTextbookReq, TextbookResp, UpdateTextbookReq};
+use crate::api::textbook::{CreateTextbookReq, TextbookResp};
+use crate::middleware::user::UserInfo;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
+use crate::model::user_identity::RoleType;
 use crate::{AppConfig, constant};
 use actix_web::web;
 use log::error;
@@ -33,6 +35,7 @@ fn get_levels_by_parent_id(
                 key: item.key.clone(),
                 sort_order: item.sort_order,
                 path_depth: item.path_depth,
+                path: item.path.clone(),
                 table_name: Some("textbook".to_string()),
                 children: None,
             };
@@ -195,6 +198,7 @@ pub async fn list_children(
                                     key: format!("{}-{}", row.key, q.id), // 题型本身没有key， 拼接一个
                                     sort_order: q.sort_order,
                                     path_depth: None,
+                                    path: "".to_string(), // 题型不需要路径
                                     table_name: Some("question_cate".to_string()),
                                     children: None,
                                 });
@@ -234,14 +238,22 @@ async fn check_parent_and_label_is_exists(
 }
 
 // 添加
-pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookReq) -> Result<i32, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: CreateTextbookReq,
+    user_info: UserInfo,
+) -> Result<i32, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
     let db = &app_conf.get_ref().db;
 
     if req.id.is_some() {
         check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
     }
 
-    let row_id = Textbook::insert(db, req).await.map_err(|e| {
+    let row_id = Textbook::save(db, req).await.map_err(|e| {
         error!("Error inserting textbook: {:?}", e);
         Error::new(ErrorKind::Other, "添加失败")
     })?;
@@ -259,6 +271,7 @@ fn to_resp(row: Textbook) -> TextbookResp {
         key: row.key,
         sort_order: row.sort_order,
         path_depth: row.path_depth,
+        path: row.path,
         table_name: Some("textbook".to_string()),
         children: None,
     }
@@ -276,104 +289,16 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookRes
     Ok(to_resp(row))
 }
 
-// 编辑
-// 编辑如果调整了父级id则所有的子级深度都需要更新, 更新的基准是按父级深度依次加1
-pub async fn edit(
-    app_conf: web::Data<AppConfig>,
-    req: UpdateTextbookReq,
-) -> Result<TextbookResp, Error> {
-    // 不允许自己挂载自己
-    let req_parent_id = req.parent_id.unwrap_or(0);
-    if req_parent_id == req.id {
-        return Err(Error::new(ErrorKind::Other, "父级不能是自己"));
-    }
-
-    let old_row = info(app_conf.clone(), req.id).await?;
-
-    let db = &app_conf.get_ref().db;
-
-    check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), Some(req.id)).await?;
-
-    let is_parent_changed = req.parent_id != old_row.parent_id;
-
-    // 深度, 编辑时默认为表里的深度, 如果父级变化则使用最新的相对父级深度
-    let path_depth = if req_parent_id > 0 {
-        let new_parent_row = info(app_conf.clone(), req_parent_id).await?;
-        new_parent_row.path_depth.unwrap_or(0) + 1
-    } else {
-        1
-    };
-
-    // path_type
-    let path_type = if req.path_type.is_none() {
-        old_row.path_type
-    } else {
-        req.path_type.unwrap()
-    };
-
-    // 当父id变更时, 检查是否构成环
-    if is_parent_changed && req_parent_id > 0 {
-        let exist = Textbook::is_descendant(db, req.id, req_parent_id)
-            .await
-            .map_err(|e| {
-                error!("Error searching textbook: {:?}", e);
-                Error::new(ErrorKind::Other, "查询失败")
-            })?;
-        if exist {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "当前父级跟所选子级列表存在交叉, 不支持挂载",
-            ));
-        }
-    }
-
-    // 这部分更新使用事务
-    let mut tx = db.begin().await.map_err(|e| {
-        error!("Error beginning transaction: {}", e);
-        Error::new(ErrorKind::Other, "更新失败")
-    })?;
-
-    let row = Textbook::update(
-        &mut *tx,
-        req.id,
-        req.parent_id,
-        req.label.as_str(),
-        req.sort_order,
-        path_depth,
-        path_type.as_str(),
-    )
-    .await
-    .map_err(|e| {
-        error!("Error updating textbook: {:?}", e);
-        Error::new(ErrorKind::Other, "编辑失败")
-    })?;
-
-    // 所有子孙节点深度同步更新
-    if is_parent_changed {
-        let _ = Textbook::update_descendant_depth(
-            &mut *tx,
-            req.id,
-            req.parent_id,
-            path_depth,
-            path_type.as_str(),
-        )
-        .await
-        .map_err(|e| {
-            error!("Error updating descendant depth: {:?}", e);
-            Error::new(ErrorKind::Other, "更新失败")
-        })?;
-    }
-
-    tx.commit().await.map_err(|e| {
-        error!("Error committing transaction: {}", e);
-        Error::new(ErrorKind::Other, "更新失败")
-    })?;
-
-    Ok(to_resp(row))
-}
-
 // 删除菜单-没有子菜单的菜单可以被删除
-pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    id: i32,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
     let info = info(app_conf.clone(), id).await?;
 
     let db = &app_conf.get_ref().db;

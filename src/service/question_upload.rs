@@ -316,7 +316,7 @@ fn to_req(
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,
-        author_id: Some(meta::TEMP_ADMIN_ID),
+        author_id: Some(task_info.author_id),
         source: "".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,

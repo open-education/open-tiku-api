@@ -54,7 +54,7 @@ impl PaperStatus {
 // 试卷主表
 impl Paper {
     // 根据 id 主键判断是新增还是更新
-    pub async fn insert(
+    pub async fn save(
         tx: &mut Transaction<'_, Postgres>,
         paper: &Self,
     ) -> Result<i64, sqlx::Error> {
@@ -87,7 +87,8 @@ impl Paper {
                 status = EXCLUDED.status,
                 approve_id = EXCLUDED.approve_id,
                 reject_reason = EXCLUDED.reject_reason,
-                approve_at = EXCLUDED.approve_at
+                approve_at = EXCLUDED.approve_at,
+                updated_at = CURRENT_TIMESTAMP
             RETURNING id
         "#,
         )

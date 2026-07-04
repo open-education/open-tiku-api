@@ -1,5 +1,6 @@
 use crate::AppConfig;
 use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
+use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
 use crate::util::local::to_local_datetime;
 use actix_web::web;
@@ -7,7 +8,11 @@ use log::error;
 use std::io::{Error, ErrorKind};
 
 // 添加任务
-pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: TaskAddReq,
+    user_info: UserInfo,
+) -> Result<i64, Error> {
     let db = &app_conf.get_ref().db;
 
     let row_id = Task::insert(
@@ -15,7 +20,7 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: TaskAddReq) -> Result<i64,
         req.question_cate_id,
         req.task_type,
         &req.name,
-        1,
+        user_info.user_id,
         &req.url,
         &req.email,
         req.textbook_id,

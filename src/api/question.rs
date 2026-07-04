@@ -1,7 +1,8 @@
-use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
 use crate::util::response::ApiResponse;
+use crate::AppConfig;
 use actix_web::{get, post, web};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -60,8 +61,9 @@ pub struct CreateQuestionReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateQuestionReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(question::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 题库基本信息返回
@@ -78,6 +80,8 @@ pub struct QuestionBaseResp {
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
     #[serde(rename(serialize = "authorId"))]
     pub author_id: i64, // 作者, 内部逻辑生成
+    #[serde(rename(serialize = "authorName"))]
+    pub author_name: String, // 作者昵称
     pub source: String,
     #[serde(rename(serialize = "originalName"))]
     pub original_name: String,
@@ -145,6 +149,8 @@ pub async fn info(
 
 #[derive(Deserialize)]
 pub struct QuestionListReq {
+    // 页面来源 "list" | "myQuestion" | "myReview"
+    pub source: String,
     #[serde(rename(deserialize = "questionCateId"))]
     pub question_cate_id: i32,
     #[serde(rename(deserialize = "questionTypeId"))]
@@ -178,8 +184,9 @@ pub struct QuestionListResp {
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     req: web::Json<QuestionListReq>,
+    user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::list(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::list(app_conf, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -218,6 +225,7 @@ pub struct DeleteReq {
 pub async fn delete(
     app_conf: web::Data<AppConfig>,
     req: web::Json<DeleteReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question::delete(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::delete(app_conf, req.into_inner(), user_info).await)
 }

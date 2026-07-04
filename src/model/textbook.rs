@@ -1,5 +1,5 @@
 use crate::api::textbook::CreateTextbookReq;
-use sqlx::{Executor, FromRow, PgPool, Postgres};
+use sqlx::{FromRow, PgPool};
 
 // 教材信息
 // 如果要支持事务和非事务的方式查询, 可以参考这个写法, 实际上大部分是不需要关注事务的
@@ -8,21 +8,17 @@ use sqlx::{Executor, FromRow, PgPool, Postgres};
 pub struct Textbook {
     // SERIAL 对应 Rust 的 i32 (Postgres INTEGER)
     pub id: i32,
-
     // 路径类型
     pub path_type: String,
-
     // REFERENCES 可能为空（根节点），所以使用 Option
     pub parent_id: Option<i32>,
-
     // VARCHAR 对应 String
     pub label: String,
-
     pub key: String,
-
     // INTEGER 对应 i32
     pub path_depth: Option<i32>,
-
+    // 菜单路径, 记录从根节点到当前节点的父路径, 用 / 分割, 比如 12/32/46
+    pub path: String,
     pub sort_order: i32,
 }
 
@@ -39,13 +35,13 @@ impl Textbook {
 
     /// 新增记录
     /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
-    pub async fn insert(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
+    pub async fn save(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
         let row = sqlx::query(
             r#"
         INSERT INTO textbook (
-            id, parent_id, label, key, path_depth, sort_order, path_type
+            id, parent_id, label, key, path_depth, sort_order, path_type, path
         ) VALUES (
-            COALESCE($1, nextval('textbook_id_seq')), $2, $3, $4, $5, $6, $7
+            COALESCE($1, nextval('textbook_id_seq')), $2, $3, $4, $5, $6, $7, $8
         )
         ON CONFLICT (id) DO UPDATE SET
             parent_id = EXCLUDED.parent_id,
@@ -53,7 +49,8 @@ impl Textbook {
             key = EXCLUDED.key,
             path_depth = EXCLUDED.path_depth,
             sort_order = EXCLUDED.sort_order,
-            path_type = EXCLUDED.path_type
+            path_type = EXCLUDED.path_type,
+            path = EXCLUDED.path
         RETURNING id
         "#,
         )
@@ -64,6 +61,7 @@ impl Textbook {
         .bind(data.path_depth)
         .bind(data.sort_order)
         .bind(&data.path_type)
+        .bind(data.path)
         .map(|row: sqlx::postgres::PgRow| {
             use sqlx::Row;
             row.get::<i32, _>("id")
@@ -72,38 +70,6 @@ impl Textbook {
         .await?;
 
         Ok(row)
-    }
-
-    /// 修改记录
-    pub async fn update<'e, E>(
-        executor: E,
-        id: i32,
-        parent_id: Option<i32>,
-        label: &str,
-        sort_order: i32,
-        path_depth: i32,
-        path_type: &str,
-    ) -> Result<Self, sqlx::Error>
-    where
-        // 使用此约束可以同时接收 &PgPool 和 &mut Transaction
-        E: Executor<'e, Database = Postgres>,
-    {
-        sqlx::query_as::<_, Self>(
-            r#"
-        UPDATE textbook
-        SET parent_id = $2, label = $3, sort_order = $4, path_depth = $5, path_type = $6
-        WHERE id = $1
-        RETURNING *
-        "#,
-        )
-        .bind(id)
-        .bind(parent_id)
-        .bind(label)
-        .bind(sort_order)
-        .bind(path_depth)
-        .bind(path_type)
-        .fetch_one(executor)
-        .await
     }
 
     /// 删除记录
@@ -190,14 +156,14 @@ impl Textbook {
             r#"
         WITH RECURSIVE tree AS (
             -- 锚点部分：选择起始节点（你想从哪个 parent_id 开始找）
-            SELECT id, parent_id, label, key, path_depth, sort_order, path_type
+            SELECT id, parent_id, label, key, path_depth, sort_order, path_type, path
             FROM textbook
             WHERE parent_id = $1
             
             UNION ALL
             
             -- 递归部分：关联子节点
-            SELECT t.id, t.parent_id, t.label, t.key, t.path_depth, t.sort_order, t.path_type
+            SELECT t.id, t.parent_id, t.label, t.key, t.path_depth, t.sort_order, t.path_type, t.path
             FROM textbook t
             INNER JOIN tree ON t.parent_id = tree.id
         )
@@ -209,77 +175,5 @@ impl Textbook {
         .await?;
 
         Ok(rows)
-    }
-
-    /// 新的父节点是否是后代
-    /// 检查 potential_parent_id 是否是当前 target_id 的子孙节点
-    /// 如果返回 true，说明会形成环，禁止更新
-    pub async fn is_descendant(
-        pool: &PgPool,
-        target_id: i32,
-        potential_parent_id: i32,
-    ) -> Result<bool, sqlx::Error> {
-        let exists = sqlx::query_scalar!(
-            r#"
-            WITH RECURSIVE sub AS (
-                -- 从当前节点的子级开始找
-                SELECT id FROM textbook WHERE parent_id = $1
-                UNION ALL
-                SELECT t.id FROM textbook t JOIN sub s ON t.parent_id = s.id
-            )
-            SELECT EXISTS (SELECT 1 FROM sub WHERE id = $2)
-            "#,
-            target_id,           // $1: 当前节点 ID
-            potential_parent_id  // $2: 想要设置的新父级 ID
-        )
-        .fetch_one(pool)
-        .await?;
-
-        Ok(exists.unwrap_or(false))
-    }
-
-    /// 根据已知的新深度更新节点及其所有后代，返回影响行数
-    pub async fn update_descendant_depth<'e, E>(
-        executor: E,
-        target_id: i32,
-        new_parent_id: Option<i32>,
-        new_depth: i32, // 你已经知道的当前节点新深度
-        new_path_type: &str,
-    ) -> Result<u64, sqlx::Error>
-    where
-        E: Executor<'e, Database = Postgres>,
-    {
-        let result = sqlx::query!(
-            r#"
-            WITH RECURSIVE tree AS (
-                -- 1. 起点：当前节点，相对层级差设为 0
-                SELECT id, 0 AS offset_level
-                FROM textbook
-                WHERE id = $1
-                UNION ALL
-                -- 2. 递归：所有后代，层级差逐级递增
-                SELECT t.id, s.offset_level + 1
-                FROM textbook t
-                JOIN tree s ON t.parent_id = s.id
-            )
-            -- 3. 批量更新
-            UPDATE textbook AS t
-            SET 
-                parent_id = CASE WHEN t.id = $1 THEN $2 ELSE t.parent_id END,
-                -- 深度 = 给定的新深度 + 相对当前节点的偏移量
-                path_depth = $3 + tree.offset_level,
-                path_type = $4
-            FROM tree
-            WHERE t.id = tree.id
-            "#,
-            target_id,     // $1
-            new_parent_id, // $2
-            new_depth,     // $3
-            new_path_type, // $4
-        )
-        .execute(executor)
-        .await?;
-
-        Ok(result.rows_affected())
     }
 }
