@@ -1,8 +1,8 @@
-use crate::AppConfig;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
 use crate::util::response::ApiResponse;
+use crate::AppConfig;
 use actix_web::{get, post, web};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -80,6 +80,8 @@ pub struct QuestionBaseResp {
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
     #[serde(rename(serialize = "authorId"))]
     pub author_id: i64, // 作者, 内部逻辑生成
+    #[serde(rename(serialize = "authorName"))]
+    pub author_name: String, // 作者昵称
     pub source: String,
     #[serde(rename(serialize = "originalName"))]
     pub original_name: String,

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction, Type};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 /// 题目
 
@@ -17,13 +17,28 @@ pub struct QuestionOption {
 }
 
 // 审核状态枚举
-#[derive(Serialize, Deserialize, Type, PartialEq)]
-#[repr(i16)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum QuestionStatus {
     Draft = 0,     // 0: 草稿
     Pending = 1,   // 1: 待审核
     Published = 2, // 2: 已发布
     Rejected = 3,  // 3: 被拒绝
+}
+
+impl QuestionStatus {
+    pub fn from_i16(value: i16) -> Option<Self> {
+        match value {
+            0 => Some(Self::Draft),
+            1 => Some(Self::Pending),
+            2 => Some(Self::Published),
+            3 => Some(Self::Rejected),
+            _ => Some(Self::Draft),
+        }
+    }
+
+    pub fn as_i16(&self) -> i16 {
+        *self as i16
+    }
 }
 
 // 解题分析
@@ -87,60 +102,71 @@ impl Question {
     pub async fn simple_save(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
         let id: i64 = sqlx::query_scalar(
             r#"
-            INSERT INTO question (
-                id, question_cate_id, question_type_id, question_tag_ids, author_id,
-                source, original_name, status,
-                title, content_plain, comment, difficulty_level,
-                images, options, options_layout,
-                answer, knowledge, analysis, process, remark, remark_ext,
-                steps, question_dimension_ids
-            )
-            VALUES (
-                COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
-                $6, $7, $8, $9, $10, $11,
-                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
-            )
-            ON CONFLICT (id) DO UPDATE SET
-                (question_cate_id, question_type_id, question_tag_ids, author_id,
-                 source, original_name, status,
-                 title, content_plain, comment, difficulty_level,
-                 images, options, options_layout,
-                 answer, knowledge, analysis, process, remark, remark_ext,
-                 steps, question_dimension_ids)
-                = (EXCLUDED.question_cate_id, EXCLUDED.question_type_id, EXCLUDED.question_tag_ids, EXCLUDED.author_id,
-                   EXCLUDED.source, EXCLUDED.original_name, EXCLUDED.status,
-                   EXCLUDED.title, EXCLUDED.content_plain, EXCLUDED.comment, EXCLUDED.difficulty_level,
-                   EXCLUDED.images, EXCLUDED.options, EXCLUDED.options_layout,
-                   EXCLUDED.answer, EXCLUDED.knowledge, EXCLUDED.analysis, EXCLUDED.process, EXCLUDED.remark, EXCLUDED.remark_ext,
-                   EXCLUDED.steps, EXCLUDED.question_dimension_ids,updated_at = CURRENT_TIMESTAMP)
-            RETURNING id
+        INSERT INTO question (
+            id, question_cate_id, question_type_id, question_tag_ids, author_id,
+            source, original_name, status,
+            title, content_plain, comment, difficulty_level,
+            images, options, options_layout,
+            answer, knowledge, analysis, process, remark, remark_ext,
+            steps, question_dimension_ids
+        )
+        VALUES (
+            COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
+            $6, $7, $8, $9, $10, $11,
+            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            question_cate_id = EXCLUDED.question_cate_id,
+            question_type_id = EXCLUDED.question_type_id,
+            question_tag_ids = EXCLUDED.question_tag_ids,
+            author_id = EXCLUDED.author_id,
+            source = EXCLUDED.source,
+            original_name = EXCLUDED.original_name,
+            status = EXCLUDED.status,
+            title = EXCLUDED.title,
+            content_plain = EXCLUDED.content_plain,
+            comment = EXCLUDED.comment,
+            difficulty_level = EXCLUDED.difficulty_level,
+            images = EXCLUDED.images,
+            options = EXCLUDED.options,
+            options_layout = EXCLUDED.options_layout,
+            answer = EXCLUDED.answer,
+            knowledge = EXCLUDED.knowledge,
+            analysis = EXCLUDED.analysis,
+            process = EXCLUDED.process,
+            remark = EXCLUDED.remark,
+            remark_ext = EXCLUDED.remark_ext,
+            steps = EXCLUDED.steps,
+            question_dimension_ids = EXCLUDED.question_dimension_ids,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id
         "#,
         )
-            .bind(req.id)
-            .bind(req.question_cate_id)
-            .bind(req.question_type_id)
-            .bind(Json(req.question_tag_ids.unwrap_or_default()))
-            .bind(req.author_id)
-            .bind(req.source)
-            .bind(req.original_name)
-            .bind(req.status)
-            .bind(req.title)
-            .bind(req.content_plain)
-            .bind(req.comment)
-            .bind(req.difficulty_level)
-            .bind(Json(req.images.unwrap_or_default()))
-            .bind(Json(req.options.unwrap_or_default()))
-            .bind(req.options_layout)
-            .bind(req.answer)
-            .bind(req.knowledge)
-            .bind(Json(req.analysis.unwrap_or_default()))
-            .bind(Json(req.process.unwrap_or_default()))
-            .bind(req.remark)
-            .bind(req.remark_ext)
-            .bind(Json(req.steps.unwrap_or_default()))
-            .bind(Json(req.question_dimension_ids.unwrap_or_default()))
-            .fetch_one(pool)
-            .await?;
+        .bind(req.id)
+        .bind(req.question_cate_id)
+        .bind(req.question_type_id)
+        .bind(Json(req.question_tag_ids.unwrap_or_default()))
+        .bind(req.author_id)
+        .bind(req.source)
+        .bind(req.original_name)
+        .bind(req.status)
+        .bind(req.title)
+        .bind(req.content_plain)
+        .bind(req.comment)
+        .bind(req.difficulty_level)
+        .bind(Json(req.images.unwrap_or_default()))
+        .bind(Json(req.options.unwrap_or_default()))
+        .bind(req.options_layout)
+        .bind(req.answer)
+        .bind(req.knowledge)
+        .bind(Json(req.analysis.unwrap_or_default()))
+        .bind(Json(req.process.unwrap_or_default()))
+        .bind(req.remark)
+        .bind(req.remark_ext)
+        .bind(Json(req.steps.unwrap_or_default()))
+        .bind(Json(req.question_dimension_ids.unwrap_or_default()))
+        .fetch_one(pool)
+        .await?;
 
         Ok(id)
     }

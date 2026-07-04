@@ -152,4 +152,22 @@ impl UserIdentity {
         .fetch_optional(pool)
         .await
     }
+
+    pub async fn find_by_user_ids(
+        pool: &PgPool,
+        user_ids: &[i64],
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        if user_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT * FROM user_identity
+        WHERE user_id = ANY($1)
+        "#,
+        )
+        .bind(user_ids)
+        .fetch_all(pool)
+        .await
+    }
 }
