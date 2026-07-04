@@ -1,6 +1,8 @@
 use crate::AppConfig;
 use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
+use crate::middleware::user::UserInfo;
 use crate::model::other_dict::TextbookDict;
+use crate::model::user_identity::RoleType;
 use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
@@ -17,7 +19,15 @@ fn to_resp(row: TextbookDict) -> TextbookDictResp {
 }
 
 // 添加字典
-pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookDictReq) -> Result<i32, Error> {
+pub async fn add(
+    app_conf: web::Data<AppConfig>,
+    req: CreateTextbookDictReq,
+    user_info: UserInfo,
+) -> Result<i32, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
     let db = &app_conf.get_ref().db;
 
     // 新增时需要判重
@@ -62,7 +72,15 @@ pub async fn get_list(
 }
 
 // 删除字典
-pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    id: i32,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
+    if user_info.role != RoleType::Teacher.as_i16() {
+        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
+    }
+
     //todo 被使用的字典不能删除, 字典id在题目题目类型和标签中
 
     let row = TextbookDict::delete(&app_conf.get_ref().db, id)

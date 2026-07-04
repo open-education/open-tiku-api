@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::textbook_dict;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -39,8 +40,9 @@ pub struct TextbookDictResp {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookDictReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook_dict::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(textbook_dict::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 字典查询
@@ -55,6 +57,10 @@ pub async fn list(
 
 // 字典删除
 #[get("/remove/{id}")]
-pub async fn remove(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
-    ApiResponse::response(textbook_dict::delete(app_conf, path.into_inner().0).await)
+pub async fn remove(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i32,)>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(textbook_dict::delete(app_conf, path.into_inner().0, user_info).await)
 }

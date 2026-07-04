@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -69,8 +70,9 @@ pub struct CreateTextbookReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(textbook::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 修改时需要的字段（通常包含 id，其他字段可选或必选）
@@ -91,12 +93,17 @@ pub struct UpdateTextbookReq {
 pub async fn edit(
     app_conf: web::Data<AppConfig>,
     req: web::Json<UpdateTextbookReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<TextbookResp> {
-    ApiResponse::response(textbook::edit(app_conf, req.into_inner()).await)
+    ApiResponse::response(textbook::edit(app_conf, req.into_inner(), user_info).await)
 }
 
 // 删除菜单
 #[get("/delete/{id}")]
-pub async fn delete(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
-    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0).await)
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i32,)>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0, user_info).await)
 }

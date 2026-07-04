@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::service::question_cate;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -30,8 +31,9 @@ pub struct QuestionCateResp {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateQuestionCateReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(question_cate::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(question_cate::add(app_conf, req.into_inner(), user_info).await)
 }
 
 // 题型列表 - 通过章节或者考点标识
@@ -45,6 +47,10 @@ pub async fn list(
 
 // 删除题型
 #[get("/remove/{id}")]
-pub async fn remove(app_conf: web::Data<AppConfig>, path: web::Path<(i32,)>) -> ApiResponse<bool> {
-    ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0).await)
+pub async fn remove(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i32,)>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0, user_info).await)
 }
