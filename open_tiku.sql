@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS textbook
     label      VARCHAR(255) NOT NULL,                              -- 名称对应学段科目等
     key        VARCHAR(120) NOT NULL,                              -- 名称标识
     path_depth INTEGER,                                            -- 层级深度
+    path       VARCHAR(500) NOT NULL DEFAULT '',                   -- 菜单路径, 记录从根节点到当前节点的父路径, 用 / 分割
     sort_order INTEGER               DEFAULT 0,                    -- 排序
     created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE textbook
+    ADD COLUMN IF NOT EXISTS path VARCHAR(500) NOT NULL DEFAULT '';
 
 -- 唯一索引：父级目录下的名称是唯一的, 跨层级不限制
 CREATE UNIQUE INDEX IF NOT EXISTS uni_idx_parent_label ON textbook (parent_id, label);

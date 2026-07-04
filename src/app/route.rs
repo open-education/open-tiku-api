@@ -1,8 +1,8 @@
 use actix_web::web;
 
 use crate::api::{
-    chapter_knowledge, edit, file, callback, other_dict, paper, question, question_cate, task, text,
-    textbook, user,
+    callback, chapter_knowledge, edit, file, other_dict, paper, question, question_cate, task,
+    text, textbook, user,
 };
 
 /// web 服务路由配置
@@ -34,7 +34,6 @@ pub fn textbook(cfg: &mut web::ServiceConfig) {
         .service(textbook::list_level)
         .service(textbook::list_children)
         .service(textbook::add)
-        .service(textbook::edit)
         .service(textbook::delete);
 }
 
