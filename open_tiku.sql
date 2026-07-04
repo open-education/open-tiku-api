@@ -13,8 +13,6 @@ CREATE TABLE IF NOT EXISTS textbook
     sort_order INTEGER               DEFAULT 0,                    -- 排序
     created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
-ALTER TABLE textbook
-    ADD COLUMN IF NOT EXISTS path VARCHAR(500) NOT NULL DEFAULT '';
 
 -- 唯一索引：父级目录下的名称是唯一的, 跨层级不限制
 CREATE UNIQUE INDEX IF NOT EXISTS uni_idx_parent_label ON textbook (parent_id, label);
@@ -252,5 +250,4 @@ CREATE TABLE user_session
     -- 唯一约束
     CONSTRAINT unique_ust UNIQUE (user_id, source, token_type)
 );
-CREATE INDEX idx_user_id ON user_session (user_id);
 CREATE INDEX idx_token ON user_session (token);
