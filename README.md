@@ -71,8 +71,23 @@ sudo chmod g+s /var/www/meta
 
 生产环境包构建脚本细节查看 [build.sh](build.sh).
 
-如果本地环境是 Linux 可以本地直接构建即可, 如果本地不是 Linux 环境目前配置了 Github Actions 工作流, main
+如果本地环境是 `Linux` 可以本地直接构建即可, 如果本地不是 `Linux` 环境目前配置了 `Github Actions` 工作流, main
 分支合并完成后手动触发构建即可, 构建完成后是 草稿 状态, 需要进行编辑对应的标签重新发布后才可见.
+
+线上环境的 GLIBC 版本号如下
+
+```bash
+zhangguangxun@VM-0-4-debian:~/open-tiku-api$ ldd --version
+ldd (Debian GLIBC 2.36-9+deb12u7) 2.36
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Written by Roland McGrath and Ulrich Drepper.
+zhangguangxun@VM-0-4-debian:~/open-tiku-api$ 
+```
+
+所以本地的 `GLIBC` 版本好如果高过 `2.36` 则编译完成的二进制不能启动成功；此时就需要借助 `.github` 文件夹中的工作流让 `github` 平台帮忙编译, 
+工作流配置的环境是 `ubuntu-22.04` 其实这个版本的系统已经是不维护的状态, 目前暂无升级操作系统的计划, 因此知晓这一步骤即可.
 
 ### 部署
 
