@@ -3,7 +3,7 @@ use crate::api::callback::GitHubCallbackQuery;
 
 use crate::constant::meta;
 use crate::model::user_identity::{ProviderType, RoleType, StatusType, UserIdentity};
-use crate::model::user_session::{SourceType, TokenType, UserSession};
+use crate::model::user_session::UserSession;
 use crate::util::snowflake;
 use actix_web::{Error, HttpResponse, Result, error, web};
 use chrono::{Duration, Utc};
@@ -199,29 +199,15 @@ async fn save_user_identity(db: &PgPool, user: &GithubUser) -> Result<UserIdenti
 
 // 保存用户临时 session, 如果存在则直接替换
 async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(), Error> {
-    let session = UserSession::find_one_by_user(
-        db,
-        user_id,
-        SourceType::Third.as_i16(),
-        TokenType::Temp.as_i16(),
-    )
-    .await
-    .map_err(|e| {
-        error!("Error finding user session by id: {}", e);
-        error::ErrorInternalServerError("Failed to find user session")
-    })?
-    .unwrap_or_else(|| UserSession {
+    let session = UserSession {
         id: None,
         user_id,
-        source: SourceType::Third.as_i16(),
-        token_type: TokenType::Temp.as_i16(),
         token: token.to_string(),
         expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
         renew_cnt: 0,
-        use_cnt: 0,
         created_at: Default::default(),
         updated_at: Default::default(),
-    });
+    };
 
     let _ = UserSession::save(db, session).await.map_err(|e| {
         error!("Save user session failed: {}", e);

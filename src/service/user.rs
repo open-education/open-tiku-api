@@ -3,7 +3,7 @@ use crate::api::user::{ExchangeTokenReq, UserLoginReq};
 use crate::constant::meta;
 use crate::middleware::user::{UserInfo, get_user_identity, get_user_session};
 use crate::model::user_identity::UserIdentity;
-use crate::model::user_session::{TokenType, UserSession};
+use crate::model::user_session::{UserSession};
 use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
@@ -20,7 +20,7 @@ pub async fn exchange(
 
     // session 信息
     let mut session =
-        get_user_session(db, req.temp_token.as_str(), TokenType::Temp.as_i16()).await?;
+        get_user_session(db, req.temp_token.as_str()).await?;
 
     // 用户信息
     let _ = get_user_identity(db, session.user_id).await?;
@@ -29,7 +29,6 @@ pub async fn exchange(
     let login_token = Uuid::new_v4().to_string();
     session.token = login_token.clone();
     session.expired_at = Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE);
-    session.token_type = TokenType::Login.as_i16();
 
     // 替换用户临时 session 为 登录 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
@@ -45,16 +44,14 @@ pub async fn login(app_conf: web::Data<AppConfig>, req: UserLoginReq) -> Result<
     let db = &app_conf.db;
 
     // session 信息
-    let mut session = get_user_session(db, req.token.as_str(), TokenType::Login.as_i16()).await?;
+    let mut session = get_user_session(db, req.token.as_str()).await?;
 
     // 用户信息
     let mut user = get_user_identity(db, session.user_id).await?;
 
     // 更新 session
     session.expired_at = Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR);
-    session.token_type = TokenType::Login.as_i16();
     session.renew_cnt = session.renew_cnt + 1;
-    session.use_cnt = session.use_cnt + 1;
 
     // 更新用户 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
@@ -85,7 +82,7 @@ pub async fn info(app_conf: web::Data<AppConfig>, token: &str) -> Result<UserInf
     let db = &app_conf.db;
 
     // session 信息
-    let session = get_user_session(db, token, TokenType::Login.as_i16()).await?;
+    let session = get_user_session(db, token).await?;
 
     // 用户信息
     let user = get_user_identity(db, session.user_id).await?;
@@ -107,8 +104,7 @@ pub async fn logout(app_conf: web::Data<AppConfig>, user_info: UserInfo) -> Resu
     // session 信息
     let session = get_user_session(
         db,
-        user_info.token.unwrap_or_default().as_str(),
-        TokenType::Login.as_i16(),
+        user_info.token.unwrap_or_default().as_str()
     )
     .await
     .map_err(|err| {

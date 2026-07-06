@@ -238,16 +238,10 @@ CREATE TABLE user_session
 (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT       NOT NULL,
-    source     SMALLINT     NOT NULL, -- 用户来源, 1 third 第三方账户登录, 2 student 学生账号
-    token_type SMALLINT     NOT NULL, -- token 类型 1 是临时 token 用于换取真实登录 token, 不可以续期过期删除 2 登录 token，每次访问需要续期
     token      VARCHAR(100) NOT NULL, -- 登录 token
     expired_at TIMESTAMPTZ,           -- 过期时间止, 过期后定时任务直接删除该条数据
     renew_cnt  SMALLINT    DEFAULT 0, -- 续期次数
-    use_cnt    SMALLINT    DEFAULT 0, -- 使用次数
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-
-    -- 唯一约束
-    CONSTRAINT unique_ust UNIQUE (user_id, source, token_type)
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_token ON user_session (token);

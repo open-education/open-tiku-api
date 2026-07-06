@@ -1,7 +1,7 @@
 use crate::AppConfig;
 use crate::constant::meta;
 use crate::model::user_identity::{StatusType, UserIdentity};
-use crate::model::user_session::{SourceType, TokenType, UserSession};
+use crate::model::user_session::{UserSession};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::middleware::Next;
 use actix_web::{Error, HttpMessage, web};
@@ -123,7 +123,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     let db = &app_conf.db;
 
     // 获取用户会话
-    let mut session = match get_user_session(db, token, TokenType::Login.as_i16()).await {
+    let mut session = match get_user_session(db, token).await {
         Ok(s) => s,
         Err(err) => {
             error!("Wrap get user session err: {}", err);
@@ -174,9 +174,8 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
 pub async fn get_user_session(
     db: &PgPool,
     token: &str,
-    token_type: i16,
 ) -> Result<UserSession, std::io::Error> {
-    let session = UserSession::find_one_by_token(db, token, token_type)
+    let session = UserSession::find_by_token(db, token)
         .await
         .map_err(|err| {
             error!("Query user session err: {}", err);
@@ -195,12 +194,6 @@ pub async fn get_user_session(
         return Err(std::io::Error::new(
             ErrorKind::InvalidInput,
             "已过期请重新登录",
-        ));
-    }
-    if session.source != SourceType::Third.as_i16() {
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "暂不支持该渠道登录",
         ));
     }
 
