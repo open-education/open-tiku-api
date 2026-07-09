@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
-fn get_levels_by_parent_id(
+pub fn get_levels_by_parent_id(
     map: &HashMap<i32, Vec<Textbook>>,
     current_parent_id: i32,
     safe_depth: u32,
@@ -53,7 +53,7 @@ fn get_levels_by_parent_id(
 }
 
 // 将教材字典类表变更为字典类型
-fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
+pub fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
     let mut map: HashMap<i32, Vec<Textbook>> = HashMap::with_capacity(rows.len());
     for row in rows {
         let parent_id = row.parent_id.unwrap_or(0);
