@@ -84,6 +84,7 @@ const PREFIX_LIST: &[&str] = &[
     // 题目
     "/question/info/",
     "/question/similar",
+    "/question/original",
     // 导航菜单
     "/textbook/list/",
     // 通过字典
