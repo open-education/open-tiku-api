@@ -1,8 +1,8 @@
+use crate::AppConfig;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,9 @@ pub struct CreateQuestionReq {
     pub question_cate_id: i32, // 题型主键
     #[serde(rename(deserialize = "sourceId", serialize = "sourceId"))]
     pub source_id: Option<i64>, // 变式题父主键
+    // 题目归属类型
+    #[serde(rename(deserialize = "questionSimilarType", serialize = "questionSimilarType"))]
+    pub question_similar_type: Option<i16>,
     #[serde(rename(deserialize = "questionTypeId", serialize = "questionTypeId"))]
     pub question_type_id: i32, // 题型类型主键
     #[serde(rename(deserialize = "questionTagIds", serialize = "questionTagIds"))]
@@ -214,6 +217,20 @@ pub async fn similar(
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::similar(app_conf, req.into_inner()).await)
+}
+
+#[derive(Deserialize)]
+pub struct OriginalReq {
+    pub id: i64,
+}
+
+// 课本原题标识
+#[post("/original")]
+pub async fn original(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<OriginalReq>,
+) -> ApiResponse<Option<i64>> {
+    ApiResponse::response(question::original(app_conf, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]

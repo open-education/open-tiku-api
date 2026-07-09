@@ -444,6 +444,7 @@ impl Question {
             WHERE qs.question_id = $1
               AND q.status = $2
               AND q.question_cate_id = $3
+              AND qs.question_type = 1
               AND ($4 IS NULL OR q.question_type_id = $4)
               AND ($5 IS NULL OR q.question_tag_ids @> $6)
               AND ($7 IS NULL OR q.question_dimension_ids @> $8)
@@ -481,6 +482,7 @@ impl Question {
             WHERE qs.question_id = $1
               AND q.status = $2
               AND q.question_cate_id = $3
+              AND qs.question_type = 1
               AND ($4 IS NULL OR q.question_type_id = $4)
               AND ($5 IS NULL OR q.question_tag_ids @> $6)
               AND ($7 IS NULL OR q.question_dimension_ids @> $8)
@@ -499,6 +501,22 @@ impl Question {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
+        .await
+    }
+
+    // 课本原题, 暂定只查询一个
+    pub async fn original(pool: &PgPool, id: i64) -> Result<Option<i64>, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT child_id
+            FROM question_similar
+            WHERE question_id = $1
+              AND question_type = 2
+              LIMIT 1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(pool)
         .await
     }
 

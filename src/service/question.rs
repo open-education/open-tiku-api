@@ -1,11 +1,11 @@
 use crate::AppConfig;
 use crate::api::question::{
-    CreateQuestionReq, DeleteReq, QuestionBaseResp, QuestionExtraInfo, QuestionInfoResp,
-    QuestionListReq, QuestionListResp, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
+    QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
-use crate::model::question_similar::QuestionSimilar;
+use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::model::user_identity::UserIdentity;
 use crate::service::user;
 use crate::util::local::to_local_datetime;
@@ -66,6 +66,14 @@ pub async fn add(
         }
     }
 
+    // 从请求信息中解析出题目归属类型
+    let question_similar_type =
+        if let Some(question_similar_type) = req.question_similar_type.clone() {
+            question_similar_type
+        } else {
+            QuestionSimilarType::Similar.as_i16()
+        };
+
     // 从登录信息中解析出作者
     req.author_id = Some(user_info.user_id);
 
@@ -78,7 +86,7 @@ pub async fn add(
 
     // 新增如果存在变式题则关联变式题
     if is_add && source_id.is_some() {
-        let _ = QuestionSimilar::insert(db, source_id.unwrap(), id)
+        let _ = QuestionSimilar::insert(db, source_id.unwrap(), id, question_similar_type)
             .await
             .map_err(|e| {
                 error!("question add err: {:?}", e);
@@ -283,7 +291,7 @@ pub async fn similar(
     app_conf: web::Data<AppConfig>,
     req: QuestionSimilarListReq,
 ) -> Result<QuestionListResp, Error> {
-    let db = &app_conf.db; // 假设 AppConfig 暴露了 db 字段
+    let db = &app_conf.db;
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
@@ -344,6 +352,21 @@ pub async fn similar(
         req.page_size,
         total,
     ))
+}
+
+// 课本原题
+pub async fn original(
+    app_conf: web::Data<AppConfig>,
+    req: OriginalReq,
+) -> Result<Option<i64>, Error> {
+    let id = Question::original(&app_conf.db, req.id)
+        .await
+        .map_err(|e| {
+            error!("original request by id err: {:?}", e);
+            Error::new(ErrorKind::Other, "题目查询错误")
+        })?;
+
+    Ok(id)
 }
 
 // 删除题目

@@ -1,7 +1,7 @@
 // 用户相关接口
 
 use crate::AppConfig;
-use crate::middleware::user::UserInfo;
+use crate::middleware::user::{ClientInfo, UserInfo};
 use crate::service::user;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -32,8 +32,9 @@ pub struct UserLoginReq {
 pub async fn login(
     app_conf: web::Data<AppConfig>,
     req: web::Json<UserLoginReq>,
+    client_info: ClientInfo,
 ) -> ApiResponse<UserInfo> {
-    ApiResponse::response(user::login(app_conf, req.into_inner()).await)
+    ApiResponse::response(user::login(app_conf, req.into_inner(), client_info).await)
 }
 
 // 通过 token 获取用户信息

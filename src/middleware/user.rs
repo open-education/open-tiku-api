@@ -1,10 +1,11 @@
 use crate::AppConfig;
 use crate::constant::meta;
 use crate::model::user_identity::{StatusType, UserIdentity};
-use crate::model::user_session::{UserSession};
+use crate::model::user_session::UserSession;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::http::header::USER_AGENT;
 use actix_web::middleware::Next;
-use actix_web::{Error, HttpMessage, web};
+use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, web};
 use chrono::{Duration, Utc};
 use log::error;
 use serde::Serialize;
@@ -13,7 +14,6 @@ use std::future::{Ready, ready};
 use std::io::ErrorKind;
 
 // 用户信息验证
-
 #[derive(Serialize, Clone)]
 pub struct UserInfo {
     #[serde(rename(serialize = "userId"))]
@@ -28,19 +28,53 @@ pub struct UserInfo {
 
 // 定义一个提取器，用于在 Handler 中方便地获取 UserInfo, 不存在时返回 401
 // 对于可选的则使用 Option<UserInfo> 接收, 框架已经实现, 不存在返回 None
-impl actix_web::FromRequest for UserInfo {
+impl FromRequest for UserInfo {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
-    fn from_request(
-        req: &actix_web::HttpRequest,
-        _payload: &mut actix_web::dev::Payload,
-    ) -> Self::Future {
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
         let user_info = req.extensions().get::<UserInfo>().cloned();
         match user_info {
             Some(info) => ready(Ok(info)),
             None => ready(Err(actix_web::error::ErrorUnauthorized("Unauthorized"))),
         }
+    }
+}
+
+// 客户端信息
+pub struct ClientInfo {
+    pub ip: String,
+    pub user_agent: String,
+}
+
+impl FromRequest for ClientInfo {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+        let client_ip = req
+            .headers()
+            .get("X-Real-IP")
+            .and_then(|h| h.to_str().ok())
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|| {
+                req.connection_info()
+                    .realip_remote_addr()
+                    .unwrap_or("IP not available")
+                    .to_string()
+            });
+
+        let user_agent = req
+            .headers()
+            .get(USER_AGENT)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("User-Agent not provided")
+            .to_string();
+
+        ready(Ok(ClientInfo {
+            ip: client_ip,
+            user_agent,
+        }))
     }
 }
 
@@ -171,10 +205,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
 }
 
 // 根据 token 获取用户 session 信息
-pub async fn get_user_session(
-    db: &PgPool,
-    token: &str,
-) -> Result<UserSession, std::io::Error> {
+pub async fn get_user_session(db: &PgPool, token: &str) -> Result<UserSession, std::io::Error> {
     let session = UserSession::find_by_token(db, token)
         .await
         .map_err(|err| {

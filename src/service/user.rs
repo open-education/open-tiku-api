@@ -1,9 +1,9 @@
 use crate::AppConfig;
 use crate::api::user::{ExchangeTokenReq, UserLoginReq};
 use crate::constant::meta;
-use crate::middleware::user::{UserInfo, get_user_identity, get_user_session};
+use crate::middleware::user::{ClientInfo, UserInfo, get_user_identity, get_user_session};
 use crate::model::user_identity::UserIdentity;
-use crate::model::user_session::{UserSession};
+use crate::model::user_session::UserSession;
 use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
@@ -19,8 +19,7 @@ pub async fn exchange(
     let db = &app_conf.db;
 
     // session 信息
-    let mut session =
-        get_user_session(db, req.temp_token.as_str()).await?;
+    let mut session = get_user_session(db, req.temp_token.as_str()).await?;
 
     // 用户信息
     let _ = get_user_identity(db, session.user_id).await?;
@@ -40,7 +39,11 @@ pub async fn exchange(
 }
 
 // 登录
-pub async fn login(app_conf: web::Data<AppConfig>, req: UserLoginReq) -> Result<UserInfo, Error> {
+pub async fn login(
+    app_conf: web::Data<AppConfig>,
+    req: UserLoginReq,
+    client_info: ClientInfo,
+) -> Result<UserInfo, Error> {
     let db = &app_conf.db;
 
     // session 信息
@@ -52,6 +55,9 @@ pub async fn login(app_conf: web::Data<AppConfig>, req: UserLoginReq) -> Result<
     // 更新 session
     session.expired_at = Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR);
     session.renew_cnt = session.renew_cnt + 1;
+    // 实际登录时才填写用户跟踪信息
+    session.client_ip = client_info.ip.clone();
+    session.user_agent = client_info.user_agent.clone();
 
     // 更新用户 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
@@ -102,15 +108,12 @@ pub async fn logout(app_conf: web::Data<AppConfig>, user_info: UserInfo) -> Resu
     let db = &app_conf.db;
 
     // session 信息
-    let session = get_user_session(
-        db,
-        user_info.token.unwrap_or_default().as_str()
-    )
-    .await
-    .map_err(|err| {
-        error!("Login save user session save err: {}", err);
-        Error::new(ErrorKind::Other, err)
-    })?;
+    let session = get_user_session(db, user_info.token.unwrap_or_default().as_str())
+        .await
+        .map_err(|err| {
+            error!("Login save user session save err: {}", err);
+            Error::new(ErrorKind::Other, err)
+        })?;
 
     UserSession::delete_by_id(db, session.id.unwrap_or_default())
         .await
