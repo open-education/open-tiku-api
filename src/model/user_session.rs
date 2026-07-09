@@ -10,8 +10,8 @@ pub struct UserSession {
     pub token: String,
     pub expired_at: DateTime<Utc>,
     pub renew_cnt: i16,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub client_ip: String,
+    pub user_agent: String,
 }
 
 impl UserSession {
@@ -19,17 +19,19 @@ impl UserSession {
         sqlx::query_as::<_, Self>(
             r#"
         INSERT INTO user_session (
-            id, user_id, token, expired_at, renew_cnt
+            id, user_id, token, expired_at, renew_cnt, client_ip, user_agent
         )
         VALUES (
             COALESCE($1, nextval('user_session_id_seq')),
-            $2, $3, $4, $5
+            $2, $3, $4, $5, $6, $7
         )
         ON CONFLICT (id) DO UPDATE SET
             user_id = EXCLUDED.user_id,
             token = EXCLUDED.token,
             expired_at = EXCLUDED.expired_at,
             renew_cnt = EXCLUDED.renew_cnt,
+            client_ip = EXCLUDED.client_ip,
+            user_agent = EXCLUDED.user_agent,
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
         "#,
@@ -39,14 +41,13 @@ impl UserSession {
         .bind(&session.token)
         .bind(session.expired_at)
         .bind(session.renew_cnt)
+        .bind(session.client_ip)
+        .bind(session.user_agent)
         .fetch_one(pool)
         .await
     }
 
-    pub async fn find_by_token(
-        pool: &PgPool,
-        token: &str,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    pub async fn find_by_token(pool: &PgPool, token: &str) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
         SELECT * FROM user_session

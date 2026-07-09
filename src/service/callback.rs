@@ -179,8 +179,6 @@ async fn save_user_identity(db: &PgPool, user: &GithubUser) -> Result<UserIdenti
         login_count: 0,
         role: RoleType::Normal.as_i16(),
         status: StatusType::Active.as_i16(),
-        created_at: Default::default(),
-        updated_at: Default::default(),
     });
 
     // 如果是修改数据则只覆盖三方平台字段
@@ -205,8 +203,8 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
         token: token.to_string(),
         expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
         renew_cnt: 0,
-        created_at: Default::default(),
-        updated_at: Default::default(),
+        client_ip: "".to_string(),
+        user_agent: "".to_string(),
     };
 
     let _ = UserSession::save(db, session).await.map_err(|e| {

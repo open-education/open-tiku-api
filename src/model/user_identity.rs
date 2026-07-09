@@ -15,8 +15,6 @@ pub struct UserIdentity {
     pub login_count: i64,
     pub role: i16,
     pub status: i16,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
 }
 
 // 登录平台类型

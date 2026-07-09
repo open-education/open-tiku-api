@@ -1,4 +1,4 @@
-use idgen_rs::{extract_time_utc, next_id, snowflake_init};
+use idgen_rs::{next_id, snowflake_init};
 use std::sync::OnceLock;
 
 // 存放一个空元组，仅表示“已初始化”
@@ -19,9 +19,4 @@ pub fn generate_id() -> i64 {
         panic!("Snowflake generator not initialized. Call `init_snowflake(worker_id)` first.");
     }
     next_id() as i64
-}
-
-/// 从 ID 中提取创建时间（UTC）
-pub fn parse_id_time(id: u64) -> Option<chrono::DateTime<chrono::Utc>> {
-    extract_time_utc(id)
 }

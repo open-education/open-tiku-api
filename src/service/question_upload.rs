@@ -4,7 +4,7 @@ use crate::api::text::QuestionSnippetReq;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
-use crate::model::question_similar::QuestionSimilar;
+use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::markdown_parse;
@@ -205,9 +205,9 @@ async fn single(
         info!("Add all child question end");
 
         info!("Add relation parent child question begin");
-        let similar_pairs: Vec<(i64, i64)> = children_ids
+        let similar_pairs: Vec<(i64, i64, i16)> = children_ids
             .into_iter()
-            .map(|child| (parent.id, child))
+            .map(|child| (parent.id, child, QuestionSimilarType::Similar.as_i16()))
             .collect();
 
         // 关联母题和变式题对应关系
@@ -313,6 +313,7 @@ fn to_req(
         id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
+        question_similar_type: None,
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,
@@ -395,6 +396,7 @@ pub async fn parse_question_snippet(req: QuestionSnippetReq) -> Result<CreateQue
         id: None,
         question_cate_id: 0,
         source_id: None,
+        question_similar_type: None,
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,

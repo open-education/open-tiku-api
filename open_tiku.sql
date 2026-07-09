@@ -1,4 +1,4 @@
--- 说明： IDE 格式化如果混乱, 可以关闭格式化, 用其它工具格式化, 真扯淡
+-- 说明： IDE 格式化如果混乱, 可以关闭格式化, 用其它工具格式化
 --
 -- 1. 创建教材层级表
 CREATE TABLE IF NOT EXISTS textbook
@@ -116,10 +116,11 @@ CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
 -- 2.1. 变式题
 CREATE TABLE IF NOT EXISTS question_similar
 (
-    id          BIGSERIAL PRIMARY KEY,
-    question_id BIGINT NOT NULL, -- 父题主键
-    child_id    BIGINT NOT NULL, -- 变式题主键
-    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    id            BIGSERIAL PRIMARY KEY,
+    question_type SMALLINT NOT NULL DEFAULT 1, -- 题目类型 1 变式题, 2 课本原题
+    question_id   BIGINT   NOT NULL,           -- 父题主键
+    child_id      BIGINT   NOT NULL,           -- 变式题主键
+    created_at    TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (question_id, child_id)
 );
 
@@ -238,10 +239,12 @@ CREATE TABLE user_session
 (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT       NOT NULL,
-    token      VARCHAR(100) NOT NULL, -- 登录 token
-    expired_at TIMESTAMPTZ,           -- 过期时间止, 过期后定时任务直接删除该条数据
-    renew_cnt  SMALLINT    DEFAULT 0, -- 续期次数
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    token      VARCHAR(100) NOT NULL,            -- 登录 token
+    expired_at TIMESTAMPTZ,                      -- 过期时间止, 过期后定时任务直接删除该条数据
+    renew_cnt  SMALLINT              DEFAULT 0,  -- 续期次数
+    client_ip  VARCHAR(100) NOT NULL DEFAULT '', -- 客户端ip
+    user_agent VARCHAR(500) NOT NULL DEFAULT '', -- 用户请求头信息
+    created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_token ON user_session (token);
