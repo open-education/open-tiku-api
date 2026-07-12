@@ -3,7 +3,7 @@ use crate::task;
 
 /// 运行定时任务入口
 /// 启动方式类似:
-/// ./open-tiku-api question-upload // 上传题目
+/// ./open-tiku-api task question-upload // 上传题目
 pub async fn run_cron(args: Vec<String>) {
     let task_name = args.get(2).expect("需要指定任务名称");
 
