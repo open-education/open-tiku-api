@@ -101,7 +101,11 @@ pub async fn list_part(
     let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
 
     // 2. 从根节点（parent_id=0 是根）递归构建
-    Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
+    Ok(get_levels_by_parent_id(
+        &map,
+        parent_id as i32,
+        constant::textbook::MAX_DEPTH,
+    ))
 }
 
 // 根据父级标识获取子菜单列表
