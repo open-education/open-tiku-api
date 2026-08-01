@@ -527,4 +527,37 @@ impl Question {
             .await?;
         Ok(result.rows_affected())
     }
+
+    // 题型等条件下题目列表
+    pub async fn list_by_ext(
+        pool: &PgPool,
+        cate_ids: Vec<i32>,
+        type_id: i16,
+        tag_ids: Option<Vec<i16>>,
+        dimension_ids: Option<Vec<i16>>,
+        limit: i16,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM question
+            WHERE question_cate_id = ANY($1)
+              AND status = 2
+              AND question_type_id = $2
+              AND ($3 IS NULL OR question_tag_ids @> $4)
+              AND ($5 IS NULL OR question_dimension_ids @> $6)
+            ORDER BY RANDOM()
+            LIMIT $7
+            "#,
+        )
+        .bind(cate_ids)
+        .bind(type_id)
+        .bind(tag_ids.as_ref().map(|_| true))
+        .bind(tag_ids.map(Json))
+        .bind(dimension_ids.as_ref().map(|_| true))
+        .bind(dimension_ids.map(Json))
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
 }

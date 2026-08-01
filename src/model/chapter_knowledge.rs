@@ -30,18 +30,10 @@ impl ChapterKnowledge {
     }
 
     // 删除关联关系
-    pub async fn delete_by_chapter_knowledge_id(
-        pool: &PgPool,
-        chapter_id: i32,
-        knowledge_id: i32,
-    ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query!(
-            "DELETE FROM chapter_knowledge WHERE chapter_id = $1 AND knowledge_id = $2 ",
-            chapter_id,
-            knowledge_id
-        )
-        .execute(pool)
-        .await?;
+    pub async fn delete_by_id(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!("DELETE FROM chapter_knowledge WHERE id = $1 ", id,)
+            .execute(pool)
+            .await?;
 
         Ok(result.rows_affected())
     }

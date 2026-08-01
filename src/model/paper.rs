@@ -10,6 +10,7 @@ pub struct Paper {
     pub id: Option<i64>,
     pub related_id: i32,
     pub related_name: String,
+    pub paper_type: i16,
     pub tag: String,
     pub year: String,
     pub grade: String,
@@ -63,11 +64,13 @@ impl Paper {
             INSERT INTO paper (
                 id, related_id, related_name, tag, year, grade, semester,
                 title, score, source, remark, author_id, author_name,
-                count, remark_ext, status, approve_id, reject_reason, approve_at
+                count, remark_ext, status, approve_id, reject_reason, approve_at,
+                paper_type
             ) VALUES (
                 COALESCE($1, nextval('paper_id_seq')), $2, $3, $4, $5, $6,
                 $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19
+                $13, $14, $15, $16, $17, $18, $19,
+                      $20
             )
             ON CONFLICT (id) DO UPDATE SET
                 related_id = EXCLUDED.related_id,
@@ -88,6 +91,7 @@ impl Paper {
                 approve_id = EXCLUDED.approve_id,
                 reject_reason = EXCLUDED.reject_reason,
                 approve_at = EXCLUDED.approve_at,
+                paper_type = EXCLUDED.paper_type,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING id
         "#,
@@ -111,6 +115,7 @@ impl Paper {
         .bind(paper.approve_id)
         .bind(&paper.reject_reason)
         .bind(paper.approve_at)
+        .bind(paper.paper_type)
         .map(|row: sqlx::postgres::PgRow| {
             use sqlx::Row;
             row.get::<i64, _>("id")
@@ -140,6 +145,11 @@ impl Paper {
         // related_id 必填，占位符 $1
         conditions.push(format!("related_id = ${}", param_count + 1));
         param_count += 1;
+
+        if let Some(_) = &req.paper_type {
+            param_count += 1;
+            conditions.push(format!("paper_type = ${}", param_count));
+        }
 
         if let Some(_) = &req.tag {
             param_count += 1;
@@ -178,6 +188,9 @@ impl Paper {
 
         // 按固定顺序绑定参数（与 build_filter 中的占位符顺序一致）
         query = query.bind(req.related_id);
+        if let Some(paper_type) = &req.paper_type {
+            query = query.bind(paper_type);
+        }
         if let Some(tag) = &req.tag {
             query = query.bind(tag);
         }
@@ -215,6 +228,9 @@ impl Paper {
 
         // 绑定过滤参数（顺序与 count_total 完全一致）
         query = query.bind(req.related_id);
+        if let Some(paper_type) = &req.paper_type {
+            query = query.bind(paper_type);
+        }
         if let Some(tag) = &req.tag {
             query = query.bind(tag);
         }

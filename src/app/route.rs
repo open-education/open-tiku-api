@@ -64,10 +64,11 @@ pub fn task(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn paper(cfg: &mut web::ServiceConfig) {
-    cfg.service(paper::add)
-        .service(paper::info)
+    cfg.service(paper::top_add)
+        .service(paper::top_info)
         .service(paper::list)
-        .service(paper::latest);
+        .service(paper::latest)
+        .service(paper::preview);
 }
 
 pub fn text(cfg: &mut web::ServiceConfig) {
@@ -75,7 +76,7 @@ pub fn text(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn callback(cfg: &mut web::ServiceConfig) {
-    cfg.service(callback::github);
+    cfg.service(callback::github).service(callback::qq);
 }
 
 pub fn user(cfg: &mut web::ServiceConfig) {

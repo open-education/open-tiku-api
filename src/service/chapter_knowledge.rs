@@ -117,9 +117,16 @@ pub async fn remove(
             "章节/考点没有关联关系, 无需解绑",
         ));
     }
+    let relation_id = relation_row.unwrap().id;
+    if relation_id != req.id {
+        return Err(Error::new(
+            ErrorKind::Other,
+            "章节/考点关联关系不匹配, 无需解绑",
+        ));
+    }
 
     // 如果有题型关联就不能解除了, 后续如果需要放开重新绑定再处理
-    let rows = QuestionCate::find_all_by_related_ids(db, vec![relation_row.unwrap().id])
+    let rows = QuestionCate::find_all_by_related_ids(db, vec![relation_id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -130,7 +137,7 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
     }
 
-    let res = ChapterKnowledge::delete_by_chapter_knowledge_id(db, chapter_id, knowledge_id)
+    let res = ChapterKnowledge::delete_by_id(db, req.id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);

@@ -100,6 +100,7 @@ const PREFIX_LIST: &[&str] = &[
     "/user/login",
     // 回调
     "/callback/github",
+    "/callback/qq",
     // 文本工具
     "/text/question/snippet",
 ];

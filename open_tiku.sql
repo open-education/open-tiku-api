@@ -218,7 +218,7 @@ CREATE TABLE paper_gen_config
     question_tag_ids       JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题目标签IDs
     question_dimension_ids JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 核心素养IDs
     question_type_info     JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题型题量信息
-    difficulty_level_info  JSONB  NOT NULL DEFAULT '[]'::jsonb  -- 难度分布信息
+    difficulty_level_info  JSONB  NOT NULL DEFAULT '{}'::jsonb  -- 难度分布信息
 );
 
 -- 4.4 试卷生成的题目信息

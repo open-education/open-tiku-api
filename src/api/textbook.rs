@@ -42,7 +42,7 @@ pub async fn list_level(
     ApiResponse::response(textbook::list_level(app_conf, parent_id.into_inner().0).await)
 }
 
-// 获取指定深度的所有子菜单列表-包括题型列表, 所以这个接口只是获取教材目录时有效, 否则跟 /list/{parent_id}/part 一致
+// 获取指定深度的所有子菜单列表-包括题型列表, 所以这个接口只是获取教材目录时有效
 #[get("/list/{parent_id}/children")]
 pub async fn list_children(
     app_conf: web::Data<AppConfig>,
