@@ -266,7 +266,7 @@ pub struct PaperGenGroupReq {
     pub type_name: String,
     #[serde(rename(deserialize = "subTitle"))]
     pub sub_title: Option<String>,
-    pub questions: Vec<PaperGenQuestionReq>,
+    pub questions: Option<Vec<PaperGenQuestionReq>>,
 }
 
 #[derive(Deserialize)]
@@ -274,7 +274,7 @@ pub struct PaperGenReq {
     #[serde(flatten)]
     pub common: PaperCommonReq,
     pub conf: PaperGenConfigReq,
-    pub groups: Vec<PaperGenGroupReq>,
+    pub groups: Option<Vec<PaperGenGroupReq>>,
 }
 
 // 保存试卷
