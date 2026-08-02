@@ -1,4 +1,4 @@
-use crate::api::textbook::CreateTextbookReq;
+use crate::api::textbook::{CreateTextbookReq, TextbookResp};
 use sqlx::{FromRow, PgPool};
 
 // 教材信息

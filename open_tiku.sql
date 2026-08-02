@@ -149,6 +149,7 @@ CREATE TABLE paper
     id            BIGSERIAL PRIMARY KEY,
     related_id    INTEGER      NOT NULL,           -- 关联考点或者教材等标识, 只记录末级
     related_name  VARCHAR(255) NOT NULL,           -- 关联标识名称, 不考虑被更新仅仅是展示提醒用
+    paper_type    SMALLINT     NOT NULL DEFAULT 1, -- 试卷类型 1 精选试卷 2 手动组卷
     tag           VARCHAR(100) NOT NULL,           -- 标签前端写死维护
     year          VARCHAR(10)  NOT NULL,           -- 年份
     grade         VARCHAR(50)  NOT NULL,           -- 年级
@@ -204,6 +205,30 @@ CREATE TABLE paper_question
     score          INTEGER     NOT NULL DEFAULT 0            -- 题目分数, 不校验
 );
 CREATE INDEX idx_paper_question_group_id ON paper_question (paper_id, group_id);
+
+-- 4.3 组卷题目生成规则
+CREATE TABLE paper_gen_config
+(
+    id                     BIGSERIAL PRIMARY KEY,
+    paper_id               BIGINT NOT NULL,                     -- 试卷主表标识
+    question_cate_ids      JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题型标识IDs
+    question_tag_ids       JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题目标签IDs
+    question_dimension_ids JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 核心素养IDs
+    question_type_info     JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题型题量信息
+    difficulty_level_info  JSONB  NOT NULL DEFAULT '{}'::jsonb  -- 难度分布信息
+);
+
+-- 4.4 试卷生成的题目信息
+CREATE TABLE paper_gen_question
+(
+    id          BIGSERIAL PRIMARY KEY,
+    paper_id    BIGINT      NOT NULL,           -- 试卷主表标识
+    group_id    BIGINT      NOT NULL,           -- 题型分类标识
+    gen_id      VARCHAR(50) NOT NULL,           -- 前端生成标识
+    order_num   SMALLINT    NOT NULL DEFAULT 1, -- 题目顺序编号
+    question_id BIGINT      NOT NULL,           -- 题目标识
+    score       INTEGER     NOT NULL DEFAULT 0  -- 题目分数, 不校验
+);
 
 -- 5. 第三方身份认证表（存储所有OAuth登录源）
 CREATE TABLE user_identity

@@ -43,6 +43,7 @@ pub async fn list(
 
 #[derive(Deserialize)]
 pub struct RemoveChapterKnowledgeReq {
+    pub id: i32,
     #[serde(rename(deserialize = "chapterId"))]
     pub chapter_id: i32,
     #[serde(rename(deserialize = "knowledgeId"))]

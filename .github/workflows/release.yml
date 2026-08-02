@@ -1,13 +1,6 @@
 # 编译并发布产出物至 Releases
 name: Publish Release Workflows
 on:
-  # 允许手动触发, 输入版本号即可
-  workflow_dispatch:
-    inputs:
-      tag_name:
-        description: '输入版本号, 比如 v0.0.1-beta'
-        required: true
-        default: 'v0.0.1-beta'
   push:
     tags:
       # 标记 v 开头的 tag 时生效
@@ -50,7 +43,7 @@ jobs:
       - name: Import Schema from SQL file
         env:
           # 使用 postgres 镜像默认的变量
-          PGPASSWORD: password 
+          PGPASSWORD: password
         run: |
           # -h 数据库地址, -U 用户名, -d 数据库名, -f 你的SQL文件路径
           psql -h localhost -U postgres -d open_tiku_test -f ./open_tiku.sql

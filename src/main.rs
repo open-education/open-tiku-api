@@ -17,22 +17,37 @@ use std::env;
 // 服务相关环境变量配置
 #[derive(Deserialize)]
 struct EnvConfig {
+    // db
     database_url: String,
+
+    // server
     server_host: String,
     server_port: u16,
+
+    // meta
     meta_path: String,
+
+    // github
     github_client_id: String,
     github_client_secret: String,
+
+    // qq
+    qq_client_id: String,
+    qq_client_secret: String,
+    qq_redirect_uri: String,
+
+    // homepage
     website_home_url: String,
 }
 
 // 应用配置
 #[derive(Clone)]
 pub struct AppConfig {
-    db: PgPool,               // 数据库连接池
-    meta_path: String,        // 元数据存储根目录
-    github: (String, String), // (client_id, secret)
-    website_home_url: String, // 网站首页
+    db: PgPool,                   // 数据库连接池
+    meta_path: String,            // 元数据存储根目录
+    github: (String, String),     // GitHub (client_id, secret)
+    qq: (String, String, String), // qq (client_id, secret, redirect_uri)
+    website_home_url: String,     // 网站首页
 }
 
 #[actix_web::main]

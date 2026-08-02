@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
-fn get_levels_by_parent_id(
+pub fn get_levels_by_parent_id(
     map: &HashMap<i32, Vec<Textbook>>,
     current_parent_id: i32,
     safe_depth: u32,
@@ -53,7 +53,7 @@ fn get_levels_by_parent_id(
 }
 
 // 将教材字典类表变更为字典类型
-fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
+pub fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
     let mut map: HashMap<i32, Vec<Textbook>> = HashMap::with_capacity(rows.len());
     for row in rows {
         let parent_id = row.parent_id.unwrap_or(0);
@@ -85,25 +85,6 @@ pub async fn list_all(
     Ok(get_levels_by_parent_id(&map, 0, safe_depth))
 }
 
-// 根据父级标识获取所有子菜单列表
-pub async fn list_part(
-    app_conf: web::Data<AppConfig>,
-    parent_id: u32,
-) -> Result<Vec<TextbookResp>, Error> {
-    let rows = Textbook::find_all_by_parent_id(&app_conf.get_ref().db, parent_id as i32)
-        .await
-        .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
-        })?;
-
-    // 1. 建立父子索引映射
-    let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
-
-    // 2. 从根节点（parent_id=0 是根）递归构建
-    Ok(get_levels_by_parent_id(&map, parent_id as i32, 2))
-}
-
 // 根据父级标识获取子菜单列表
 pub async fn list_level(
     app_conf: web::Data<AppConfig>,
@@ -124,25 +105,34 @@ pub async fn list_children(
     app_conf: web::Data<AppConfig>,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, Error> {
-    // 获取原始列表，注意加 mut
-    let mut resp = list_part(app_conf.clone(), parent_id).await?;
+    let db = &app_conf.get_ref().db;
 
-    // 1. 提取关联 ID (利用迭代器链)
-    let relation_ids: Vec<i32> = resp
+    // 获取原始列表
+    let children_rows = Textbook::find_all_by_parent_id(db, parent_id as i32)
+        .await
+        .map_err(|e| {
+            error!("Error searching textbook: {:?}", e);
+            Error::new(ErrorKind::Other, "查询失败")
+        })?;
+
+    // 提取关联 ID (利用迭代器链)
+    let relation_ids: Vec<i32> = children_rows
         .iter()
-        .filter(|item| item.path_depth == Some(6))
-        .filter_map(|item| item.children.as_ref())
-        .flat_map(|children| children.iter().map(|row| row.id))
+        .filter(|item| item.path_depth == Some(7))
+        .map(|item| item.id)
         .collect();
+
+    // 建立父子索引映射
+    let map: HashMap<i32, Vec<Textbook>> = to_level_map(children_rows);
+
+    let mut resp = get_levels_by_parent_id(&map, parent_id as i32, constant::textbook::MAX_DEPTH);
 
     if relation_ids.is_empty() {
         return Ok(resp);
     }
 
-    let db = &app_conf.get_ref().db;
-
-    // 2. 查询中间关系表
-    let rows = ChapterKnowledge::find_by_ids(db, relation_ids)
+    // 查询中间关系表
+    let ck_rows = ChapterKnowledge::find_by_ids(db, relation_ids)
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
@@ -151,8 +141,8 @@ pub async fn list_children(
 
     // 目前的关联关系是 章节选题 -> 多个考点选题
     let mut relation_map: HashMap<i32, Vec<i32>> = HashMap::new();
-    let mut bridge_ids = Vec::with_capacity(rows.len());
-    for row in rows {
+    let mut bridge_ids = Vec::with_capacity(ck_rows.len());
+    for row in ck_rows {
         bridge_ids.push(row.id);
         // 建立 原始ID -> 中间关联ID 的映射
         // 使用 .entry().or_default() 自动处理 Vec 的初始化和推入
@@ -163,7 +153,7 @@ pub async fn list_children(
             .push(row.id);
     }
 
-    // 3. 查询题型分类
+    // 查询题型分类
     let q_rows = QuestionCate::find_all_by_related_ids(db, bridge_ids)
         .await
         .map_err(|e| {
@@ -176,41 +166,52 @@ pub async fn list_children(
         question_id_map.entry(row.related_id).or_default().push(row);
     }
 
-    // 4. 回填数据
+    // 回填数据
+    fill_question_cate(&relation_map, &question_id_map, &mut resp);
+
+    Ok(resp)
+}
+
+fn fill_question_cate(
+    relation_map: &HashMap<i32, Vec<i32>>,
+    question_id_map: &HashMap<i32, Vec<QuestionCate>>,
+    resp: &mut Vec<TextbookResp>,
+) {
     for item in resp.iter_mut() {
-        // 使用 If-Let Chains (Rust 1.64+)
-        if let (Some(6), Some(children_list)) = (item.path_depth, &mut item.children) {
-            // 遍历第7层菜单
-            for row in children_list.iter_mut() {
-                // 获取对应的关联 ID 列表引用
-                if let Some(rel_ids) = relation_map.get(&row.id) {
-                    let row_children = row.children.get_or_insert_with(Vec::new);
-                    // 第8层菜单是拼接的题型列表
-                    for &rel_id in rel_ids {
-                        if let Some(questions) = question_id_map.get(&rel_id) {
-                            // 直接遍历 questions 并克隆数据
-                            for q in questions {
-                                row_children.push(TextbookResp {
-                                    id: q.id,
-                                    path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
-                                    parent_id: None,
-                                    label: q.label.clone(),
-                                    key: format!("{}-{}", row.key, q.id), // 题型本身没有key， 拼接一个
-                                    sort_order: q.sort_order,
-                                    path_depth: None,
-                                    path: "".to_string(), // 题型不需要路径
-                                    table_name: Some("question_cate".to_string()),
-                                    children: None,
-                                });
-                            }
-                        }
+        if item.path_depth != Some(7) && item.children.is_some() {
+            fill_question_cate(
+                relation_map,
+                question_id_map,
+                item.children.as_mut().unwrap(),
+            );
+            continue;
+        }
+
+        // 获取对应的关联 ID 列表引用
+        if let Some(rel_ids) = relation_map.get(&item.id) {
+            let row_children = item.children.get_or_insert_with(Vec::new);
+            // 第8层菜单是拼接的题型列表
+            for &rel_id in rel_ids {
+                if let Some(questions) = question_id_map.get(&rel_id) {
+                    // 直接遍历 questions 并克隆数据
+                    for q in questions {
+                        row_children.push(TextbookResp {
+                            id: q.id,
+                            path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
+                            parent_id: None,
+                            label: q.label.clone(),
+                            key: format!("{}-{}", item.key, q.id), // 题型本身没有key， 拼接一个
+                            sort_order: q.sort_order,
+                            path_depth: None,
+                            path: "".to_string(), // 题型不需要路径
+                            table_name: Some("question_cate".to_string()),
+                            children: None,
+                        });
                     }
                 }
             }
         }
     }
-
-    Ok(resp)
 }
 
 // 检查父级标识和名称是否存在, 不允许重复

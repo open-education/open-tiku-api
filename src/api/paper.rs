@@ -1,21 +1,23 @@
-use crate::AppConfig;
+use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption};
 use crate::service::paper;
 use crate::util::response::ApiResponse;
+use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use crate::middleware::user::UserInfo;
 
 /// 试卷相关操作
 
 #[derive(Deserialize)]
-pub struct PaperReq {
+pub struct PaperCommonReq {
     pub id: Option<i64>,
     #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
     #[serde(rename(deserialize = "relatedName"))]
     pub related_name: String,
+    #[serde(rename(deserialize = "paperType"))]
+    pub paper_type: i16,
     pub tag: String,
     pub year: String,
     pub grade: String,
@@ -25,22 +27,28 @@ pub struct PaperReq {
     pub status: i16,
     pub source: String,
     pub remark: Option<String>,
-    pub groups: Vec<PaperGroupReq>,
 }
 
 #[derive(Deserialize)]
-pub struct PaperGroupReq {
+pub struct PaperTopReq {
+    #[serde(flatten)]
+    pub common: PaperCommonReq,
+    pub groups: Vec<PaperTopGroupReq>,
+}
+
+#[derive(Deserialize)]
+pub struct PaperTopGroupReq {
     #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
     #[serde(rename(deserialize = "typeName"))]
     pub type_name: String,
     #[serde(rename(deserialize = "subTitle"))]
     pub sub_title: Option<String>,
-    pub questions: Vec<PaperQuestionReq>,
+    pub questions: Vec<PaperTopQuestionReq>,
 }
 
 #[derive(Deserialize)]
-pub struct PaperQuestionReq {
+pub struct PaperTopQuestionReq {
     #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
     #[serde(rename(deserialize = "orderNum"))]
@@ -55,13 +63,17 @@ pub struct PaperQuestionReq {
     pub score: i32,
 }
 
-// 添加试卷
-#[post("/add")]
-pub async fn add(app_conf: web::Data<AppConfig>, req: web::Json<PaperReq>, user_info: UserInfo) -> ApiResponse<i64> {
-    ApiResponse::response(paper::add(app_conf, req.into_inner(), user_info).await)
+// 添加精选试卷
+#[post("/top/add")]
+pub async fn top_add(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<PaperTopReq>,
+    user_info: UserInfo,
+) -> ApiResponse<i64> {
+    ApiResponse::response(paper::top_add(app_conf, req.into_inner(), user_info).await)
 }
 
-// 查看详情
+// 查看精选试卷详情
 #[derive(Serialize)]
 pub struct PaperResp {
     pub id: Option<i64>,
@@ -69,6 +81,8 @@ pub struct PaperResp {
     pub related_id: i32,
     #[serde(rename(serialize = "relatedName"))]
     pub related_name: String,
+    #[serde(rename(serialize = "paperType"))]
+    pub paper_type: i16,
     pub tag: String,
     pub year: String,
     pub grade: String,
@@ -139,18 +153,20 @@ pub struct PaperQuestionResp {
     pub score: i32,
 }
 
-#[get("/info/{id}")]
-pub async fn info(
+#[get("/top/info/{id}")]
+pub async fn top_info(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<PaperResp> {
-    ApiResponse::response(paper::info(app_conf, path.into_inner().0).await)
+    ApiResponse::response(paper::top_info(app_conf, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
 pub struct PaperListReq {
     #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
+    #[serde(rename(deserialize = "paperType"))]
+    pub paper_type: Option<i16>,
     pub tag: Option<String>,
     pub year: Option<String>,
     pub grade: Option<String>,
@@ -185,4 +201,88 @@ pub async fn latest(
     path: web::Path<(i64,)>,
 ) -> ApiResponse<Vec<PaperResp>> {
     ApiResponse::response(paper::latest(app_conf, path.into_inner().0).await)
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenLevelRangeReq {
+    pub basic: i16,   // 基础题百分比
+    pub improve: i16, // 提升题百分比
+    pub expand: i16,  // 扩展题百分比
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenQuestionTypeReq {
+    pub id: i16,
+    pub label: String,
+    pub num: i16,
+    pub score: i16,
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenConfigReq {
+    // 题型标识列表
+    #[serde(rename(deserialize = "questionCateIds"))]
+    pub question_cate_ids: Vec<i32>,
+    #[serde(rename(deserialize = "tagIds"))]
+    pub tag_ids: Option<Vec<i16>>,
+    #[serde(rename(deserialize = "dimensionIds"))]
+    pub dimension_ids: Option<Vec<i16>>,
+    #[serde(rename(deserialize = "levelRange"))]
+    pub level_range: Option<PaperGenLevelRangeReq>,
+    #[serde(rename(deserialize = "questionTypes"))]
+    pub question_types: Vec<PaperGenQuestionTypeReq>,
+}
+
+#[derive(Deserialize)]
+pub struct PaperPreviewReq {
+    #[serde(flatten)]
+    pub common: PaperCommonReq,
+    pub conf: PaperGenConfigReq,
+}
+
+#[post("/gen/preview")]
+pub async fn preview(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<PaperPreviewReq>,
+    user_info: UserInfo,
+) -> ApiResponse<PaperResp> {
+    ApiResponse::response(paper::preview(app_conf, req.into_inner(), user_info).await)
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenQuestionReq {
+    #[serde(rename(deserialize = "orderNum"))]
+    pub order_num: i16,
+    #[serde(rename(deserialize = "questionId"))]
+    pub question_id: i64,
+    pub score: i32,
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenGroupReq {
+    #[serde(rename(deserialize = "genId"))]
+    pub gen_id: String,
+    #[serde(rename(deserialize = "typeName"))]
+    pub type_name: String,
+    #[serde(rename(deserialize = "subTitle"))]
+    pub sub_title: Option<String>,
+    pub questions: Vec<PaperGenQuestionReq>,
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenReq {
+    #[serde(flatten)]
+    pub common: PaperCommonReq,
+    pub conf: PaperGenConfigReq,
+    pub groups: Vec<PaperGenGroupReq>,
+}
+
+// 保存试卷
+#[post("/gen/add")]
+pub async fn gen_add(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<PaperGenReq>,
+    user_info: UserInfo,
+) -> ApiResponse<i64> {
+    ApiResponse::response(paper::gen_add(app_conf, req.into_inner(), user_info).await)
 }
