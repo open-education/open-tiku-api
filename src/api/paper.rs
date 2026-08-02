@@ -234,7 +234,7 @@ pub struct PaperGenConfigReq {
 }
 
 #[derive(Deserialize)]
-pub struct PaperGenReq {
+pub struct PaperPreviewReq {
     #[serde(flatten)]
     pub common: PaperCommonReq,
     pub conf: PaperGenConfigReq,
@@ -243,8 +243,46 @@ pub struct PaperGenReq {
 #[post("/gen/preview")]
 pub async fn preview(
     app_conf: web::Data<AppConfig>,
-    req: web::Json<PaperGenReq>,
+    req: web::Json<PaperPreviewReq>,
     user_info: UserInfo,
 ) -> ApiResponse<PaperResp> {
     ApiResponse::response(paper::preview(app_conf, req.into_inner(), user_info).await)
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenQuestionReq {
+    #[serde(rename(deserialize = "orderNum"))]
+    pub order_num: i16,
+    #[serde(rename(deserialize = "questionId"))]
+    pub question_id: i64,
+    pub score: i32,
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenGroupReq {
+    #[serde(rename(deserialize = "genId"))]
+    pub gen_id: String,
+    #[serde(rename(deserialize = "typeName"))]
+    pub type_name: String,
+    #[serde(rename(deserialize = "subTitle"))]
+    pub sub_title: Option<String>,
+    pub questions: Vec<PaperGenQuestionReq>,
+}
+
+#[derive(Deserialize)]
+pub struct PaperGenReq {
+    #[serde(flatten)]
+    pub common: PaperCommonReq,
+    pub conf: PaperGenConfigReq,
+    pub groups: Vec<PaperGenGroupReq>,
+}
+
+// 保存试卷
+#[post("/gen/add")]
+pub async fn gen_add(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<PaperGenReq>,
+    user_info: UserInfo,
+) -> ApiResponse<i64> {
+    ApiResponse::response(paper::gen_add(app_conf, req.into_inner(), user_info).await)
 }

@@ -177,9 +177,6 @@ CREATE INDEX idx_paper_year ON paper (year);
 CREATE INDEX idx_paper_author_id ON paper (author_id);
 CREATE INDEX idx_paper_status ON paper (status);
 
-ALTER TABLE paper
-    ADD COLUMN IF NOT EXISTS paper_type SMALLINT NOT NULL DEFAULT 1;
-
 -- 4.1. 题型分组表
 CREATE TABLE paper_group
 (

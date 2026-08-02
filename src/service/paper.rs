@@ -1,7 +1,7 @@
 use crate::AppConfig;
 use crate::api::paper::{
-    PaperGenReq, PaperGroupResp, PaperListReq, PaperListResp, PaperQuestionResp, PaperResp,
-    PaperTopGroupReq, PaperTopReq,
+    PaperGenReq, PaperGroupResp, PaperListReq, PaperListResp, PaperPreviewReq, PaperQuestionResp,
+    PaperResp, PaperTopGroupReq, PaperTopReq,
 };
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus};
@@ -460,7 +460,7 @@ pub async fn latest(app_conf: web::Data<AppConfig>, count: i64) -> Result<Vec<Pa
 // 预览详情, 暂时还没有存表
 pub async fn preview(
     app_conf: web::Data<AppConfig>,
-    req: PaperGenReq,
+    req: PaperPreviewReq,
     user_info: UserInfo,
 ) -> Result<PaperResp, Error> {
     // 题型和题量非空
@@ -485,7 +485,7 @@ pub async fn preview(
 
     // todo 难度等级不知道怎么实现
 
-    // 每个类型并发执行
+    // 每个类型并发执行, 后续等功能调整不大时再调整为并发执行
     for (index, question_type) in req.conf.question_types.iter().enumerate() {
         if question_type.num == 0 {
             continue;
@@ -565,4 +565,13 @@ pub async fn preview(
         created_at: created_at.clone(),
         updated_at: created_at,
     })
+}
+
+// 保存手动生成的试卷
+pub async fn gen_add(
+    app_conf: web::Data<AppConfig>,
+    req: PaperGenReq,
+    user_info: UserInfo,
+) -> Result<i64, Error> {
+    Ok(0)
 }
