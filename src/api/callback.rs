@@ -22,7 +22,7 @@ pub async fn github(
 }
 
 // QQ 登录回调
-#[get("/github")]
+#[get("/qq")]
 pub async fn qq(
     app_conf: web::Data<AppConfig>,
     query: web::Query<CallbackQuery>,
