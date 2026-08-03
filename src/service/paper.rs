@@ -573,5 +573,8 @@ pub async fn gen_add(
     req: PaperGenReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
+    // common paper
+    // conf paper_gen_config
+    // groups paper_group-> paper_gen_question
     Ok(0)
 }
