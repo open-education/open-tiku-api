@@ -77,7 +77,9 @@ pub fn text(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn callback(cfg: &mut web::ServiceConfig) {
-    cfg.service(callback::github).service(callback::qq);
+    cfg.service(callback::login_url)
+        .service(callback::github)
+        .service(callback::qq);
 }
 
 pub fn user(cfg: &mut web::ServiceConfig) {

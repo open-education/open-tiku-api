@@ -1,11 +1,11 @@
-// 用户相关接口
-
 use crate::AppConfig;
 use crate::middleware::user::{ClientInfo, UserInfo};
 use crate::service::user;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
 use serde::Deserialize;
+
+// 用户相关接口
 
 #[derive(Deserialize)]
 pub struct ExchangeTokenReq {
