@@ -4,17 +4,97 @@ use crate::api::callback::CallbackQuery;
 use crate::constant::meta;
 use crate::model::user_identity::{ProviderType, RoleType, StatusType, UserIdentity};
 use crate::model::user_session::UserSession;
+use crate::util::github::get_github_user;
+use crate::util::qq::get_qq_user;
 use crate::util::snowflake;
 use actix_web::{Error, HttpResponse, Result, error, web};
 use chrono::{Duration, Utc};
-use log::{error, info};
-use serde::Deserialize;
+use log::error;
 use sqlx::PgPool;
+use urlencoding::encode;
 use uuid::Uuid;
+
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use sha2::Sha256;
+use std::io::ErrorKind;
+
+// 生成 state
+async fn generate_state(secret: &str) -> String {
+    let timestamp = Utc::now().timestamp().to_string();
+
+    use sha2::Digest;
+    let mut hasher = Sha256::new();
+    hasher.update(secret.as_bytes());
+    hasher.update(timestamp.as_bytes());
+    let hash = hasher.finalize();
+
+    let sig = URL_SAFE_NO_PAD.encode(hash);
+
+    format!("{}.{}", timestamp, sig)
+}
+
+// 验证 state
+async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
+    let parts: Vec<&str> = state.split('.').collect();
+    if parts.len() != 2 {
+        return Ok(false);
+    }
+
+    let timestamp = parts[0];
+    let signature = parts[1];
+
+    let ts: i64 = timestamp
+        .parse()
+        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("校验信息错误: {}", e)))?;
+
+    // 检查是否在 5 分钟内
+    if Utc::now().timestamp() - ts > 300 {
+        return Ok(false);
+    }
+
+    // 重新计算签名
+    use sha2::Digest;
+    let mut hasher = Sha256::new();
+    hasher.update(secret.as_bytes());
+    hasher.update(timestamp.as_bytes());
+    let hash = hasher.finalize();
+    let expected = URL_SAFE_NO_PAD.encode(hash);
+
+    Ok(signature == expected)
+}
+
+// 登录时获取临时的校验 state 值
+pub async fn login_url(
+    app_conf: web::Data<AppConfig>,
+    provider: i16,
+) -> std::result::Result<String, std::io::Error> {
+    let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
+        error!("Failed to parse provider type from provider: {}", provider);
+        std::io::Error::new(ErrorKind::InvalidInput, "不受支持的登录方式")
+    })?;
+
+    let state = generate_state(&app_conf.oauth_state_secret).await;
+
+    match provider_type {
+        ProviderType::Github => Ok(format!(
+            "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}",
+            app_conf.github.0,
+            encode(&app_conf.github.2),
+            state
+        )),
+        ProviderType::QQ => Ok(format!(
+            "https://graph.qq.com/oauth2.0/authorize?response_type=code&client_id={}&redirect_uri={}&state={}&scope=get_user_info",
+            app_conf.qq.0,
+            encode(&app_conf.qq.2),
+            state
+        )),
+    }
+}
 
 // Github 登录
 pub async fn github(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<HttpResponse> {
-    let code = get_query_code(query, ProviderType::Github)?;
+    let code = get_query_code(query, &app_conf.oauth_state_secret).await?;
 
     let github_user = get_github_user(
         app_conf.github.0.as_str(),
@@ -58,7 +138,7 @@ pub async fn github(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Res
 
 // QQ 登录
 pub async fn qq(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<HttpResponse> {
-    let code = get_query_code(query, ProviderType::QQ)?;
+    let code = get_query_code(query, &app_conf.oauth_state_secret).await?;
 
     let (open_id, qq_user) = get_qq_user(
         app_conf.qq.0.as_str(),
@@ -99,7 +179,7 @@ pub async fn qq(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<
 // 提取 code，缺失或为空时返回 400 错误
 // 比如 github: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
 // qq: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b&state=tiku
-fn get_query_code(query: CallbackQuery, provider_type: ProviderType) -> Result<String, Error> {
+async fn get_query_code(query: CallbackQuery, oauth_state_secret: &str) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()
@@ -113,11 +193,7 @@ fn get_query_code(query: CallbackQuery, provider_type: ProviderType) -> Result<S
         error!("Empty code query parameter");
         return Err(error::ErrorBadRequest("Query code is empty"));
     }
-    if provider_type == ProviderType::Github {
-        return Ok(code);
-    }
 
-    // qq 登录还存在 state, 目前该值由客户端传递, 故验证欠缺
     let state = query
         .state
         .as_ref()
@@ -131,184 +207,12 @@ fn get_query_code(query: CallbackQuery, provider_type: ProviderType) -> Result<S
         return Err(error::ErrorBadRequest("Query state is empty"));
     }
 
-    Ok(code)
-}
-
-#[derive(Deserialize)]
-struct GithubAccessTokenResp {
-    access_token: String,
-    token_type: String,
-    scope: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GithubUser {
-    id: i64,
-    login: String,
-    name: Option<String>,
-    email: Option<String>,
-}
-
-// 请求 github 换取用户信息
-async fn get_github_user(
-    client_id: &str,
-    client_secret: &str,
-    code: &str,
-) -> Result<GithubUser, Error> {
-    let client = reqwest::Client::new();
-
-    // 请求 access_token，将 reqwest 错误转为 InternalServerError
-    let token_response: GithubAccessTokenResp = client
-        .post("https://github.com/login/oauth/access_token")
-        .header("Accept", "application/json")
-        .json(&serde_json::json!({
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "code": code,
-        }))
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Request GitHub access_token failed: {}", e);
-            error::ErrorInternalServerError("Failed to request access token")
-        })?
-        .json()
-        .await
-        .map_err(|e| {
-            error!("Parse GitHub access_token response failed: {}", e);
-            error::ErrorInternalServerError("Failed to parse access token response")
-        })?;
-
-    // type=bearer, scope=user:email
-    info!(
-        "Access token obtained: type={}, scope={}",
-        token_response.token_type, token_response.scope
-    );
-
-    // 请求用户信息, 邮箱需要单独请求其它接口, 暂时不考虑获取用户邮箱
-    let github_user: GithubUser = client
-        .get("https://api.github.com/user")
-        .header(
-            "Authorization",
-            format!("Bearer {}", token_response.access_token),
-        )
-        .header("User-Agent", "MyActixApp/1.0")
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Request GitHub user failed: {}", e);
-            error::ErrorInternalServerError("Failed to request user info")
-        })?
-        .json()
-        .await
-        .map_err(|e| {
-            error!("Parse GitHub user response failed: {}", e);
-            error::ErrorInternalServerError("Failed to parse user info response")
-        })?;
-
-    info!(
-        "GitHub user: id={}, login={}, name={:?} email={:?}",
-        github_user.id, github_user.login, github_user.name, github_user.email
-    );
-
-    Ok(github_user)
-}
-
-#[derive(Deserialize)]
-struct QQAccessTokenResp {
-    access_token: String,
-    expires_in: i64,
-}
-
-#[derive(Deserialize)]
-struct QQOpenIdResp {
-    openid: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct QQUser {
-    ret: i64,
-    msg: String,
-    nickname: Option<String>,
-}
-
-async fn get_qq_user(
-    client_id: &str,
-    client_secret: &str,
-    redirect_uri: &str,
-    code: &str,
-) -> Result<(String, QQUser), Error> {
-    let client = reqwest::Client::new();
-
-    // 请求 access_token，将 reqwest 错误转为 InternalServerError
-    let access_token_resp: QQAccessTokenResp = client
-        .get(format!("https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&client_id={}&client_secret={}&code={}&redirect_uri={}&fmt=json", client_id, client_secret, code, redirect_uri))
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Request QQ access_token failed: {}", e);
-            error::ErrorInternalServerError("Failed to request access token")
-        })?
-        .json()
-        .await
-        .map_err(|e| {
-            error!("Parse QQ access_token response failed: {}", e);
-            error::ErrorInternalServerError("Failed to parse access token response")
-        })?;
-
-    info!(
-        "Access token obtained: access_token={}, expires_in={}",
-        access_token_resp.access_token, access_token_resp.expires_in
-    );
-
-    // 请求 openid，将 reqwest 错误转为 InternalServerError
-    let open_id_resp: QQOpenIdResp = client
-        .get(format!(
-            "https://graph.qq.com/oauth2.0/me?access_token={}&fmt=json",
-            access_token_resp.access_token
-        ))
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Request QQ open id failed: {}", e);
-            error::ErrorInternalServerError("Failed to request open id")
-        })?
-        .json()
-        .await
-        .map_err(|e| {
-            error!("Parse QQ open id response failed: {}", e);
-            error::ErrorInternalServerError("Failed to parse open id response")
-        })?;
-
-    // 请求 user，将 reqwest 错误转为 InternalServerError
-    let user_resp: QQUser = client
-        .get(format!(
-            "https://graph.qq.com/user/get_user_info?access_token={}&oauth_consumer_key={}&openid={}&fmt=json",
-            access_token_resp.access_token, client_id, open_id_resp.openid
-        ))
-        .send()
-        .await
-        .map_err(|e| {
-            error!("Request QQ user failed: {}", e);
-            error::ErrorInternalServerError("Failed to request user info")
-        })?
-        .json()
-        .await
-        .map_err(|e| {
-            error!("Parse QQ user response failed: {}", e);
-            error::ErrorInternalServerError("Failed to parse user info response")
-        })?;
-
-    info!(
-        "QQ user: ret={}, msg={}, nickname={:?}",
-        user_resp.ret, user_resp.msg, user_resp.nickname
-    );
-
-    if user_resp.ret != 0 {
-        return Err(error::ErrorInternalServerError(user_resp.msg));
+    // 校验 state 字段值
+    if !verify_state(&state, oauth_state_secret).await? {
+        return Err(error::ErrorBadRequest("校验失败, 请重新发起登录"));
     }
 
-    Ok((open_id_resp.openid, user_resp))
+    Ok(code)
 }
 
 // 保存用户信息

@@ -30,6 +30,7 @@ struct EnvConfig {
     // github
     github_client_id: String,
     github_client_secret: String,
+    github_redirect_uri: String,
 
     // qq
     qq_client_id: String,
@@ -38,16 +39,20 @@ struct EnvConfig {
 
     // homepage
     website_home_url: String,
+
+    // oauth secret
+    oauth_state_secret: String,
 }
 
 // 应用配置
 #[derive(Clone)]
 pub struct AppConfig {
-    db: PgPool,                   // 数据库连接池
-    meta_path: String,            // 元数据存储根目录
-    github: (String, String),     // GitHub (client_id, secret)
-    qq: (String, String, String), // qq (client_id, secret, redirect_uri)
-    website_home_url: String,     // 网站首页
+    db: PgPool,                       // 数据库连接池
+    meta_path: String,                // 元数据存储根目录
+    github: (String, String, String), // GitHub (client_id, secret, redirect_uri)
+    qq: (String, String, String),     // qq (client_id, secret, redirect_uri)
+    website_home_url: String,         // 网站首页
+    oauth_state_secret: String,       // 第三方登录校验 secret
 }
 
 #[actix_web::main]

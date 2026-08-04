@@ -30,6 +30,7 @@ pub async fn init() -> (EnvConfig, AppConfig) {
         github: (
             env_config.github_client_id.clone(),
             env_config.github_client_secret.clone(),
+            env_config.github_redirect_uri.clone(),
         ),
         qq: (
             env_config.qq_client_id.clone(),
@@ -37,6 +38,7 @@ pub async fn init() -> (EnvConfig, AppConfig) {
             env_config.qq_redirect_uri.clone(),
         ),
         website_home_url: env_config.website_home_url.clone(),
+        oauth_state_secret: env_config.oauth_state_secret.clone(),
     };
 
     (env_config, app_config)
