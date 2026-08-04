@@ -44,7 +44,15 @@ async fn get_access_token(
     code: &str,
 ) -> actix_web::Result<String, Error> {
     let resp: QQAccessTokenResp = client
-        .get(format!("https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&client_id={}&client_secret={}&code={}&redirect_uri={}&fmt=json", client_id, client_secret, code, redirect_uri))
+        .get("https://graph.qq.com/oauth2.0/token")
+        .query(&[
+            ("grant_type", "authorization_code"),
+            ("client_id", &client_id),
+            ("client_secret", &client_secret),
+            ("code", &code),
+            ("redirect_uri", &redirect_uri),
+            ("fmt", "json"),
+        ])
         .send()
         .await
         .map_err(|e| {
@@ -86,10 +94,8 @@ struct QQOpenIdResp {
 
 async fn get_openid(client: &Client, access_token: &str) -> actix_web::Result<String, Error> {
     let resp: QQOpenIdResp = client
-        .get(format!(
-            "https://graph.qq.com/oauth2.0/me?access_token={}&fmt=json",
-            access_token
-        ))
+        .get("https://graph.qq.com/oauth2.0/me")
+        .query(&[("access_token", access_token), ("fmt", "json")])
         .send()
         .await
         .map_err(|e| {
@@ -134,10 +140,13 @@ async fn get_user(
     openid: &str,
 ) -> actix_web::Result<QQUser, Error> {
     let resp: QQUser = client
-        .get(format!(
-            "https://graph.qq.com/user/get_user_info?access_token={}&oauth_consumer_key={}&openid={}&fmt=json",
-            access_token, client_id, openid
-        ))
+        .get("https://graph.qq.com/user/get_user_info")
+        .query(&[
+            ("access_token", access_token),
+            ("oauth_consumer_key", client_id),
+            ("openid", &openid),
+            ("fmt", "json"),
+        ])
         .send()
         .await
         .map_err(|e| {
