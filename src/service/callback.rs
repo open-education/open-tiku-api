@@ -11,7 +11,7 @@ use actix_web::{Error, HttpResponse, Result, error, web};
 use chrono::{Duration, Utc};
 use log::error;
 use sqlx::PgPool;
-use urlencoding::encode;
+use url::Url;
 use uuid::Uuid;
 
 use base64::Engine;
@@ -64,7 +64,7 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
     Ok(signature == expected)
 }
 
-// 登录时获取临时的校验 state 值
+// 获取第三方登录地址
 pub async fn login_url(
     app_conf: web::Data<AppConfig>,
     provider: i16,
@@ -76,20 +76,34 @@ pub async fn login_url(
 
     let state = generate_state(&app_conf.oauth_state_secret).await;
 
-    match provider_type {
-        ProviderType::Github => Ok(format!(
-            "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}",
-            app_conf.github.0,
-            encode(&app_conf.github.2),
-            state
-        )),
-        ProviderType::QQ => Ok(format!(
-            "https://graph.qq.com/oauth2.0/authorize?response_type=code&client_id={}&redirect_uri={}&state={}&scope=get_user_info",
-            app_conf.qq.0,
-            encode(&app_conf.qq.2),
-            state
-        )),
-    }
+    let (base, params) = match provider_type {
+        ProviderType::Github => (
+            "https://github.com/login/oauth/authorize",
+            vec![
+                ("client_id", app_conf.github.0.as_str()),
+                ("redirect_uri", &app_conf.github.2),
+                ("state", &state),
+            ],
+        ),
+        ProviderType::QQ => (
+            "https://graph.qq.com/oauth2.0/authorize",
+            vec![
+                ("response_type", "code"),
+                ("client_id", app_conf.qq.0.as_str()),
+                ("redirect_uri", &app_conf.qq.2),
+                ("state", &state),
+                ("scope", "get_user_info"),
+            ],
+        ),
+    };
+
+    let mut url = Url::parse(base).map_err(|e| {
+        error!("Parse base url error: {}", e);
+        std::io::Error::new(ErrorKind::InvalidInput, "地址信息错误")
+    })?;
+    // extend_pairs 会自动进行 URL 编码
+    url.query_pairs_mut().extend_pairs(params);
+    Ok(url.to_string())
 }
 
 // Github 登录
