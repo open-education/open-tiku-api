@@ -92,7 +92,8 @@ const PREFIX_LIST: &[&str] = &[
     // 任务
     "/task/list",
     // 试卷
-    "/paper/info/",
+    "/paper/top/info/",
+    "/paper/gen/info/",
     "/paper/list",
     "/paper/latest/",
     // 用户

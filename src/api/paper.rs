@@ -1,8 +1,8 @@
+use crate::AppConfig;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption};
 use crate::service::paper;
 use crate::util::response::ApiResponse;
-use crate::AppConfig;
 use actix_web::{get, post, web};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
@@ -24,6 +24,7 @@ pub struct PaperCommonReq {
     pub semester: String,
     pub title: String,
     pub score: i32,
+    pub count: Option<i32>,
     pub status: i16,
     pub source: String,
     pub remark: Option<String>,
@@ -228,7 +229,7 @@ pub struct PaperGenConfigReq {
     #[serde(rename(deserialize = "dimensionIds"))]
     pub dimension_ids: Option<Vec<i16>>,
     #[serde(rename(deserialize = "levelRange"))]
-    pub level_range: Option<PaperGenLevelRangeReq>,
+    pub level_range: PaperGenLevelRangeReq,
     #[serde(rename(deserialize = "questionTypes"))]
     pub question_types: Vec<PaperGenQuestionTypeReq>,
 }
@@ -251,6 +252,8 @@ pub async fn preview(
 
 #[derive(Deserialize)]
 pub struct PaperGenQuestionReq {
+    #[serde(rename(deserialize = "genId"))]
+    pub gen_id: String,
     #[serde(rename(deserialize = "orderNum"))]
     pub order_num: i16,
     #[serde(rename(deserialize = "questionId"))]
@@ -266,7 +269,7 @@ pub struct PaperGenGroupReq {
     pub type_name: String,
     #[serde(rename(deserialize = "subTitle"))]
     pub sub_title: Option<String>,
-    pub questions: Option<Vec<PaperGenQuestionReq>>,
+    pub questions: Vec<PaperGenQuestionReq>,
 }
 
 #[derive(Deserialize)]
@@ -274,7 +277,7 @@ pub struct PaperGenReq {
     #[serde(flatten)]
     pub common: PaperCommonReq,
     pub conf: PaperGenConfigReq,
-    pub groups: Option<Vec<PaperGenGroupReq>>,
+    pub groups: Vec<PaperGenGroupReq>,
 }
 
 // 保存试卷
@@ -285,4 +288,12 @@ pub async fn gen_add(
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
     ApiResponse::response(paper::gen_add(app_conf, req.into_inner(), user_info).await)
+}
+
+#[get("/gen/info/{id}")]
+pub async fn gen_info(
+    app_conf: web::Data<AppConfig>,
+    path: web::Path<(i64,)>,
+) -> ApiResponse<PaperResp> {
+    ApiResponse::response(paper::gen_info(app_conf, path.into_inner().0).await)
 }

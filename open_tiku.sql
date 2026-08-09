@@ -217,6 +217,7 @@ CREATE TABLE paper_gen_config
     question_type_info     JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题型题量信息
     difficulty_level_info  JSONB  NOT NULL DEFAULT '{}'::jsonb  -- 难度分布信息
 );
+CREATE INDEX idx_paper_gen_config_paper_id ON paper_gen_config (paper_id);
 
 -- 4.4 试卷生成的题目信息
 CREATE TABLE paper_gen_question
@@ -229,6 +230,7 @@ CREATE TABLE paper_gen_question
     question_id BIGINT      NOT NULL,           -- 题目标识
     score       INTEGER     NOT NULL DEFAULT 0  -- 题目分数, 不校验
 );
+CREATE INDEX idx_paper_gen_question_group_id ON paper_gen_question (paper_id, group_id);
 
 -- 5. 第三方身份认证表（存储所有OAuth登录源）
 CREATE TABLE user_identity

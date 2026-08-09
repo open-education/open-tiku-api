@@ -69,7 +69,8 @@ pub fn paper(cfg: &mut web::ServiceConfig) {
         .service(paper::list)
         .service(paper::latest)
         .service(paper::preview)
-        .service(paper::gen_add);
+        .service(paper::gen_add)
+        .service(paper::gen_info);
 }
 
 pub fn text(cfg: &mut web::ServiceConfig) {

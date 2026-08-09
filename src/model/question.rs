@@ -294,6 +294,14 @@ impl Question {
             .await
     }
 
+    // 通过ids获取详情列表
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM question WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await
+    }
+
     // 题型下题目数量
     pub async fn count_by_cate_and_type(
         pool: &PgPool,
