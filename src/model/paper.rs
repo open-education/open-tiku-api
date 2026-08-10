@@ -31,24 +31,41 @@ pub struct Paper {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Type, PartialEq)]
+#[derive(Serialize, Deserialize, Type, PartialEq, Clone)]
 #[repr(i16)]
 pub enum PaperStatus {
-    Draft = 0,     // 0: 草稿
-    Pending = 1,   // 1: 待审核
-    Published = 2, // 2: 已发布
-    Rejected = 3,  // 3: 被拒绝
+    Draft = 1,     // 1: 草稿
+    Pending = 2,   // 2: 待审核
+    Published = 3, // 3: 已发布
+    Homework = 4,  // 4. 已布置作业
+    Rejected = 10, // 10: 被拒绝
 }
 
 impl PaperStatus {
     pub fn desc(code: i16) -> String {
         match code {
-            0 => "草稿".to_string(),
-            1 => "待审核".to_string(),
-            2 => "已发布".to_string(),
-            3 => "被拒绝".to_string(),
+            1 => "草稿".to_string(),
+            2 => "待审核".to_string(),
+            3 => "已发布".to_string(),
+            4 => "已布置作业".to_string(),
+            10 => "被拒绝".to_string(),
             _ => "未知状态".to_string(),
         }
+    }
+
+    pub fn from_i16(value: i16) -> Self {
+        match value {
+            1 => Self::Draft,
+            2 => Self::Pending,
+            3 => Self::Published,
+            4 => Self::Homework,
+            10 => Self::Rejected,
+            _ => Self::Draft,
+        }
+    }
+
+    pub fn as_i16(&self) -> i16 {
+        self.clone() as i16
     }
 }
 
@@ -138,12 +155,15 @@ impl Paper {
 
     /// 构建 WHERE 子句，返回 (where_clause, param_count)
     /// 参数顺序固定：related_id（必填），tag（可选），year（可选），grade（可选），semester（可选）
-    pub fn build_condition(req: &PaperListReq) -> (String, usize) {
+    pub fn build_condition(req: &PaperListReq, author_id: Option<i64>) -> (String, usize) {
         let mut conditions = Vec::new();
         let mut param_count = 0;
 
         // related_id 必填，占位符 $1
         conditions.push(format!("related_id = ${}", param_count + 1));
+        param_count += 1;
+
+        conditions.push(format!("status = ${}", param_count + 1));
         param_count += 1;
 
         if let Some(_) = &req.paper_type {
@@ -167,6 +187,11 @@ impl Paper {
             param_count += 1;
             conditions.push(format!("semester = ${}", param_count));
         }
+        // 是否存在用户信息
+        if author_id.is_some() {
+            param_count += 1;
+            conditions.push(format!("author_id = ${}", param_count));
+        }
 
         let where_clause = if conditions.is_empty() {
             String::new()
@@ -181,13 +206,15 @@ impl Paper {
     pub async fn count(
         pool: &PgPool,
         req: &PaperListReq,
+        author_id: Option<i64>,
+        status: i16,
         where_clause: &str,
     ) -> Result<i64, sqlx::Error> {
         let sql = format!("SELECT COUNT(*) FROM paper {}", where_clause);
         let mut query = query_scalar::<_, i64>(&sql);
 
         // 按固定顺序绑定参数（与 build_filter 中的占位符顺序一致）
-        query = query.bind(req.related_id);
+        query = query.bind(req.related_id).bind(status);
         if let Some(paper_type) = &req.paper_type {
             query = query.bind(paper_type);
         }
@@ -203,6 +230,9 @@ impl Paper {
         if let Some(semester) = &req.semester {
             query = query.bind(semester);
         }
+        if let Some(author_id) = &author_id {
+            query = query.bind(author_id);
+        }
 
         let total = query.fetch_one(pool).await?;
         Ok(total)
@@ -212,6 +242,8 @@ impl Paper {
     pub async fn list(
         pool: &PgPool,
         req: &PaperListReq,
+        author_id: Option<i64>,
+        status: i16,
         where_clause: &str,
         param_count: usize,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -227,7 +259,7 @@ impl Paper {
         let mut query = query_as::<_, Paper>(&sql);
 
         // 绑定过滤参数（顺序与 count_total 完全一致）
-        query = query.bind(req.related_id);
+        query = query.bind(req.related_id).bind(status);
         if let Some(paper_type) = &req.paper_type {
             query = query.bind(paper_type);
         }
@@ -242,6 +274,9 @@ impl Paper {
         }
         if let Some(semester) = &req.semester {
             query = query.bind(semester);
+        }
+        if let Some(author_id) = &author_id {
+            query = query.bind(author_id);
         }
 
         // 绑定 LIMIT 和 OFFSET

@@ -1,7 +1,9 @@
 use crate::AppConfig;
 use crate::api::paper::{
-    PaperCommonReq, PaperGenConfigReq, PaperGenGroupReq, PaperGenReq, PaperGroupResp, PaperListReq,
-    PaperListResp, PaperPreviewReq, PaperQuestionResp, PaperResp, PaperTopGroupReq, PaperTopReq,
+    CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp,
+    GenPaperConfigReq, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
+    PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
+    TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus};
@@ -10,6 +12,7 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
+use crate::service::question::to_info_resp;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::Utc;
@@ -23,7 +26,7 @@ use std::io::{Error, ErrorKind};
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
 pub async fn top_add(
     app_conf: web::Data<AppConfig>,
-    req: PaperTopReq,
+    req: TopPaperReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
     let db = &app_conf.db;
@@ -113,7 +116,7 @@ pub async fn top_add(
 }
 
 // 参数验证函数
-fn validate_paper_top_request(req: &PaperTopReq) -> Result<(), Error> {
+fn validate_paper_top_request(req: &TopPaperReq) -> Result<(), Error> {
     validate_paper_meta_request(&req.common)?;
 
     if req.groups.is_empty() {
@@ -183,7 +186,7 @@ async fn validate_is_allow_edit(db: &PgPool, id: i64, user_id: i64) -> Result<()
 }
 
 // 验证试卷基础必填字段
-fn validate_paper_meta_request(req: &PaperCommonReq) -> Result<(), Error> {
+fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), Error> {
     // 考点名称或者学段等不能为空
     if req.related_id <= 0 {
         return Err(Error::new(
@@ -201,13 +204,19 @@ fn validate_paper_meta_request(req: &PaperCommonReq) -> Result<(), Error> {
         return Err(Error::new(ErrorKind::InvalidInput, "试卷标题不能为空"));
     }
 
+    // 草稿中和待审核支持编辑
+    let paper_status = PaperStatus::from_i16(req.status).as_i16();
+    if !vec![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
+        return Err(Error::new(ErrorKind::InvalidInput, "试卷状态不支持编辑"));
+    }
+
     Ok(())
 }
 
 // 构建试卷对象（包含总题目数）
 fn build_paper_meta_from_request(
     user_info: &UserInfo,
-    req: &PaperCommonReq,
+    req: &CommonPaperReq,
     total_question_count: i32,
 ) -> Paper {
     Paper {
@@ -227,7 +236,7 @@ fn build_paper_meta_from_request(
         author_name: user_info.username.clone().unwrap_or_default(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
-        status: req.status,
+        status: PaperStatus::from_i16(req.status).as_i16(),
         approve_id: 0,
         reject_reason: None,
         approve_at: None,
@@ -239,7 +248,7 @@ fn build_paper_meta_from_request(
 // 构建题型和题目
 fn build_top_groups_and_questions(
     paper_id: i64,
-    groups: &[PaperTopGroupReq],
+    groups: &[TopPaperGroupReq],
 ) -> (Vec<PaperGroup>, Vec<PaperQuestion>) {
     let group_count = groups.len();
     let mut paper_groups = Vec::with_capacity(group_count);
@@ -283,7 +292,7 @@ fn build_top_groups_and_questions(
 }
 
 // 精选试卷-试卷详情
-pub async fn top_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<PaperResp, Error> {
+pub async fn top_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<TopPaperResp, Error> {
     let db = &app_conf.db;
 
     // 查询试卷主体
@@ -335,11 +344,14 @@ fn to_top_resp(
     paper: Paper,
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperQuestion>,
-) -> PaperResp {
-    let mut resp = to_paper_resp(paper);
+) -> TopPaperResp {
+    let mut resp = TopPaperResp {
+        common: to_common_paper_resp(paper),
+        groups: Vec::new(),
+    };
 
     // 构建题型和题目的映射关系
-    let mut questions_map: HashMap<i64, Vec<PaperQuestionResp>> = HashMap::new();
+    let mut questions_map: HashMap<i64, Vec<TopPaperQuestionResp>> = HashMap::new();
 
     for question in paper_questions {
         let group_id = question.group_id;
@@ -352,8 +364,10 @@ fn to_top_resp(
 
     let mut groups = Vec::with_capacity(paper_groups.len());
     for group in paper_groups {
-        let mut group_resp = to_paper_group_resp(group);
-        group_resp.questions = questions_map.remove(&group_resp.id).unwrap_or_default();
+        let group_resp = TopPaperGroupResp {
+            common: to_common_paper_group_resp(&group),
+            questions: questions_map.remove(&group.id).unwrap_or_default(),
+        };
         groups.push(group_resp);
     }
 
@@ -362,9 +376,8 @@ fn to_top_resp(
     resp
 }
 
-// 转换为 PaperResp（优化：减少 clone）
-fn to_paper_resp(row: Paper) -> PaperResp {
-    PaperResp {
+fn to_common_paper_resp(row: Paper) -> CommonPaperResp {
+    CommonPaperResp {
         id: row.id,
         related_id: row.related_id,
         related_name: row.related_name,
@@ -385,27 +398,24 @@ fn to_paper_resp(row: Paper) -> PaperResp {
         approve_at: None,
         remark: row.remark,
         count: row.count,
-        groups: Vec::new(),
         created_at: to_local_datetime(row.created_at),
         updated_at: to_local_datetime(row.updated_at),
     }
 }
 
-// 转换为 PaperGroupResp
-fn to_paper_group_resp(row: PaperGroup) -> PaperGroupResp {
-    PaperGroupResp {
+fn to_common_paper_group_resp(row: &PaperGroup) -> CommonPaperGroupResp {
+    CommonPaperGroupResp {
         id: row.id,
         paper_id: row.paper_id,
-        gen_id: row.gen_id,
-        type_name: row.type_name,
-        sub_title: row.sub_title,
-        questions: Vec::new(),
+        gen_id: row.gen_id.clone(),
+        type_name: row.type_name.clone(),
+        sub_title: row.sub_title.clone(),
     }
 }
 
 // 转换为 PaperQuestionResp
-fn to_top_paper_question_resp(row: PaperQuestion) -> PaperQuestionResp {
-    PaperQuestionResp {
+fn to_top_paper_question_resp(row: PaperQuestion) -> TopPaperQuestionResp {
+    TopPaperQuestionResp {
         id: row.id,
         paper_id: row.paper_id,
         group_id: row.group_id,
@@ -425,6 +435,7 @@ fn to_top_paper_question_resp(row: PaperQuestion) -> PaperQuestionResp {
 pub async fn list(
     app_conf: web::Data<AppConfig>,
     req: PaperListReq,
+    user_info: Option<UserInfo>,
 ) -> Result<PaperListResp, Error> {
     let db = &app_conf.db;
 
@@ -433,25 +444,36 @@ pub async fn list(
         return Err(Error::new(ErrorKind::InvalidInput, "考点/学段分类不能为空"));
     }
 
+    // 我的试卷等时需要登录
+    let (author_id, status) = if req.source == "list" {
+        (None, PaperStatus::Published as i16)
+    } else {
+        let user_info =
+            user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
+        let status = req.status.unwrap_or(PaperStatus::Published as i16);
+        (Some(user_info.user_id), status)
+    };
+
     // 1. 构建过滤条件
-    let (where_clause, param_count) = Paper::build_condition(&req);
+    let (where_clause, param_count) = Paper::build_condition(&req, author_id);
 
     // 2. 查询总数
-    let total = Paper::count(db, &req, &where_clause).await.map_err(|err| {
-        error!("Select paper count err: {}", err);
-        Error::new(ErrorKind::Other, "查询试卷总数失败")
-    })?;
+    let total = Paper::count(db, &req, author_id, status, &where_clause)
+        .await
+        .map_err(|err| {
+            error!("Select paper count err: {}", err);
+            Error::new(ErrorKind::Other, "查询试卷总数失败")
+        })?;
 
     // 3. 查询列表
-    let papers = Paper::list(db, &req, &where_clause, param_count)
+    let papers = Paper::list(db, &req, author_id, status, &where_clause, param_count)
         .await
         .map_err(|err| {
             error!("Select paper list err: {}", err);
             Error::new(ErrorKind::Other, "查询试卷列表失败")
         })?;
 
-    // 后续还要拼接状态等
-    let list: Vec<PaperResp> = papers.into_iter().map(to_paper_resp).collect();
+    let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
 
     Ok(PaperListResp {
         list,
@@ -462,7 +484,10 @@ pub async fn list(
 }
 
 // 最新试卷
-pub async fn latest(app_conf: web::Data<AppConfig>, count: i64) -> Result<Vec<PaperResp>, Error> {
+pub async fn latest(
+    app_conf: web::Data<AppConfig>,
+    count: i64,
+) -> Result<Vec<CommonPaperResp>, Error> {
     let papers = Paper::get_latest_papers(&app_conf.db, count)
         .await
         .map_err(|err| {
@@ -470,8 +495,7 @@ pub async fn latest(app_conf: web::Data<AppConfig>, count: i64) -> Result<Vec<Pa
             Error::new(ErrorKind::Other, "查询试卷列表失败")
         })?;
 
-    // 后续还要拼接状态等
-    let list: Vec<PaperResp> = papers.into_iter().map(to_paper_resp).collect();
+    let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
 
     Ok(list)
 }
@@ -479,9 +503,9 @@ pub async fn latest(app_conf: web::Data<AppConfig>, count: i64) -> Result<Vec<Pa
 // 预览详情, 暂时还没有存表
 pub async fn preview(
     app_conf: web::Data<AppConfig>,
-    req: PaperPreviewReq,
+    req: GenPaperPreviewReq,
     user_info: UserInfo,
-) -> Result<PaperResp, Error> {
+) -> Result<GenPaperResp, Error> {
     // 题型和题量非空
     if req.conf.question_cate_ids.len() == 0 {
         return Err(Error::new(ErrorKind::InvalidInput, "题型不能为空"));
@@ -500,9 +524,11 @@ pub async fn preview(
     let status = PaperStatus::Draft as i16;
 
     let paper_id = 1;
-    let mut groups: Vec<PaperGroupResp> = vec![];
+    let mut groups: Vec<GenPaperGroupResp> = vec![];
 
     // todo 难度等级不知道怎么实现
+
+    let user_name = user_info.username.unwrap_or_default();
 
     // 每个类型并发执行, 后续等功能调整不大时再调整为并发执行
     for (index, question_type) in req.conf.question_types.iter().enumerate() {
@@ -526,63 +552,65 @@ pub async fn preview(
             Error::new(ErrorKind::Other, "查询题目失败")
         })?;
 
-        let mut questions: Vec<PaperQuestionResp> = vec![];
+        let mut questions: Vec<GenPaperQuestionResp> = vec![];
         for (index, row) in rows.into_iter().enumerate() {
-            questions.push(PaperQuestionResp {
-                id: row.id,
-                paper_id,
-                group_id,
-                gen_id: row.id.to_string(),
-                order_num: (index + 1) as i16,
-                stem: row.title,
-                images: row.images,
-                options: row.options,
-                options_layout: row.options_layout,
-                answer: row.answer,
-                analysis: row.analysis,
-                score: question_type.score as i32,
+            questions.push(GenPaperQuestionResp {
+                common: CommonPaperGenQuestionResp {
+                    id: row.id,
+                    paper_id: 0,
+                    group_id,
+                    gen_id: row.id.to_string(),
+                    order_num: (index + 1) as i16,
+                    question_id: row.id,
+                    score: question_type.score as i32,
+                },
+                info: to_info_resp(&row, user_name.clone()),
             });
         }
 
-        groups.push(PaperGroupResp {
-            id: group_id,
-            paper_id,
-            gen_id: group_id.to_string(),
-            type_name: question_type.label.clone(),
-            sub_title: Some(format!(
-                "本大题共{}个小题，每小题{}分，共{}分",
-                question_type.num,
-                question_type.score,
-                question_type.num * question_type.score
-            )),
+        groups.push(GenPaperGroupResp {
+            common: CommonPaperGroupResp {
+                id: group_id,
+                paper_id,
+                gen_id: group_id.to_string(),
+                type_name: question_type.label.clone(),
+                sub_title: Some(format!(
+                    "本大题共{}个小题，每小题{}分，共{}分",
+                    question_type.num,
+                    question_type.score,
+                    question_type.num * question_type.score
+                )),
+            },
             questions,
         });
     }
 
-    Ok(PaperResp {
-        id: Some(paper_id),
-        related_id: req.common.related_id,
-        related_name: req.common.related_name,
-        paper_type: req.common.paper_type,
-        tag: req.common.tag,
-        year: req.common.year,
-        grade: req.common.grade,
-        semester: req.common.semester,
-        title: req.common.title,
-        score: 0,
-        source: req.common.source,
-        author_id: user_info.user_id,
-        author_name: user_info.username.unwrap_or_default(),
-        status,
-        status_desc: PaperStatus::desc(status),
-        approve_id: 0,
-        reject_reason: None,
-        approve_at: None,
-        remark: req.common.remark,
-        count: 0,
+    Ok(GenPaperResp {
+        common: CommonPaperResp {
+            id: Some(paper_id),
+            related_id: req.common.related_id,
+            related_name: req.common.related_name,
+            paper_type: req.common.paper_type,
+            tag: req.common.tag,
+            year: req.common.year,
+            grade: req.common.grade,
+            semester: req.common.semester,
+            title: req.common.title,
+            score: 0,
+            source: req.common.source,
+            author_id: user_info.user_id,
+            author_name: user_name,
+            status,
+            status_desc: PaperStatus::desc(status),
+            approve_id: 0,
+            reject_reason: None,
+            approve_at: None,
+            remark: req.common.remark,
+            count: 0,
+            created_at: created_at.clone(),
+            updated_at: created_at,
+        },
         groups,
-        created_at: created_at.clone(),
-        updated_at: created_at,
     })
 }
 
@@ -743,7 +771,7 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), Error> {
 }
 
 // 构建配置信息
-fn build_gen_config_from_request(paper_id: i64, req: &PaperGenConfigReq) -> PaperGenConfig {
+fn build_gen_config_from_request(paper_id: i64, req: &GenPaperConfigReq) -> PaperGenConfig {
     let mut question_types: Vec<QuestionTypeInfo> = vec![];
     for info in req.question_types.iter() {
         question_types.push(QuestionTypeInfo {
@@ -811,7 +839,7 @@ fn build_gen_groups_and_questions(
 }
 
 // 手动组卷-试卷详情
-pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<PaperResp, Error> {
+pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPaperResp, Error> {
     let db = &app_conf.db;
 
     // 查询试卷主体
@@ -880,11 +908,14 @@ fn to_gen_resp(
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     question_raw_map: HashMap<i64, Question>,
-) -> Result<PaperResp, Error> {
-    let mut resp = to_paper_resp(paper);
+) -> Result<GenPaperResp, Error> {
+    let mut resp = GenPaperResp {
+        common: to_common_paper_resp(paper),
+        groups: vec![],
+    };
 
     // 构建题型和题目的映射关系
-    let mut questions_map: HashMap<i64, Vec<PaperQuestionResp>> = HashMap::new();
+    let mut questions_map: HashMap<i64, Vec<GenPaperQuestionResp>> = HashMap::new();
 
     for question in paper_questions {
         let group_id = question.group_id;
@@ -905,8 +936,10 @@ fn to_gen_resp(
 
     let mut groups = Vec::with_capacity(paper_groups.len());
     for group in paper_groups {
-        let mut group_resp = to_paper_group_resp(group);
-        group_resp.questions = questions_map.remove(&group_resp.id).unwrap_or_default();
+        let group_resp = GenPaperGroupResp {
+            common: to_common_paper_group_resp(&group),
+            questions: questions_map.remove(&group.id).unwrap_or_default(),
+        };
         groups.push(group_resp);
     }
 
@@ -915,19 +948,18 @@ fn to_gen_resp(
     Ok(resp)
 }
 
-fn to_gen_paper_question_resp(gen_info: PaperGenQuestion, row: &Question) -> PaperQuestionResp {
-    PaperQuestionResp {
-        id: row.id,
-        paper_id: gen_info.paper_id,
-        group_id: gen_info.group_id,
-        gen_id: gen_info.gen_id,
-        order_num: gen_info.order_num,
-        stem: row.title.clone(),
-        images: row.images.clone(),
-        options: row.options.clone(),
-        options_layout: row.options_layout,
-        answer: row.answer.clone(),
-        analysis: row.analysis.clone(),
-        score: gen_info.score,
+fn to_gen_paper_question_resp(gen_info: PaperGenQuestion, row: &Question) -> GenPaperQuestionResp {
+    GenPaperQuestionResp {
+        common: CommonPaperGenQuestionResp {
+            id: gen_info.id,
+            paper_id: gen_info.paper_id,
+            group_id: gen_info.group_id,
+            gen_id: gen_info.gen_id,
+            order_num: gen_info.order_num,
+            question_id: gen_info.question_id,
+            score: gen_info.score,
+        },
+
+        info: to_info_resp(row, "".to_string()),
     }
 }

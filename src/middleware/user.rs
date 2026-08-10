@@ -94,7 +94,6 @@ const PREFIX_LIST: &[&str] = &[
     // 试卷
     "/paper/top/info/",
     "/paper/gen/info/",
-    "/paper/list",
     "/paper/latest/",
     // 用户
     "/user/exchange",
@@ -109,6 +108,8 @@ const PREFIX_LIST: &[&str] = &[
 const OPTION_PREFIX_LIST: &[&str] = &[
     // 题目
     "/question/list",
+    // 试卷
+    "/paper/list",
 ];
 
 pub async fn auth(
