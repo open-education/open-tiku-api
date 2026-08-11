@@ -183,7 +183,7 @@ pub async fn list(
     // 查询总数
     let total = Question::count_by_cate_and_type(
         db,
-        req.question_cate_id,
+        req.question_cate_ids.clone(),
         status,
         req.question_type_id,
         req.ids.clone(),
@@ -213,7 +213,7 @@ pub async fn list(
     // 查询列表 (添加 ? 运算符解包 Result)
     let list_data = Question::list_by_cate_and_type(
         db,
-        req.question_cate_id,
+        req.question_cate_ids,
         status,
         req.question_type_id,
         req.ids,

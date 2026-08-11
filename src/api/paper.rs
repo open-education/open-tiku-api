@@ -1,6 +1,7 @@
 use crate::AppConfig;
 use crate::api::question::QuestionInfoResp;
 use crate::middleware::user::UserInfo;
+use crate::model::paper_gen_config::{DifficultyLevelInfo, QuestionTypeInfo};
 use crate::model::question::{Content, QuestionOption};
 use crate::service::paper;
 use crate::util::response::ApiResponse;
@@ -209,53 +210,39 @@ pub async fn list(
     ApiResponse::response(paper::list(app_conf, req.into_inner(), user_info).await)
 }
 
-#[get("/latest/{count}")]
+#[get("/latest/{paperType}/{count}")]
 pub async fn latest(
     app_conf: web::Data<AppConfig>,
-    path: web::Path<(i64,)>,
+    path: web::Path<(i16, i64)>,
 ) -> ApiResponse<Vec<CommonPaperResp>> {
-    ApiResponse::response(paper::latest(app_conf, path.into_inner().0).await)
+    ApiResponse::response(paper::latest(app_conf, path.into_inner()).await)
 }
 
-#[derive(Deserialize)]
-pub struct GenPaperLevelRangeReq {
-    pub basic: i16,   // 基础题百分比
-    pub improve: i16, // 提升题百分比
-    pub expand: i16,  // 扩展题百分比
-}
-
-#[derive(Deserialize)]
-pub struct GenPaperQuestionTypeReq {
-    pub id: i16,
-    pub label: String,
-    pub num: i16,
-    pub score: i16,
-}
-
-#[derive(Deserialize)]
-pub struct GenPaperConfigReq {
-    // 题型标识列表
-    #[serde(rename(deserialize = "questionCateIds"))]
+// 以下为配置信息
+#[derive(Deserialize, Serialize)]
+pub struct GenPaperGenConfig {
+    #[serde(rename(deserialize = "questionCateIds", serialize = "questionCateIds"))]
     pub question_cate_ids: Vec<i32>,
-    #[serde(rename(deserialize = "tagIds"))]
+    #[serde(rename(deserialize = "tagIds", serialize = "tagIds"))]
     pub tag_ids: Option<Vec<i16>>,
-    #[serde(rename(deserialize = "dimensionIds"))]
+    #[serde(rename(deserialize = "dimensionIds", serialize = "dimensionIds"))]
     pub dimension_ids: Option<Vec<i16>>,
-    #[serde(rename(deserialize = "levelRange"))]
-    pub level_range: GenPaperLevelRangeReq,
-    #[serde(rename(deserialize = "questionTypes"))]
-    pub question_types: Vec<GenPaperQuestionTypeReq>,
+    #[serde(rename(deserialize = "levelRange", serialize = "levelRange"))]
+    pub level_range: DifficultyLevelInfo,
+    #[serde(rename(deserialize = "questionTypes", serialize = "questionTypes"))]
+    pub question_types: Vec<QuestionTypeInfo>,
 }
 
 #[derive(Deserialize)]
 pub struct GenPaperPreviewReq {
     pub common: CommonPaperReq,
-    pub conf: GenPaperConfigReq,
+    pub conf: GenPaperGenConfig,
 }
 
 #[derive(Serialize)]
 pub struct GenPaperResp {
     pub common: CommonPaperResp,
+    pub conf: GenPaperGenConfig,
     pub groups: Vec<GenPaperGroupResp>,
 }
 
@@ -322,7 +309,7 @@ pub struct PaperGenGroupReq {
 pub struct PaperGenReq {
     #[serde(flatten)]
     pub common: CommonPaperReq,
-    pub conf: GenPaperConfigReq,
+    pub conf: GenPaperGenConfig,
     pub groups: Vec<PaperGenGroupReq>,
 }
 

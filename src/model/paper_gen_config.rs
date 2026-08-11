@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
-use sqlx::{FromRow, Postgres, Transaction};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 // 手动生成试卷配置信息
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct QuestionTypeInfo {
     pub id: i16,
     pub label: String,
@@ -63,7 +63,19 @@ impl PaperGenConfig {
 
         Ok(id)
     }
-    
+
+    pub async fn find_by_paper_id(
+        pool: &PgPool,
+        paper_id: i64,
+    ) -> Result<Option<Self>, sqlx::Error> {
+        let row =
+            sqlx::query_as::<_, Self>(r#"SELECT * FROM paper_gen_config WHERE paper_id = $1"#)
+                .bind(paper_id)
+                .fetch_optional(pool)
+                .await?;
+        Ok(row)
+    }
+
     pub async fn delete_by_paper_id(
         tx: &mut Transaction<'_, Postgres>,
         paper_id: i64,

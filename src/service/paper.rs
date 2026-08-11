@@ -1,7 +1,7 @@
 use crate::AppConfig;
 use crate::api::paper::{
     CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp,
-    GenPaperConfigReq, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
+    GenPaperGenConfig, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
@@ -12,7 +12,7 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
-use crate::service::question::to_info_resp;
+use crate::service::question;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::Utc;
@@ -486,9 +486,9 @@ pub async fn list(
 // 最新试卷
 pub async fn latest(
     app_conf: web::Data<AppConfig>,
-    count: i64,
+    path: (i16, i64),
 ) -> Result<Vec<CommonPaperResp>, Error> {
-    let papers = Paper::get_latest_papers(&app_conf.db, count)
+    let papers = Paper::get_latest_papers(&app_conf.db, path.0, path.1)
         .await
         .map_err(|err| {
             error!("Select paper list err: {}", err);
@@ -519,6 +519,8 @@ pub async fn preview(
     let question_cate_ids = req.conf.question_cate_ids;
     let tag_ids = req.conf.tag_ids;
     let dimension_ids = req.conf.dimension_ids;
+    let level_range = req.conf.level_range;
+    let question_types = req.conf.question_types.clone();
 
     let created_at = to_local_datetime(Utc::now());
     let status = PaperStatus::Draft as i16;
@@ -564,7 +566,7 @@ pub async fn preview(
                     question_id: row.id,
                     score: question_type.score as i32,
                 },
-                info: to_info_resp(&row, user_name.clone()),
+                info: question::to_info_resp(&row, user_name.clone()),
             });
         }
 
@@ -609,6 +611,13 @@ pub async fn preview(
             count: 0,
             created_at: created_at.clone(),
             updated_at: created_at,
+        },
+        conf: GenPaperGenConfig {
+            question_cate_ids,
+            tag_ids,
+            dimension_ids,
+            level_range,
+            question_types,
         },
         groups,
     })
@@ -771,7 +780,7 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), Error> {
 }
 
 // 构建配置信息
-fn build_gen_config_from_request(paper_id: i64, req: &GenPaperConfigReq) -> PaperGenConfig {
+fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> PaperGenConfig {
     let mut question_types: Vec<QuestionTypeInfo> = vec![];
     for info in req.question_types.iter() {
         question_types.push(QuestionTypeInfo {
@@ -847,7 +856,7 @@ pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPape
         .await
         .map_err(|err| {
             error!("Select gen paper id: {}, error: {}", id, err);
-            Error::new(ErrorKind::NotFound, "试卷不存在")
+            Error::new(ErrorKind::NotFound, "试卷信息查询错误")
         })?
         .ok_or_else(|| {
             error!("Select gen paper id: {} is empty", id);
@@ -855,6 +864,16 @@ pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPape
         })?;
 
     // 配置信息
+    let gen_conf = PaperGenConfig::find_by_paper_id(db, id)
+        .await
+        .map_err(|err| {
+            error!("Select gen paper gen config id: {}, error: {}", id, err);
+            Error::new(ErrorKind::NotFound, "试卷配置信息查询错误")
+        })?
+        .ok_or_else(|| {
+            error!("Select gen paper gen config id: {} is empty", id);
+            Error::new(ErrorKind::NotFound, "试卷配置信息不存在")
+        })?;
 
     // 查询题型
     let paper_groups = PaperGroup::find_by_paper_id(db, paper.id.unwrap_or_default())
@@ -899,18 +918,32 @@ pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPape
         })?;
     let question_map: HashMap<i64, Question> = questions.into_iter().map(|q| (q.id, q)).collect();
 
-    to_gen_resp(paper, paper_groups, paper_gen_questions, question_map)
+    to_gen_resp(
+        paper,
+        gen_conf,
+        paper_groups,
+        paper_gen_questions,
+        question_map,
+    )
 }
 
 // 手动组卷-试卷详情返回
 fn to_gen_resp(
     paper: Paper,
+    paper_gen_config: PaperGenConfig,
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     question_raw_map: HashMap<i64, Question>,
 ) -> Result<GenPaperResp, Error> {
     let mut resp = GenPaperResp {
         common: to_common_paper_resp(paper),
+        conf: GenPaperGenConfig {
+            question_cate_ids: paper_gen_config.question_cate_ids.0,
+            tag_ids: paper_gen_config.question_tag_ids.map(|j| j.0),
+            dimension_ids: paper_gen_config.question_dimension_ids.map(|j| j.0),
+            level_range: paper_gen_config.difficulty_level_info.0,
+            question_types: paper_gen_config.question_type_info.0,
+        },
         groups: vec![],
     };
 
@@ -960,6 +993,6 @@ fn to_gen_paper_question_resp(gen_info: PaperGenQuestion, row: &Question) -> Gen
             score: gen_info.score,
         },
 
-        info: to_info_resp(row, "".to_string()),
+        info: question::to_info_resp(row, "".to_string()),
     }
 }

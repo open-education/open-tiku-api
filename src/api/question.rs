@@ -152,10 +152,10 @@ pub async fn info(
 
 #[derive(Deserialize)]
 pub struct QuestionListReq {
-    // 页面来源 "list" | "myQuestion" | "myReview"
+    // 页面来源 "list" | "myQuestion" | "myReview" | "genPaper"
     pub source: String,
-    #[serde(rename(deserialize = "questionCateId"))]
-    pub question_cate_id: i32,
+    #[serde(rename(deserialize = "questionCateIds"))]
+    pub question_cate_ids: Vec<i32>,
     #[serde(rename(deserialize = "questionTypeId"))]
     pub question_type_id: Option<i32>,
     #[serde(rename(deserialize = "dimensionIds",))]
