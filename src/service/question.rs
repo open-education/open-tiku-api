@@ -3,6 +3,7 @@ use crate::api::question::{
     CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
     QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
+use crate::r#enum::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
@@ -168,14 +169,24 @@ pub async fn list(
 ) -> Result<QuestionListResp, Error> {
     let db = &app_conf.db;
 
+    // 页面来源
+    let req_source = QuestionPageSource::from_str(&req.source)
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "不清楚的查询来源"))?;
+
     // 我的题目等时需要登录
-    let (author_id, status) = if req.source == "list" {
+    let (author_id, status) = if req_source == QuestionPageSource::List {
         (None, QuestionStatus::Published.as_i16())
     } else {
         let user_info =
             user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
         let status = req.status.unwrap_or(QuestionStatus::Published.as_i16());
-        (Some(user_info.user_id), status)
+
+        // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者
+        if req_source == QuestionPageSource::MyQuestion {
+            (Some(user_info.user_id), status)
+        } else {
+            (None, status)
+        }
     };
 
     // 查询总数
@@ -193,7 +204,7 @@ pub async fn list(
     .await
     .map_err(|e| {
         error!("question count by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
+        Error::new(ErrorKind::Other, "查询失败")
     })?;
 
     if total == 0 {

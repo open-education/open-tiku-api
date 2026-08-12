@@ -1,4 +1,5 @@
 use crate::api::question::CreateQuestionReq;
+use crate::model::question_similar::QuestionSimilarType;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -26,16 +27,6 @@ pub enum QuestionStatus {
 }
 
 impl QuestionStatus {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            0 => Some(Self::Draft),
-            1 => Some(Self::Pending),
-            2 => Some(Self::Published),
-            3 => Some(Self::Rejected),
-            _ => Some(Self::Draft),
-        }
-    }
-
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }
@@ -84,7 +75,6 @@ pub struct Question {
     pub process: Option<Json<Content>>,  // 解题过程
     pub steps: Option<Json<Vec<Step>>>,  // 解题步骤, 学生做题时提示
     pub remark: Option<String>,          // 备注
-    pub remark_ext: Option<String>,      // 其它备注
 
     // 审核相关
     pub status: i16,                       // 审核状态
@@ -519,11 +509,12 @@ impl Question {
             SELECT child_id
             FROM question_similar
             WHERE question_id = $1
-              AND question_type = 2
+              AND question_type = $2
               LIMIT 1
             "#,
         )
         .bind(id)
+        .bind(QuestionSimilarType::OriginalTextbookQuestion.as_i16())
         .fetch_optional(pool)
         .await
     }

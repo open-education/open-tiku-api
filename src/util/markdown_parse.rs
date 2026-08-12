@@ -16,7 +16,6 @@ pub struct RawQuestion {
     pub title: String,            // 标题
     pub stem: String,             // 题干
     pub difficulty_level: String, // 难度
-    pub stage: String,            // 学段
     pub question_type: String,    // 题目类型
     pub choices: Vec<String>,     // 选项内容
     pub knowledge: String,        // 知识点
@@ -246,7 +245,6 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
         stem,
         choices,
         difficulty_level: difficulty_level.trim().to_string(),
-        stage: stage.trim().to_string(),
         question_type: question_type.trim().to_string(),
         knowledge: knowledge.trim().to_string(),
         answer: answer.trim().to_string(),
@@ -440,7 +438,6 @@ $a_{10} = 6 \times 10 + 5 = 65$，
             println!("题干: {}", parent.parent.stem);
             println!("选项: {:?}", parent.parent.choices);
             println!("难度: {:?}", parent.parent.difficulty_level);
-            println!("适用学期: {:?}", parent.parent.stage);
             println!("题目类型: {:?}", parent.parent.question_type);
             println!("参考答案: {}", parent.parent.answer);
             println!("知识点: {}", parent.parent.knowledge);
@@ -451,7 +448,6 @@ $a_{10} = 6 \times 10 + 5 = 65$，
                 println!("     题干: {}", v.stem);
                 println!("     选项: {:?}", v.choices);
                 println!("     难度: {:?}", v.difficulty_level);
-                println!("     试用学期: {:?}", v.stage);
                 println!("     题目类型: {:?}", v.question_type);
                 println!("     参考答案: {}", v.answer);
                 println!("     知识点: {}", v.knowledge);

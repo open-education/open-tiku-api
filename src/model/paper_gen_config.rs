@@ -21,7 +21,6 @@ pub struct DifficultyLevelInfo {
 
 #[derive(FromRow)]
 pub struct PaperGenConfig {
-    pub id: i64,
     pub paper_id: i64,
     pub question_cate_ids: Json<Vec<i32>>,
     pub question_tag_ids: Option<Json<Vec<i16>>>,

@@ -41,21 +41,12 @@ impl ProviderType {
 // 用户角色
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RoleType {
-    Normal = 1,  // 1 普通
-    Student = 2, // 2 学生
+    Normal = 1, // 1 普通
+    // Student = 2, // 2 学生
     Teacher = 3, // 3 教师
 }
 
 impl RoleType {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            1 => Some(Self::Normal),
-            2 => Some(Self::Student),
-            3 => Some(Self::Teacher),
-            _ => Some(Self::Normal), // 分不清角色就是普通用户
-        }
-    }
-
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }
@@ -64,19 +55,12 @@ impl RoleType {
 // 用户状态
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StatusType {
-    Active = 1,     // 1 正常
-    Paused = 2,     // 2 暂停
+    Active = 1, // 1 正常
+    Paused = 2, // 2 暂停
     Forbidden = 20, // 20 封禁
 }
-impl StatusType {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            1 => Some(Self::Active),
-            2 => Some(Self::Paused),
-            _ => Some(Self::Forbidden), // 分不清状态就是 封禁
-        }
-    }
 
+impl StatusType {
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }

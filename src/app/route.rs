@@ -11,6 +11,8 @@ use crate::api::{
 pub fn file(cfg: &mut web::ServiceConfig) {
     cfg.service(file::upload_image)
         .service(file::upload_file)
+        .service(file::read_file)
+        .service(file::read_image)
         .service(file::delete_file);
 }
 

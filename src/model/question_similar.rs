@@ -14,19 +14,11 @@ pub struct QuestionSimilar {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum QuestionSimilarType {
-    Similar = 1,                  // 变式题
+    Similar = 1, // 变式题
     OriginalTextbookQuestion = 2, // 课本原题
 }
 
 impl QuestionSimilarType {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            1 => Some(Self::Similar),
-            2 => Some(Self::OriginalTextbookQuestion),
-            _ => None,
-        }
-    }
-
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }

@@ -86,7 +86,7 @@ Written by Roland McGrath and Ulrich Drepper.
 zhangguangxun@VM-0-4-debian:~/open-tiku-api$ 
 ```
 
-所以本地的 `GLIBC` 版本好如果高过 `2.36` 则编译完成的二进制不能启动成功；此时就需要借助 `.github` 文件夹中的工作流让 `github` 平台帮忙编译, 
+所以本地的 `GLIBC` 版本号如果高过 `2.36` 则编译完成的二进制不能启动成功；此时就需要借助 `.github` 文件夹中的工作流让 `github` 平台帮忙编译, 
 工作流配置的环境是 `ubuntu-22.04` 其实这个版本的系统已经是不维护的状态, 目前暂无升级操作系统的计划, 因此知晓这一步骤即可.
 
 ### 部署
