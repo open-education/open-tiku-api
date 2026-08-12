@@ -30,7 +30,7 @@ jobs:
 
     # 在虚拟机中检出代码
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # 安装 Rust 环境配置
       - name: Install Rust toolchain
@@ -58,7 +58,7 @@ jobs:
 
       # 将压缩后的可执行二进制文件发布到 Releases
       - name: Release
-        uses: softprops/action-gh-release@v2  # 建议使用 v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/release/open-tiku-api.tgz
           draft: true

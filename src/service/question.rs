@@ -6,13 +6,11 @@ use crate::api::question::{
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
-use crate::model::user_identity::UserIdentity;
-use crate::service::user;
+use crate::service::user::{get_user_map, get_user_name};
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use log::error;
 use regex::Regex;
-use sqlx::PgPool;
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
@@ -157,7 +155,7 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInf
         Error::new(ErrorKind::Other, "查询失败")
     })?;
 
-    let author_name = user::get_user_name(db, row.author_id).await;
+    let author_name = get_user_name(db, row.author_id).await;
 
     Ok(to_info_resp(&row, author_name))
 }
@@ -242,21 +240,6 @@ pub async fn list(
         req.page_size,
         total,
     ))
-}
-
-async fn get_user_map(db: &PgPool, author_ids: Vec<i64>) -> Result<HashMap<i64, String>, Error> {
-    let user_list = UserIdentity::find_by_user_ids(db, &author_ids)
-        .await
-        .map_err(|e| {
-            error!("user list by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "作者信息查询失败")
-        })?;
-    let user_map: HashMap<i64, String> = user_list
-        .into_iter()
-        .map(|user| (user.user_id, user.provider_username.unwrap_or_default()))
-        .collect();
-
-    Ok(user_map)
 }
 
 fn to_list_resp(

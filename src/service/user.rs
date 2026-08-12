@@ -8,6 +8,7 @@ use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use uuid::Uuid;
 
@@ -135,4 +136,22 @@ pub async fn get_user_name(db: &PgPool, user_id: i64) -> String {
             "未知".to_string()
         }
     }
+}
+
+pub async fn get_user_map(
+    db: &PgPool,
+    author_ids: Vec<i64>,
+) -> Result<HashMap<i64, String>, Error> {
+    let user_list = UserIdentity::find_by_user_ids(db, &author_ids)
+        .await
+        .map_err(|e| {
+            error!("user list by id err: {:?}", e);
+            Error::new(ErrorKind::Other, "作者信息查询失败")
+        })?;
+    let user_map: HashMap<i64, String> = user_list
+        .into_iter()
+        .map(|user| (user.user_id, user.provider_username.unwrap_or_default()))
+        .collect();
+
+    Ok(user_map)
 }
