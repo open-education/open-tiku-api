@@ -26,7 +26,7 @@ pub fn question(cfg: &mut web::ServiceConfig) {
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
 pub fn edit(cfg: &mut web::ServiceConfig) {
-    cfg.service(edit::status);
+    cfg.service(edit::question_status);
 }
 
 // 教材菜单

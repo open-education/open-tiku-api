@@ -307,7 +307,6 @@ pub struct PaperGenGroupReq {
 
 #[derive(Deserialize)]
 pub struct PaperGenReq {
-    #[serde(flatten)]
     pub common: CommonPaperReq,
     pub conf: GenPaperGenConfig,
     pub groups: Vec<PaperGenGroupReq>,

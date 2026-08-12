@@ -5,10 +5,10 @@ use crate::util::response::ApiResponse;
 use actix_web::{post, web};
 use serde::Deserialize;
 
-/// 编辑
+/// 编辑状态等
 
 #[derive(Deserialize)]
-pub struct EditStatusReq {
+pub struct EditQuestionStatusReq {
     pub id: i64,
     pub status: i16,
     #[serde(rename(deserialize = "rejectReason"))]
@@ -16,11 +16,11 @@ pub struct EditStatusReq {
 }
 
 // 更新状态
-#[post("/status")]
-pub async fn status(
+#[post("/question/status")]
+pub async fn question_status(
     app_conf: web::Data<AppConfig>,
-    req: web::Json<EditStatusReq>,
+    req: web::Json<EditQuestionStatusReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::status(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(edit::question_status(app_conf, req.into_inner(), user_info).await)
 }
