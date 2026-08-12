@@ -12,7 +12,7 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
-use crate::service::question;
+use crate::service::{question, user};
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::Utc;
@@ -554,8 +554,17 @@ pub async fn preview(
             Error::new(ErrorKind::Other, "查询题目失败")
         })?;
 
+        // 批量获取作者名称
+        let author_ids: Vec<i64> = rows.iter().map(|q| q.author_id).collect();
+        let user_map: HashMap<i64, String> = user::get_user_map(db, author_ids).await?;
+
         let mut questions: Vec<GenPaperQuestionResp> = vec![];
         for (index, row) in rows.into_iter().enumerate() {
+            let author_name = user_map
+                .get(&row.author_id)
+                .cloned()
+                .unwrap_or_else(|| "未知".to_string());
+
             questions.push(GenPaperQuestionResp {
                 common: CommonPaperGenQuestionResp {
                     id: row.id,
@@ -566,7 +575,7 @@ pub async fn preview(
                     question_id: row.id,
                     score: question_type.score as i32,
                 },
-                info: question::to_info_resp(&row, user_name.clone()),
+                info: question::to_info_resp(&row, author_name),
             });
         }
 
@@ -916,13 +925,24 @@ pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPape
             );
             Error::new(ErrorKind::Other, "查询试卷题目详情失败")
         })?;
-    let question_map: HashMap<i64, Question> = questions.into_iter().map(|q| (q.id, q)).collect();
+
+    // 收集题型标识和作者信息
+    let (question_map, author_ids) =
+        questions
+            .into_iter()
+            .fold((HashMap::new(), Vec::new()), |(mut map, mut ids), q| {
+                ids.push(q.author_id);
+                map.insert(q.id, q);
+                (map, ids)
+            });
+    let user_map: HashMap<i64, String> = user::get_user_map(db, author_ids).await?;
 
     to_gen_resp(
         paper,
         gen_conf,
         paper_groups,
         paper_gen_questions,
+        &user_map,
         question_map,
     )
 }
@@ -933,6 +953,7 @@ fn to_gen_resp(
     paper_gen_config: PaperGenConfig,
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
+    user_map: &HashMap<i64, String>,
     question_raw_map: HashMap<i64, Question>,
 ) -> Result<GenPaperResp, Error> {
     let mut resp = GenPaperResp {
@@ -960,7 +981,7 @@ fn to_gen_resp(
             Error::new(ErrorKind::Other, "题目不存在")
         })?;
 
-        let question_resp = to_gen_paper_question_resp(question, raw);
+        let question_resp = to_gen_paper_question_resp(question, raw, user_map);
         questions_map
             .entry(group_id)
             .or_insert_with(Vec::new)
@@ -981,7 +1002,11 @@ fn to_gen_resp(
     Ok(resp)
 }
 
-fn to_gen_paper_question_resp(gen_info: PaperGenQuestion, row: &Question) -> GenPaperQuestionResp {
+fn to_gen_paper_question_resp(
+    gen_info: PaperGenQuestion,
+    row: &Question,
+    user_map: &HashMap<i64, String>,
+) -> GenPaperQuestionResp {
     GenPaperQuestionResp {
         common: CommonPaperGenQuestionResp {
             id: gen_info.id,
@@ -993,6 +1018,12 @@ fn to_gen_paper_question_resp(gen_info: PaperGenQuestion, row: &Question) -> Gen
             score: gen_info.score,
         },
 
-        info: question::to_info_resp(row, "".to_string()),
+        info: question::to_info_resp(
+            row,
+            user_map
+                .get(&row.author_id)
+                .cloned()
+                .unwrap_or_else(|| "未知".to_string()),
+        ),
     }
 }
