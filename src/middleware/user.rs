@@ -248,7 +248,13 @@ pub async fn get_user_identity(db: &PgPool, user_id: i64) -> Result<UserIdentity
     if user.status != StatusType::Active.as_i16() {
         return Err(std::io::Error::new(
             ErrorKind::InvalidInput,
-            "该账户已被封禁",
+            if user.status == StatusType::Paused.as_i16() {
+                "该账户已被暂停"
+            } else if user.status == StatusType::Forbidden.as_i16() {
+                "该账户已被封禁"
+            } else {
+                "该账户无法继续使用"
+            },
         ));
     }
 

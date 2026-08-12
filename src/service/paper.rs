@@ -5,6 +5,7 @@ use crate::api::paper::{
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
+use crate::r#enum::paper::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};
@@ -444,14 +445,22 @@ pub async fn list(
         return Err(Error::new(ErrorKind::InvalidInput, "考点/学段分类不能为空"));
     }
 
+    // 页面来源
+    let req_source = PaperPageSource::from_str(&req.source)
+        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "不清楚的查询来源"))?;
+
     // 我的试卷等时需要登录
-    let (author_id, status) = if req.source == "list" {
+    let (author_id, status) = if req_source == PaperPageSource::List {
         (None, PaperStatus::Published as i16)
     } else {
         let user_info =
             user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
         let status = req.status.unwrap_or(PaperStatus::Published as i16);
-        (Some(user_info.user_id), status)
+        if req_source == PaperPageSource::MyPaper {
+            (Some(user_info.user_id), status)
+        } else {
+            (None, status)
+        }
     };
 
     // 1. 构建过滤条件
@@ -801,7 +810,6 @@ fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> Pape
     }
 
     PaperGenConfig {
-        id: 0,
         paper_id,
         question_cate_ids: Json(req.question_cate_ids.clone()),
         question_tag_ids: Some(Json(req.tag_ids.clone().unwrap_or_default())),

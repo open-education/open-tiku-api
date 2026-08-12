@@ -6,6 +6,7 @@ mod model;
 mod service;
 mod task;
 mod util;
+mod r#enum;
 
 use crate::app::cron::run_cron;
 use crate::app::web::run_web;
