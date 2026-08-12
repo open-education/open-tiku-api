@@ -294,10 +294,18 @@ impl Question {
             .await
     }
 
+    // 通过ids获取详情列表
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM question WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await
+    }
+
     // 题型下题目数量
     pub async fn count_by_cate_and_type(
         pool: &PgPool,
-        cate_id: i32,
+        cate_ids: Vec<i32>,
         status: i16,
         type_id: Option<i32>,
         ids: Option<Vec<i64>>,
@@ -309,7 +317,7 @@ impl Question {
         sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM question 
-            WHERE question_cate_id = $1
+            WHERE question_cate_id = ANY($1)
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
               AND ($4 IS NULL OR id = ANY($4))
@@ -319,7 +327,7 @@ impl Question {
               AND ($10 IS NULL OR author_id = $10)
             "#,
         )
-        .bind(cate_id)
+        .bind(cate_ids)
         .bind(status)
         .bind(type_id)
         .bind(ids)
@@ -336,7 +344,7 @@ impl Question {
     // 题型下题目列表
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
-        cate_id: i32,
+        cate_ids: Vec<i32>,
         status: i16,
         type_id: Option<i32>,
         ids: Option<Vec<i64>>,
@@ -351,7 +359,7 @@ impl Question {
             r#"
             SELECT *
             FROM question
-            WHERE question_cate_id = $1
+            WHERE question_cate_id = ANY($1)
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
               AND ($4 IS NULL OR id = ANY($4))
@@ -363,7 +371,7 @@ impl Question {
             LIMIT $11 OFFSET $12
             "#,
         )
-        .bind(cate_id)
+        .bind(cate_ids)
         .bind(status)
         .bind(type_id)
         .bind(ids)

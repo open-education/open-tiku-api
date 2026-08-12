@@ -106,7 +106,7 @@ fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
         question_tag_ids: row.question_tag_ids.clone(),
         question_dimension_ids: row.question_dimension_ids.clone(),
         author_id: row.author_id,
-        author_name: author_name,
+        author_name,
         source: row.source.clone(),
         original_name: row.original_name.clone(),
         title: row.title.clone(),
@@ -131,20 +131,20 @@ fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
 }
 
 // 额外扩展信息
-fn to_extra_resp(row: Question) -> QuestionExtraInfo {
+fn to_extra_resp(row: &Question) -> QuestionExtraInfo {
     QuestionExtraInfo {
-        answer: row.answer,
-        knowledge: row.knowledge,
-        analysis: row.analysis,
-        process: row.process,
-        remark: row.remark,
+        answer: row.answer.clone(),
+        knowledge: row.knowledge.clone(),
+        analysis: row.analysis.clone(),
+        process: row.process.clone(),
+        remark: row.remark.clone(),
     }
 }
 
 // 完整的题目信息
-fn to_info_resp(row: Question, author_name: String) -> QuestionInfoResp {
+pub fn to_info_resp(row: &Question, author_name: String) -> QuestionInfoResp {
     QuestionInfoResp {
-        base_info: to_base_resp(&row, author_name),
+        base_info: to_base_resp(row, author_name),
         extra_info: to_extra_resp(row),
     }
 }
@@ -159,7 +159,7 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInf
 
     let author_name = user::get_user_name(db, row.author_id).await;
 
-    Ok(to_info_resp(row, author_name))
+    Ok(to_info_resp(&row, author_name))
 }
 
 // 题目列表
@@ -183,7 +183,7 @@ pub async fn list(
     // 查询总数
     let total = Question::count_by_cate_and_type(
         db,
-        req.question_cate_id,
+        req.question_cate_ids.clone(),
         status,
         req.question_type_id,
         req.ids.clone(),
@@ -213,7 +213,7 @@ pub async fn list(
     // 查询列表 (添加 ? 运算符解包 Result)
     let list_data = Question::list_by_cate_and_type(
         db,
-        req.question_cate_id,
+        req.question_cate_ids,
         status,
         req.question_type_id,
         req.ids,

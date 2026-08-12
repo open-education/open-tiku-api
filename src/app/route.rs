@@ -26,7 +26,7 @@ pub fn question(cfg: &mut web::ServiceConfig) {
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
 pub fn edit(cfg: &mut web::ServiceConfig) {
-    cfg.service(edit::status);
+    cfg.service(edit::question_status);
 }
 
 // 教材菜单
@@ -69,7 +69,8 @@ pub fn paper(cfg: &mut web::ServiceConfig) {
         .service(paper::list)
         .service(paper::latest)
         .service(paper::preview)
-        .service(paper::gen_add);
+        .service(paper::gen_add)
+        .service(paper::gen_info);
 }
 
 pub fn text(cfg: &mut web::ServiceConfig) {

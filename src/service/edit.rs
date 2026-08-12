@@ -1,5 +1,5 @@
 use crate::AppConfig;
-use crate::api::edit::EditStatusReq;
+use crate::api::edit::EditQuestionStatusReq;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::user_identity::RoleType;
@@ -7,10 +7,10 @@ use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
 
-// 更新状态
-pub async fn status(
+// 更新题目状态
+pub async fn question_status(
     app_conf: web::Data<AppConfig>,
-    req: EditStatusReq,
+    req: EditQuestionStatusReq,
     user_info: UserInfo,
 ) -> Result<bool, Error> {
     let db = &app_conf.db;
