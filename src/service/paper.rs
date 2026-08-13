@@ -1,13 +1,13 @@
 use crate::AppConfig;
 use crate::api::paper::{
-    CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp,
+    CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp, DeleteReq,
     GenPaperGenConfig, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
 use crate::r#enum::paper::PaperPageSource;
 use crate::middleware::user::UserInfo;
-use crate::model::paper::{Paper, PaperStatus};
+use crate::model::paper::{Paper, PaperStatus, PaperType};
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};
 use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
@@ -18,8 +18,8 @@ use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::Utc;
 use log::{error, info};
-use sqlx::PgPool;
 use sqlx::types::Json;
+use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
@@ -62,23 +62,7 @@ pub async fn top_add(
 
     // 如果是编辑则需要先删除题型分类和题目列表
     if is_update {
-        let del_group_rows =
-            PaperGroup::delete_by_paper_id(&mut tx, req.common.id.unwrap_or_default())
-                .await
-                .map_err(|err| {
-                    error!("Failed to delete top paper group: {}", err);
-                    Error::new(ErrorKind::Other, "删除题型分类失败")
-                })?;
-        info!("Deleted top paper group rows: {:?}", del_group_rows);
-
-        let del_question_rows =
-            PaperQuestion::delete_by_paper_id(&mut tx, req.common.id.unwrap_or_default())
-                .await
-                .map_err(|err| {
-                    error!("Failed to delete top paper question: {}", err);
-                    Error::new(ErrorKind::Other, "删除题目列表失败")
-                })?;
-        info!("Deleted top paper question rows: {:?}", del_question_rows);
+        delete_top_info(&mut tx, paper_id, "top_add").await?;
     }
 
     // 批量插入题型
@@ -290,6 +274,37 @@ fn build_top_groups_and_questions(
     }
 
     (paper_groups, paper_questions)
+}
+
+// 删除精选试卷题型分类和题目列表
+async fn delete_top_info(
+    tx: &mut Transaction<'_, Postgres>,
+    paper_id: i64,
+    source: &str,
+) -> Result<(), Error> {
+    let del_group_rows = PaperGroup::delete_by_paper_id(tx, paper_id)
+        .await
+        .map_err(|err| {
+            error!("Failed {} to delete top paper group: {}", source, err);
+            Error::new(ErrorKind::Other, "删除题型分类失败")
+        })?;
+    info!(
+        "Deleted {} top paper group rows: {:?}",
+        source, del_group_rows
+    );
+
+    let del_question_rows = PaperQuestion::delete_by_paper_id(tx, paper_id)
+        .await
+        .map_err(|err| {
+            error!("Failed {} to delete top paper question: {}", source, err);
+            Error::new(ErrorKind::Other, "删除题目列表失败")
+        })?;
+    info!(
+        "Deleted {} top paper question rows: {:?}",
+        source, del_question_rows
+    );
+
+    Ok(())
 }
 
 // 精选试卷-试卷详情
@@ -676,35 +691,7 @@ pub async fn gen_add(
 
     // 如果是更新则删除字表
     if is_update {
-        let del_config_rows =
-            PaperGenConfig::delete_by_paper_id(&mut tx, req.common.id.unwrap_or_default())
-                .await
-                .map_err(|err| {
-                    error!("Failed to delete gen paper gen config: {}", err);
-                    Error::new(ErrorKind::Other, "删除题型配置失败")
-                })?;
-        info!("Deleted gen paper gen config rows: {:?}", del_config_rows);
-
-        let del_group_rows =
-            PaperGroup::delete_by_paper_id(&mut tx, req.common.id.unwrap_or_default())
-                .await
-                .map_err(|err| {
-                    error!("Failed to delete gen paper group: {}", err);
-                    Error::new(ErrorKind::Other, "删除题型分类失败")
-                })?;
-        info!("Deleted gen paper group rows: {:?}", del_group_rows);
-
-        let del_question_rows =
-            PaperGenQuestion::delete_by_paper_id(&mut tx, req.common.id.unwrap_or_default())
-                .await
-                .map_err(|err| {
-                    error!("Failed to delete gen paper gen question: {}", err);
-                    Error::new(ErrorKind::Other, "删除题目列表失败")
-                })?;
-        info!(
-            "Deleted gen paper gen question rows: {:?}",
-            del_question_rows
-        );
+        delete_gen_info(&mut tx, paper_id, "gen_add").await?;
     }
 
     // 题目选择配置信息
@@ -862,6 +849,51 @@ fn build_gen_groups_and_questions(
     }
 
     (paper_groups, paper_questions)
+}
+
+// 删除试卷其它明细信息
+async fn delete_gen_info(
+    tx: &mut Transaction<'_, Postgres>,
+    paper_id: i64,
+    source: &str,
+) -> Result<(), Error> {
+    let del_config_rows = PaperGenConfig::delete_by_paper_id(tx, paper_id)
+        .await
+        .map_err(|err| {
+            error!("Failed {} to delete gen paper gen config: {}", source, err);
+            Error::new(ErrorKind::Other, "删除试卷题型配置失败")
+        })?;
+    info!(
+        "Deleted {} gen paper gen config rows: {:?}",
+        source, del_config_rows
+    );
+
+    let del_group_rows = PaperGroup::delete_by_paper_id(tx, paper_id)
+        .await
+        .map_err(|err| {
+            error!("Failed {} to delete gen paper group: {}", source, err);
+            Error::new(ErrorKind::Other, "删除试卷题型分类失败")
+        })?;
+    info!(
+        "Deleted {} gen paper group rows: {:?}",
+        source, del_group_rows
+    );
+
+    let del_question_rows = PaperGenQuestion::delete_by_paper_id(tx, paper_id)
+        .await
+        .map_err(|err| {
+            error!(
+                "Failed {} to delete gen paper gen question: {}",
+                source, err
+            );
+            Error::new(ErrorKind::Other, "删除试卷题目列表失败")
+        })?;
+    info!(
+        "Deleted {} gen paper gen question rows: {:?}",
+        source, del_question_rows
+    );
+
+    Ok(())
 }
 
 // 手动组卷-试卷详情
@@ -1034,4 +1066,69 @@ fn to_gen_paper_question_resp(
                 .unwrap_or_else(|| "未知".to_string()),
         ),
     }
+}
+
+// 删除试卷
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    req: DeleteReq,
+    user_info: UserInfo,
+) -> Result<bool, Error> {
+    if req.id <= 0 {
+        return Err(Error::new(ErrorKind::Other, "试卷标识为空"));
+    }
+
+    let db = &app_conf.db;
+
+    // 只允许删除自己的试卷
+    let has_paper = Paper::find_by_id(db, req.id)
+        .await
+        .map_err(|err| {
+            error!("Failed to find paper: {}", err);
+            Error::new(ErrorKind::Other, "试卷查询错误")
+        })?
+        .ok_or_else(|| Error::new(ErrorKind::NotFound, "试卷不存在"))?;
+    if has_paper.author_id != user_info.user_id {
+        return Err(Error::new(ErrorKind::Other, "只允许删除自己的试卷"));
+    }
+
+    // 只有草稿的试卷可以删除
+    if has_paper.status != PaperStatus::Draft.as_i16() {
+        return Err(Error::new(ErrorKind::Other, "只允许删除草稿中的试卷"));
+    }
+
+    let rows = Paper::delete(db, req.id).await.map_err(|err| {
+        error!("paper delete by id err: {:?}", err);
+        Error::new(ErrorKind::Other, "删除失败")
+    })?;
+
+    // 开启事务
+    let mut tx = db.begin().await.map_err(|e| {
+        error!("Failed delete to gen begin transaction: {}", e);
+        Error::new(ErrorKind::Other, "启动事务失败")
+    })?;
+
+    // 删除试卷明细
+    match has_paper.paper_type {
+        t if t == PaperType::Top.as_i16() => {
+            delete_top_info(&mut tx, req.id, "delete").await?;
+        }
+        t if t == PaperType::Gen.as_i16() => {
+            delete_gen_info(&mut tx, req.id, "delete").await?;
+        }
+        _ => {
+            error!(
+                "Failed delete paper info: {}, unknown paper_type: {}",
+                req.id, has_paper.paper_type
+            );
+        }
+    }
+
+    // 提交事务
+    tx.commit().await.map_err(|e| {
+        error!("Failed delete to gen commit transaction: {}", e);
+        Error::new(ErrorKind::Other, "提交事务失败")
+    })?;
+
+    Ok(rows > 0)
 }

@@ -329,3 +329,17 @@ pub async fn gen_info(
 ) -> ApiResponse<GenPaperResp> {
     ApiResponse::response(paper::gen_info(app_conf, path.into_inner().0).await)
 }
+
+#[derive(Deserialize)]
+pub struct DeleteReq {
+    pub id: i64,
+}
+
+#[post("/delete")]
+pub async fn delete(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<DeleteReq>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(paper::delete(app_conf, req.into_inner(), user_info).await)
+}
