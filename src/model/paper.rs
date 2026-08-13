@@ -69,6 +69,20 @@ impl PaperStatus {
     }
 }
 
+// 试卷类型
+#[derive(Serialize, Deserialize, Type, PartialEq, Clone)]
+#[repr(i16)]
+pub enum PaperType {
+    Top,
+    Gen,
+}
+
+impl PaperType {
+    pub fn as_i16(&self) -> i16 {
+        self.clone() as i16
+    }
+}
+
 // 试卷主表
 impl Paper {
     // 根据 id 主键判断是新增还是更新
@@ -307,5 +321,45 @@ impl Paper {
         .await?;
 
         Ok(papers)
+    }
+
+    // 更新状态
+    pub async fn update_status_by_id(
+        pool: &PgPool,
+        id: i64,
+        status: i16,
+        approve_id: i64,
+        reject_reason: Option<String>,
+    ) -> Result<u64, sqlx::Error> {
+        // 1. 获取当前 UTC 时间用于更新 approve_at
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r#"
+        UPDATE paper
+        SET status = $2, 
+            approve_id = $3, 
+            reject_reason = $4, 
+            approve_at = $5
+        WHERE id = $1
+        "#,
+        )
+        .bind(id)
+        .bind(status)
+        .bind(approve_id)
+        .bind(reject_reason)
+        .bind(now)
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    /// 根据 ID 删除记录
+    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!("DELETE FROM paper WHERE id = $1", id)
+            .execute(pool)
+            .await?;
+        Ok(result.rows_affected())
     }
 }
