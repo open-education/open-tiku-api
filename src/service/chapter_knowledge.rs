@@ -10,8 +10,6 @@ use actix_web::web;
 use log::error;
 use sqlx::PgPool;
 
-use crate::middleware::user::UserInfo;
-use crate::model::user_identity::RoleType;
 use std::io::{Error, ErrorKind};
 
 // 查询唯一绑定关系是否一存在
@@ -64,12 +62,7 @@ pub async fn list(
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: CreateChapterKnowledgeReq,
-    user_info: UserInfo,
 ) -> Result<i32, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
     let db = &app_conf.get_ref().db;
 
     check_unique(db, &req).await?;
@@ -86,7 +79,6 @@ pub async fn add(
 pub async fn remove(
     app_conf: web::Data<AppConfig>,
     req: RemoveChapterKnowledgeReq,
-    user_info: UserInfo,
 ) -> Result<bool, Error> {
     let chapter_id: i32 = req.chapter_id;
     if chapter_id <= 0 {
@@ -96,10 +88,6 @@ pub async fn remove(
     let knowledge_id: i32 = req.knowledge_id;
     if knowledge_id <= 0 {
         return Err(Error::new(ErrorKind::Other, "考点标识为空"));
-    }
-
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
     }
 
     let db = &app_conf.get_ref().db;

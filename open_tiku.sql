@@ -275,3 +275,19 @@ CREATE TABLE user_session
     updated_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_token ON user_session (token);
+
+-- 6. 班级
+CREATE TABLE class
+(
+    id         BIGSERIAL PRIMARY KEY,
+    year       VARCHAR(10)  NOT NULL,            -- 年份
+    grade      VARCHAR(50)  NOT NULL DEFAULT '', -- 年级
+    semester   VARCHAR(20)  NOT NULL DEFAULT '', -- 学期
+    label      VARCHAR(500) NOT NULL,            -- 班级名称
+    sort_order SMALLINT     NOT NULL DEFAULT 0,  -- 排序
+    author_id  BIGINT       NOT NULL,            -- 作者
+    remark     TEXT                  DEFAULT '', -- 备注
+    created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_author_year ON class (author_id, year);

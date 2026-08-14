@@ -1,9 +1,7 @@
 use crate::api::textbook::{CreateTextbookReq, TextbookResp};
-use crate::middleware::user::UserInfo;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
-use crate::model::user_identity::RoleType;
 use crate::{AppConfig, constant};
 use actix_web::web;
 use log::error;
@@ -239,15 +237,7 @@ async fn check_parent_and_label_is_exists(
 }
 
 // 添加
-pub async fn add(
-    app_conf: web::Data<AppConfig>,
-    req: CreateTextbookReq,
-    user_info: UserInfo,
-) -> Result<i32, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
+pub async fn add(app_conf: web::Data<AppConfig>, req: CreateTextbookReq) -> Result<i32, Error> {
     let db = &app_conf.get_ref().db;
 
     if req.id.is_some() {
@@ -291,15 +281,7 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i32) -> Result<TextbookRes
 }
 
 // 删除菜单-没有子菜单的菜单可以被删除
-pub async fn delete(
-    app_conf: web::Data<AppConfig>,
-    id: i32,
-    user_info: UserInfo,
-) -> Result<bool, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
+pub async fn delete(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
     let info = info(app_conf.clone(), id).await?;
 
     let db = &app_conf.get_ref().db;

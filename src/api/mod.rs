@@ -10,3 +10,4 @@ pub mod paper;
 pub mod text;
 pub mod user;
 pub mod callback;
+pub mod class;

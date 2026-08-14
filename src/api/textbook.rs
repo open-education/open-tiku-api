@@ -1,5 +1,5 @@
 use crate::AppConfig;
-use crate::middleware::user::UserInfo;
+use crate::middleware::user::TeacherUserInfo;
 use crate::service::textbook;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -72,9 +72,9 @@ pub struct CreateTextbookReq {
 pub async fn add(
     app_conf: web::Data<AppConfig>,
     req: web::Json<CreateTextbookReq>,
-    user_info: UserInfo,
+    _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook::add(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(textbook::add(app_conf, req.into_inner()).await)
 }
 
 // 删除菜单
@@ -82,7 +82,7 @@ pub async fn add(
 pub async fn delete(
     app_conf: web::Data<AppConfig>,
     path: web::Path<(i32,)>,
-    user_info: UserInfo,
+    _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0, user_info).await)
+    ApiResponse::response(textbook::delete(app_conf, path.into_inner().0).await)
 }

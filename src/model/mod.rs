@@ -12,3 +12,4 @@ pub mod user_identity;
 pub mod user_session;
 pub mod paper_gen_config;
 pub mod paper_gen_question;
+pub mod class;

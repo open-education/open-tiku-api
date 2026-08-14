@@ -1,8 +1,9 @@
 use crate::AppConfig;
 use crate::constant::meta;
-use crate::model::user_identity::{StatusType, UserIdentity};
+use crate::model::user_identity::{RoleType, StatusType, UserIdentity};
 use crate::model::user_session::UserSession;
-use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::dev::{Payload, ServiceRequest, ServiceResponse};
+use actix_web::error::ErrorUnauthorized;
 use actix_web::http::header::USER_AGENT;
 use actix_web::middleware::Next;
 use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, web};
@@ -13,7 +14,7 @@ use sqlx::PgPool;
 use std::future::{Ready, ready};
 use std::io::ErrorKind;
 
-// 用户信息验证
+// 普通登录用户信息验证
 #[derive(Serialize, Clone)]
 pub struct UserInfo {
     #[serde(rename(serialize = "userId"))]
@@ -32,12 +33,32 @@ impl FromRequest for UserInfo {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
-    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         let user_info = req.extensions().get::<UserInfo>().cloned();
         match user_info {
             Some(info) => ready(Ok(info)),
-            None => ready(Err(actix_web::error::ErrorUnauthorized("Unauthorized"))),
+            None => ready(Err(ErrorUnauthorized("Unauthorized"))),
         }
+    }
+}
+
+// 教师用户登录验证
+#[derive(Serialize, Clone)]
+pub struct TeacherUserInfo(pub UserInfo);
+
+// 教师用户提取器
+impl FromRequest for TeacherUserInfo {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        if let Some(user_info) = req.extensions().get::<UserInfo>() {
+            if user_info.role == RoleType::Teacher.as_i16() {
+                return ready(Ok(TeacherUserInfo(user_info.clone())));
+            }
+        }
+
+        ready(Err(ErrorUnauthorized("权限不足, 仅限教师用户访问")))
     }
 }
 

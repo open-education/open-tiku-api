@@ -1,12 +1,13 @@
+pub mod callback;
 pub mod chapter_knowledge;
+pub mod class;
 pub mod edit;
 pub mod file;
+pub mod paper;
 pub mod question;
 pub mod question_cate;
 pub mod question_upload;
 pub mod task;
 pub mod textbook;
 pub mod textbook_dict;
-pub mod paper;
-pub mod callback;
 pub mod user;
