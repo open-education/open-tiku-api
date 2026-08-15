@@ -5,7 +5,7 @@ use crate::api::paper::{
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
-use crate::r#enum::paper::PaperPageSource;
+use crate::enums::paper::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus, PaperType};
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};

@@ -3,7 +3,7 @@ use crate::api::question::{
     CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
     QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
-use crate::r#enum::question::QuestionPageSource;
+use crate::enums::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};

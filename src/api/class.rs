@@ -15,6 +15,7 @@ pub struct ClassInfoReq {
     pub grade: Option<String>,
     pub semester: Option<String>,
     pub label: String,
+    pub email: String,
     #[serde(rename(deserialize = "sortOrder"))]
     pub sort_order: i16,
     pub remark: String,
@@ -49,6 +50,7 @@ pub struct ClassInfoResp {
     pub grade: String,
     pub semester: String,
     pub label: String,
+    pub email: String,
     #[serde(rename(serialize = "sortOrder"))]
     pub sort_order: i16,
     pub remark: String,

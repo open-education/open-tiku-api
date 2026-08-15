@@ -14,6 +14,7 @@ pub async fn run_web() -> std::io::Result<()> {
 
     let addr = format!("{}:{}", env_config.server_host, env_config.server_port);
 
+    // 注意路由匹配按定义顺序匹配, 所以更具体的路由需要配置在前面
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
@@ -32,6 +33,7 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/text").configure(route::text))
             .service(web::scope("/callback").configure(route::callback))
             .service(web::scope("/user").configure(route::user))
+            .service(web::scope("/class/student").configure(route::class_student))
             .service(web::scope("/class").configure(route::class))
     })
     .bind(&addr)?

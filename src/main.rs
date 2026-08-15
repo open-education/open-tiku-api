@@ -1,12 +1,12 @@
 mod api;
 mod app;
 mod constant;
+mod enums;
 mod middleware;
 mod model;
 mod service;
 mod task;
 mod util;
-mod r#enum;
 
 use crate::app::cron::run_cron;
 use crate::app::web::run_web;
@@ -43,17 +43,30 @@ struct EnvConfig {
 
     // oauth secret
     oauth_state_secret: String,
+
+    // student pepper
+    student_pepper: String,
+
+    // smtp email 服务配置
+    smtp_server: String,
+    smtp_port: u16,
+    smtp_username: String,
+    smtp_password: String,
+    smtp_from_name: String,
+    smtp_from_email: String,
 }
 
 // 应用配置
 #[derive(Clone)]
 pub struct AppConfig {
-    db: PgPool,                       // 数据库连接池
-    meta_path: String,                // 元数据存储根目录
-    github: (String, String, String), // GitHub (client_id, secret, redirect_uri)
-    qq: (String, String, String),     // qq (client_id, secret, redirect_uri)
-    website_home_url: String,         // 网站首页
-    oauth_state_secret: String,       // 第三方登录校验 secret
+    db: PgPool,                                          // 数据库连接池
+    meta_path: String,                                   // 元数据存储根目录
+    github: (String, String, String),                    // GitHub (client_id, secret, redirect_uri)
+    qq: (String, String, String),                        // qq (client_id, secret, redirect_uri)
+    website_home_url: String,                            // 网站首页
+    oauth_state_secret: String,                          // 第三方登录校验 secret
+    student_pepper: String,                              // 学生账户胡椒值
+    smtp: (String, u16, String, String, String, String), // smtp(server, port, username, password, from_name, from_email)
 }
 
 #[actix_web::main]

@@ -2,6 +2,7 @@ use crate::{AppConfig, EnvConfig};
 use dotenvy::dotenv;
 use envy::from_env;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
+use std::io::empty;
 use std::str::FromStr;
 
 /// 配置相关初始化
@@ -39,6 +40,15 @@ pub async fn init() -> (EnvConfig, AppConfig) {
         ),
         website_home_url: env_config.website_home_url.clone(),
         oauth_state_secret: env_config.oauth_state_secret.clone(),
+        student_pepper: env_config.student_pepper.clone(),
+        smtp: (
+            env_config.smtp_server.clone(),
+            env_config.smtp_port,
+            env_config.smtp_username.clone(),
+            env_config.smtp_password.clone(),
+            env_config.smtp_from_name.clone(),
+            env_config.smtp_from_email.clone(),
+        ),
     };
 
     (env_config, app_config)

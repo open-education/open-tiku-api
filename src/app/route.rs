@@ -1,8 +1,8 @@
 use actix_web::web;
 
 use crate::api::{
-    callback, chapter_knowledge, class, edit, file, other_dict, paper, question, question_cate,
-    task, text, textbook, user,
+    callback, chapter_knowledge, class, class_student, edit, file, other_dict, paper, question,
+    question_cate, task, text, textbook, user,
 };
 
 /// web 服务路由配置
@@ -96,4 +96,8 @@ pub fn user(cfg: &mut web::ServiceConfig) {
 
 pub fn class(cfg: &mut web::ServiceConfig) {
     cfg.service(class::add).service(class::list);
+}
+
+pub fn class_student(cfg: &mut web::ServiceConfig) {
+    cfg.service(class_student::add).service(class_student::list);
 }

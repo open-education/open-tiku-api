@@ -1,6 +1,7 @@
 pub mod callback;
 pub mod chapter_knowledge;
 pub mod class;
+pub mod class_student;
 pub mod edit;
 pub mod file;
 pub mod paper;

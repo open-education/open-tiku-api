@@ -9,6 +9,7 @@ pub struct Class {
     pub grade: String,
     pub semester: String,
     pub label: String,
+    pub email: String,
     pub sort_order: i16,
     pub author_id: i64,
     pub remark: String,
@@ -21,15 +22,16 @@ impl Class {
         let row_id = sqlx::query(
             r#"
         INSERT INTO class (
-            id, year, grade, semester, label, sort_order, author_id, remark
+            id, year, grade, semester, label, email, sort_order, author_id, remark
         ) VALUES (
-            COALESCE($1, nextval('class_id_seq')), $2, $3, $4, $5, $6, $7, $8
+            COALESCE($1, nextval('class_id_seq')), $2, $3, $4, $5, $6, $7, $8, $9
         )
         ON CONFLICT (id) DO UPDATE SET
             year = EXCLUDED.year,
             grade = EXCLUDED.grade,
             semester = EXCLUDED.semester,
             label = EXCLUDED.label,
+            email = EXCLUDED.email,
             sort_order = EXCLUDED.sort_order,
             author_id = EXCLUDED.author_id,
             remark = EXCLUDED.remark,
@@ -42,6 +44,7 @@ impl Class {
         .bind(req.grade)
         .bind(req.semester)
         .bind(req.label)
+        .bind(req.email)
         .bind(req.sort_order)
         .bind(req.author_id)
         .bind(req.remark)
@@ -58,7 +61,7 @@ impl Class {
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<Self>> {
         let row = sqlx::query_as::<_, Self>(
             r#"
-            SELECT id, year, grade, semester, label, author_id, sort_order, remark, created_at, updated_at
+            SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
             WHERE id = $1
             "#,
@@ -91,19 +94,18 @@ impl Class {
         Ok(row)
     }
 
-    /// 2. 分页获取班级列表数据
     pub async fn list(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<Vec<Self>> {
         let offset = (req.page_no - 1) * req.page_size;
 
         let rows = sqlx::query_as::<_, Self>(
             r#"
-            SELECT id, year, grade, semester, label, author_id, sort_order, remark, created_at, updated_at
+            SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
             WHERE author_id = $1
               AND ($2 IS NULL OR year = $2)
               AND ($3 IS NULL OR grade = $3)
               AND ($4 IS NULL OR semester = $4)
-            ORDER BY created_at ASC
+            ORDER BY id DESC
             LIMIT $5 OFFSET $6
             "#,
         )
