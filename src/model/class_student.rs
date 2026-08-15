@@ -77,6 +77,32 @@ impl ClassStudent {
         .await
     }
 
+    pub async fn update_by_id(pool: &PgPool, req: &Self) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE class_student
+            SET
+                class_id = $1,
+                account = $2,
+                password = $3,
+                status = $4,
+                remark = $5,
+                updated_at = NOW()
+            WHERE id = $6
+            "#,
+            req.class_id,
+            req.account,
+            req.password,
+            req.status,
+            req.remark,
+            req.id
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
     pub async fn find_by_class_id(pool: &PgPool, class_id: i64) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
             Self,
@@ -84,6 +110,7 @@ impl ClassStudent {
             SELECT id, class_id, account, password, status, remark, created_at, updated_at
             FROM class_student
             WHERE class_id = $1
+            ORDER BY id DESC
             "#,
             class_id
         )

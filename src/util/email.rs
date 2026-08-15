@@ -35,7 +35,7 @@ pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
 </head>
 <body>
     <div>
-        <h4>导入学生账户成功, 下面是生成的账户和对应的登录密码, 请你妥善保管, 不要遗失或者泄露给不相关的人</h4>
+        <h4>下面是生成的账户和对应的登录密码, 请你妥善保管, 不要遗失或者泄露给不相关的人</h4>
         <ul>
             {}
         </ul>

@@ -2,7 +2,6 @@ use crate::{AppConfig, EnvConfig};
 use dotenvy::dotenv;
 use envy::from_env;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use std::io::empty;
 use std::str::FromStr;
 
 /// 配置相关初始化

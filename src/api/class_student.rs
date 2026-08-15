@@ -50,3 +50,26 @@ pub async fn list(
 ) -> ApiResponse<Vec<ClassStudentResp>> {
     ApiResponse::response(class_student::list(app_conf, path.into_inner().0, user_info).await)
 }
+
+// 修改学生账户信息
+#[derive(Deserialize)]
+pub struct ClassStudentEditReq {
+    pub id: i64,
+    #[serde(rename(deserialize = "classId"))]
+    pub class_id: i64,
+    pub account: String,
+    pub status: i16,
+    #[serde(rename(deserialize = "resetPwd"))]
+    pub reset_pwd: bool,
+    pub remark: String,
+}
+
+// 编辑学生账户信息
+#[post("/edit")]
+pub async fn edit(
+    app_conf: web::Data<AppConfig>,
+    req: web::Json<ClassStudentEditReq>,
+    user_info: TeacherUserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(class_student::edit(app_conf, req.into_inner(), user_info).await)
+}

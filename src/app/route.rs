@@ -99,5 +99,7 @@ pub fn class(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn class_student(cfg: &mut web::ServiceConfig) {
-    cfg.service(class_student::add).service(class_student::list);
+    cfg.service(class_student::add)
+        .service(class_student::list)
+        .service(class_student::edit);
 }
