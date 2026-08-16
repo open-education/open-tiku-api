@@ -2,9 +2,9 @@ use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
 use crate::app::config::AppState;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
+use crate::util::error::AppError;
 use actix_web::web;
 use log::error;
-use std::io::{Error, ErrorKind};
 
 fn to_resp(row: QuestionCate) -> QuestionCateResp {
     QuestionCateResp {
@@ -20,14 +20,14 @@ fn to_resp(row: QuestionCate) -> QuestionCateResp {
 pub async fn list(
     app_state: web::Data<AppState>,
     related_id: i32,
-) -> Result<Vec<QuestionCateResp>, Error> {
+) -> Result<Vec<QuestionCateResp>, AppError> {
     let db = &app_state.get_ref().db;
 
     let rows = QuestionCate::find_all_by_related_ids(db, vec![related_id])
         .await
         .map_err(|err| {
             error!("error finding question cat: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("题型查询失败")
         })?;
 
     let res: Vec<QuestionCateResp> = rows.into_iter().map(to_resp).collect();
@@ -36,33 +36,36 @@ pub async fn list(
 }
 
 // 添加题型
-pub async fn add(app_state: web::Data<AppState>, req: CreateQuestionCateReq) -> Result<i32, Error> {
+pub async fn add(
+    app_state: web::Data<AppState>,
+    req: CreateQuestionCateReq,
+) -> Result<i32, AppError> {
     let row_id = QuestionCate::save(&app_state.get_ref().db, req)
         .await
         .map_err(|err| {
             error!("error adding question: {}", err);
-            Error::new(ErrorKind::Other, "添加失败")
+            AppError::db_error("题型添加失败")
         })?;
 
     Ok(row_id)
 }
 
 // 删除题型
-pub async fn remove(app_state: web::Data<AppState>, id: i32) -> Result<bool, Error> {
+pub async fn remove(app_state: web::Data<AppState>, id: i32) -> Result<bool, AppError> {
     let db = &app_state.get_ref().db;
 
     // 关联题目后就不允许删除了
     let exist = Question::exist_by_cate_id(db, id).await.map_err(|err| {
         error!("error finding exists question: {}", err);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("题型查询失败")
     })?;
     if exist {
-        return Err(Error::new(ErrorKind::Other, "题型已关联题目, 不允许删除"));
+        return Err(AppError::permission_denied("题型已关联题目, 不允许删除"));
     }
 
     let row = QuestionCate::delete(db, id).await.map_err(|err| {
         error!("error deleting question: {}", err);
-        Error::new(ErrorKind::Other, "删除失败")
+        AppError::db_error("题目删除失败")
     })?;
 
     Ok(row > 0)

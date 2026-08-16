@@ -1,9 +1,9 @@
+use crate::util::error::AppError;
 use log::error;
 use pulldown_cmark::utils::TextMergeStream;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
 use rust_decimal::Decimal;
-use std::io::Error;
 use std::str::FromStr;
 
 /// 从 markdown 文档中解析出题目结构和内容
@@ -293,7 +293,7 @@ pub fn get_choices(choices: &Vec<String>) -> Vec<(char, String)> {
 }
 
 // 得到所有的问题列表
-pub fn get_questions(content: &str) -> Result<Vec<Question>, Error> {
+pub fn get_questions(content: &str) -> Result<Vec<Question>, AppError> {
     let blocks = split_parents(content);
     let mut all_questions = Vec::new();
 

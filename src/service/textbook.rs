@@ -4,11 +4,11 @@ use crate::constant;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
+use crate::util::error::AppError;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
 pub fn get_levels_by_parent_id(
@@ -66,7 +66,7 @@ pub fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
 pub async fn list_all(
     app_state: web::Data<AppState>,
     depth: u32,
-) -> Result<Vec<TextbookResp>, Error> {
+) -> Result<Vec<TextbookResp>, AppError> {
     // 限制获取数据的最大层级
     let safe_depth = depth.min(constant::textbook::MAX_DEPTH);
 
@@ -74,7 +74,7 @@ pub async fn list_all(
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("导航查询失败")
         })?;
 
     // 1. 建立父子索引映射
@@ -88,12 +88,12 @@ pub async fn list_all(
 pub async fn list_level(
     app_state: web::Data<AppState>,
     parent_id: u32,
-) -> Result<Vec<TextbookResp>, Error> {
+) -> Result<Vec<TextbookResp>, AppError> {
     let rows = Textbook::find_list_by_parent_id(&app_state.get_ref().db, parent_id as i32)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("导航菜单查询失败")
         })?;
 
     Ok(rows.into_iter().map(|row| to_resp(row)).collect())
@@ -103,7 +103,7 @@ pub async fn list_level(
 pub async fn list_children(
     app_state: web::Data<AppState>,
     parent_id: u32,
-) -> Result<Vec<TextbookResp>, Error> {
+) -> Result<Vec<TextbookResp>, AppError> {
     let db = &app_state.get_ref().db;
 
     // 获取原始列表
@@ -111,7 +111,7 @@ pub async fn list_children(
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("菜单列表查询失败")
         })?;
 
     // 提取关联 ID (利用迭代器链)
@@ -135,7 +135,7 @@ pub async fn list_children(
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("考点章节绑定关系查询失败")
         })?;
 
     // 目前的关联关系是 章节选题 -> 多个考点选题
@@ -157,7 +157,7 @@ pub async fn list_children(
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("题型查询失败")
         })?;
 
     let mut question_id_map: HashMap<i32, Vec<QuestionCate>> = HashMap::new();
@@ -219,26 +219,25 @@ async fn check_parent_and_label_is_exists(
     parent_id: Option<i32>,
     label: &str,
     id: Option<i32>,
-) -> Result<(), Error> {
+) -> Result<(), AppError> {
     let row = Textbook::find_one_by_parent_and_label(pool, parent_id, label, id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("菜单名称查询查询失败")
         })?;
 
     if row.is_none() {
         Ok(())
     } else {
-        Err(Error::new(
-            ErrorKind::Other,
-            format!("当前层级名称已存在: {}", label),
+        Err(AppError::business_error(
+            format!("当前层级名称已存在: {}", label).as_str(),
         ))
     }
 }
 
 // 添加
-pub async fn add(app_state: web::Data<AppState>, req: CreateTextbookReq) -> Result<i32, Error> {
+pub async fn add(app_state: web::Data<AppState>, req: CreateTextbookReq) -> Result<i32, AppError> {
     let db = &app_state.get_ref().db;
 
     if req.id.is_some() {
@@ -247,7 +246,7 @@ pub async fn add(app_state: web::Data<AppState>, req: CreateTextbookReq) -> Resu
 
     let row_id = Textbook::save(db, req).await.map_err(|e| {
         error!("Error inserting textbook: {:?}", e);
-        Error::new(ErrorKind::Other, "添加失败")
+        AppError::db_error("菜单添加失败")
     })?;
 
     Ok(row_id)
@@ -270,19 +269,19 @@ fn to_resp(row: Textbook) -> TextbookResp {
 }
 
 // 详情
-pub async fn info(app_state: web::Data<AppState>, id: i32) -> Result<TextbookResp, Error> {
+pub async fn info(app_state: web::Data<AppState>, id: i32) -> Result<TextbookResp, AppError> {
     let row = Textbook::find_by_id(&app_state.get_ref().db, id)
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "数据不存在")
+            AppError::not_found("数据不存在")
         })?;
 
     Ok(to_resp(row))
 }
 
 // 删除菜单-没有子菜单的菜单可以被删除
-pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, Error> {
+pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, AppError> {
     let info = info(app_state.clone(), id).await?;
 
     let db = &app_state.get_ref().db;
@@ -292,10 +291,10 @@ pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, Err
         .await
         .map_err(|e| {
             error!("Error searching textbook: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("菜单查询失败")
         })?;
     if row.is_some() {
-        return Err(Error::new(ErrorKind::Other, "该层级存在子菜单, 不允许删除"));
+        return Err(AppError::business_error("该层级存在子菜单, 不允许删除"));
     }
 
     // 检查第7级菜单是否有子菜单
@@ -307,11 +306,10 @@ pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, Err
             .await
             .map_err(|e| {
                 error!("Error searching textbook: {:?}", e);
-                Error::new(ErrorKind::Other, "查询失败")
+                AppError::db_error("章节考点查询失败")
             })?;
         if !chapters.is_empty() {
-            return Err(Error::new(
-                ErrorKind::Other,
+            return Err(AppError::business_error(
                 "章节小节和知识点还存在绑定关系, 不允许删除",
             ));
         }
@@ -319,7 +317,7 @@ pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, Err
 
     let row = Textbook::delete(db, id).await.map_err(|e| {
         error!("Error deleting textbook: {:?}", e);
-        Error::new(ErrorKind::Other, "删除失败")
+        AppError::db_error("菜单删除失败")
     })?;
 
     Ok(row > 0)

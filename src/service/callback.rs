@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::app::config::AppState;
 use crate::constant::meta;
+use crate::util::error::AppError;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::Sha256;
@@ -68,10 +69,10 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
 pub async fn login_url(
     app_state: web::Data<AppState>,
     provider: i16,
-) -> std::result::Result<String, std::io::Error> {
+) -> std::result::Result<String, AppError> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
         error!("Failed to parse provider type from provider: {}", provider);
-        std::io::Error::new(ErrorKind::InvalidInput, "不受支持的登录方式")
+        AppError::param_error("不受支持的登录方式")
     })?;
 
     let state = generate_state(&app_state.config.login.oauth_state_secret).await;
@@ -99,7 +100,7 @@ pub async fn login_url(
 
     let mut url = Url::parse(base).map_err(|e| {
         error!("Parse base url error: {}", e);
-        std::io::Error::new(ErrorKind::InvalidInput, "地址信息错误")
+        AppError::param_error("地址信息错误")
     })?;
     // extend_pairs 会自动进行 URL 编码
     url.query_pairs_mut().extend_pairs(params);

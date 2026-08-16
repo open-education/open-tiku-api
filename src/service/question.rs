@@ -8,12 +8,12 @@ use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::service::user::{get_user_map, get_user_name};
+use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use log::error;
 use regex::Regex;
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {
@@ -34,7 +34,7 @@ pub async fn add(
     app_state: web::Data<AppState>,
     mut req: CreateQuestionReq,
     user_info: UserInfo,
-) -> Result<i64, Error> {
+) -> Result<i64, AppError> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_state.get_ref().db;
 
@@ -45,23 +45,17 @@ pub async fn add(
     if !(req.status == QuestionStatus::Draft.as_i16()
         || req.status == QuestionStatus::Pending.as_i16())
     {
-        return Err(Error::new(
-            ErrorKind::PermissionDenied,
-            "不被允许的题目上传操作",
-        ));
+        return Err(AppError::param_error("不被允许的题目上传操作"));
     }
 
-    // 只允许编辑自己的题目
+    // 只允许编辑自己的题目, 实际上题目应该可以公开编辑, 但是这个要引入版本控制, 即记录谁做了什么
     if let Some(id) = req.id {
         let has_question = Question::find_by_id(db, id).await.map_err(|err| {
             error!("Failed to find question: {}", err);
-            Error::new(ErrorKind::Other, "题目查询错误")
+            AppError::db_error("题目查询错误")
         })?;
         if has_question.author_id != user_info.user_id {
-            return Err(Error::new(
-                ErrorKind::PermissionDenied,
-                "只允许编辑自己的题目",
-            ));
+            return Err(AppError::permission_denied("只允许编辑自己的题目"));
         }
     }
 
@@ -80,7 +74,7 @@ pub async fn add(
 
     let id = Question::simple_save(db, req).await.map_err(|e| {
         error!("question add err: {:?}", e);
-        Error::new(ErrorKind::Other, "题目添加失败")
+        AppError::db_error("题目添加失败")
     })?;
 
     // 新增如果存在变式题则关联变式题
@@ -89,7 +83,7 @@ pub async fn add(
             .await
             .map_err(|e| {
                 error!("question add err: {:?}", e);
-                Error::new(ErrorKind::Other, "变式题关联失败")
+                AppError::db_error("变式题关联失败")
             })?;
     }
 
@@ -149,11 +143,11 @@ pub fn to_info_resp(row: &Question, author_name: String) -> QuestionInfoResp {
 }
 
 // 通过主键获取详情
-pub async fn info(app_state: web::Data<AppState>, id: i64) -> Result<QuestionInfoResp, Error> {
+pub async fn info(app_state: web::Data<AppState>, id: i64) -> Result<QuestionInfoResp, AppError> {
     let db = &app_state.get_ref().db;
     let row = Question::find_by_id(db, id).await.map_err(|err| {
         error!("question get by id err: {:?}", err);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("查询失败")
     })?;
 
     let author_name = get_user_name(db, row.author_id).await;
@@ -166,19 +160,18 @@ pub async fn list(
     app_state: web::Data<AppState>,
     req: QuestionListReq,
     user_info: Option<UserInfo>,
-) -> Result<QuestionListResp, Error> {
+) -> Result<QuestionListResp, AppError> {
     let db = &app_state.db;
 
     // 页面来源
     let req_source = QuestionPageSource::from_str(&req.source)
-        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "不清楚的查询来源"))?;
+        .ok_or_else(|| AppError::param_error("不清楚的查询来源"))?;
 
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
         (None, QuestionStatus::Published.as_i16())
     } else {
-        let user_info =
-            user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
+        let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
         let status = req.status.unwrap_or(QuestionStatus::Published.as_i16());
 
         // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者
@@ -204,7 +197,7 @@ pub async fn list(
     .await
     .map_err(|e| {
         error!("question count by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("题目计数查询失败")
     })?;
 
     if total == 0 {
@@ -236,7 +229,7 @@ pub async fn list(
     .await
     .map_err(|e| {
         error!("question list by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("题目列表查询失败")
     })?;
 
     // 批量获取作者名称
@@ -261,7 +254,6 @@ fn to_list_resp(
     total: i64,
 ) -> QuestionListResp {
     QuestionListResp {
-        // 使用 map().collect() 一行转换
         list: list_data
             .into_iter()
             .map(|row| {
@@ -284,7 +276,7 @@ fn to_list_resp(
 pub async fn similar(
     app_state: web::Data<AppState>,
     req: QuestionSimilarListReq,
-) -> Result<QuestionListResp, Error> {
+) -> Result<QuestionListResp, AppError> {
     let db = &app_state.db;
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
@@ -302,7 +294,7 @@ pub async fn similar(
     .await
     .map_err(|e| {
         error!("question similar count by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败") // 注意：这里直接返回 Error，不需要包裹 Err()
+        AppError::db_error("变式题计数查询失败")
     })?;
 
     if total == 0 {
@@ -332,7 +324,7 @@ pub async fn similar(
     .await
     .map_err(|e| {
         error!("question similar list by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("变式题列表查询失败")
     })?;
 
     let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
@@ -352,12 +344,12 @@ pub async fn similar(
 pub async fn original(
     app_state: web::Data<AppState>,
     req: OriginalReq,
-) -> Result<Option<i64>, Error> {
+) -> Result<Option<i64>, AppError> {
     let id = Question::original(&app_state.db, req.id)
         .await
         .map_err(|e| {
             error!("original request by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "题目查询错误")
+            AppError::db_error("题目查询错误")
         })?;
 
     Ok(id)
@@ -368,9 +360,9 @@ pub async fn delete(
     app_state: web::Data<AppState>,
     req: DeleteReq,
     user_info: UserInfo,
-) -> Result<bool, Error> {
+) -> Result<bool, AppError> {
     if req.id <= 0 {
-        return Err(Error::new(ErrorKind::Other, "题目标识为空"));
+        return Err(AppError::param_error("题目标识为空"));
     }
 
     let db = &app_state.db;
@@ -378,15 +370,15 @@ pub async fn delete(
     // 只允许删除自己的题目
     let has_question = Question::find_by_id(db, req.id).await.map_err(|err| {
         error!("Failed to find question: {}", err);
-        Error::new(ErrorKind::Other, "题目查询错误")
+        AppError::db_error("题目查询错误")
     })?;
     if has_question.author_id != user_info.user_id {
-        return Err(Error::new(ErrorKind::Other, "只允许删除自己的题目"));
+        return Err(AppError::permission_denied("只允许删除自己的题目"));
     }
 
     let rows = Question::delete(db, req.id).await.map_err(|err| {
         error!("question delete by id err: {:?}", err);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("题目删除失败")
     })?;
 
     Ok(rows > 0)

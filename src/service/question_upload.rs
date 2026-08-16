@@ -7,6 +7,7 @@ use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
 use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
+use crate::util::error::AppError;
 use crate::util::markdown_parse;
 use crate::util::markdown_parse::RawQuestion;
 use log::{error, info};
@@ -14,10 +15,9 @@ use sqlx::PgPool;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{Error, ErrorKind};
 
 // 批量题目上传
-pub async fn batch(app_state: &AppState) -> Result<(), Error> {
+pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
     let db = &app_state.db;
 
     // 查询所有待执行的任务
@@ -25,7 +25,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), Error> {
         .await
         .map_err(|e| {
             error!("Get waiting task list err: {}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("待运行的任务列表查询失败")
         })?;
     if waiting_task_list.is_empty() {
         info!("Waiting task list is empty");
@@ -76,10 +76,9 @@ pub async fn batch(app_state: &AppState) -> Result<(), Error> {
         )
         .await
         {
-            error!("Process single task info err: {}", e);
+            error!("Process single task info err: {}", e.msg);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
-            if let Err(e) =
-                Task::update_by_id(db, &task_id, TaskStatus::Failed as i16, e.to_string()).await
+            if let Err(e) = Task::update_by_id(db, &task_id, TaskStatus::Failed as i16, e.msg).await
             {
                 error!(
                     "Update task id: {}, name {} status=Failed err: {}",
@@ -131,7 +130,7 @@ async fn single(
     task_info: Task,
     question_type_list: &Vec<TextbookDict>,
     question_tag_list: &Vec<TextbookDict>,
-) -> Result<(), Error> {
+) -> Result<(), AppError> {
     // 记录结果日志
     let mut result: Vec<String> = vec![];
 
@@ -142,23 +141,23 @@ async fn single(
         meta::FILE_NAME,
         task_info.url
     );
-    let content = fs::read_to_string(file_path)?;
+    let content = fs::read_to_string(file_path.as_str()).map_err(|err| {
+        error!("read file {} err: {}", file_path, err);
+        AppError::internal_error("读取文件内容失败")
+    })?;
 
     result.push("读取文件\n".to_string());
 
     let all_questions = markdown_parse::get_questions(&content)?;
     if all_questions.is_empty() {
         error!("Task name: {} all questions is empty", task_info.name);
-        return Err(Error::new(
-            ErrorKind::Other,
-            "该文件没有读取到任何有效的题目",
-        ));
+        return Err(AppError::business_error("该文件没有读取到任何有效的题目"));
     };
 
     // 这部分更新使用事务
     let mut tx = app_state.db.begin().await.map_err(|e| {
         error!("Error beginning transaction: {}", e);
-        Error::new(ErrorKind::Other, "启动事务失败")
+        AppError::db_error("启动事务失败")
     })?;
 
     // 一个文件作为一个事务单位
@@ -177,7 +176,7 @@ async fn single(
             .await
             .map_err(|err| {
                 error!("Insert parent of question err: {}", err);
-                Error::new(ErrorKind::Other, "母题添加失败")
+                AppError::db_error("母题添加失败")
             })?;
 
         result.push(format!("添加 {}\n", simple_parent_title));
@@ -207,7 +206,7 @@ async fn single(
             .await
             .map_err(|err| {
                 error!("Batch insert child of question err: {}", err);
-                Error::new(ErrorKind::Other, "批量添加变式题失败")
+                AppError::db_error("批量添加变式题失败")
             })?;
         info!("Add all child question end");
 
@@ -222,7 +221,7 @@ async fn single(
             .await
             .map_err(|e| {
                 error!("Batch insert child of question similar relation err: {}", e);
-                Error::new(ErrorKind::Other, "母题和变式题关联失败")
+                AppError::db_error("母题和变式题关联失败")
             })?;
         info!("Add relation parent child question end");
 
@@ -233,7 +232,7 @@ async fn single(
 
     tx.commit().await.map_err(|e| {
         error!("Error committing transaction: {}", e);
-        Error::new(ErrorKind::Other, "提交事务失败")
+        AppError::db_error("提交事务失败")
     })?;
 
     result.push("文件处理完成\n".to_string());
@@ -352,23 +351,22 @@ fn to_req(
 }
 
 // 从markdown片段文本中解析出题目信息
-pub async fn parse_question_snippet(req: QuestionSnippetReq) -> Result<CreateQuestionReq, Error> {
+pub async fn parse_question_snippet(
+    req: QuestionSnippetReq,
+) -> Result<CreateQuestionReq, AppError> {
     if req.type_list.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "章节/考点信息不能为空"));
+        return Err(AppError::param_error("章节/考点信息不能为空"));
     }
     if req.tag_list.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "题型不能为空"));
+        return Err(AppError::param_error("题型不能为空"));
     }
     if req.content.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "接收内容不能为空"));
+        return Err(AppError::param_error("接收内容不能为空"));
     }
 
     let raw = markdown_parse::get_question(req.content.as_str());
     if raw.stem.is_empty() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "解析后无法查找到题目题干",
-        ));
+        return Err(AppError::business_error("解析后无法查找到题目题干"));
     }
 
     let question_tag_info = req
@@ -393,10 +391,7 @@ pub async fn parse_question_snippet(req: QuestionSnippetReq) -> Result<CreateQue
 
     let (question_type_id, options) = get_question_type_and_options(&raw, &type_list);
     if question_type_id <= 0 {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "解析后无法匹配上题目类型",
-        ));
+        return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
 
     Ok(CreateQuestionReq {

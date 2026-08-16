@@ -204,7 +204,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     let mut session = match get_user_session_by_token(db, token).await {
         Ok(s) => s,
         Err(err) => {
-            error!("Wrap get user session err: {}", err);
+            error!("Wrap get user session err: {}", err.msg);
             let err = actix_web::error::ErrorInternalServerError("获取用户登录信息错误");
             return Err((err, req));
         }
@@ -222,7 +222,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
                 token: Some(token.to_string()),
             },
             Err(err) => {
-                error!("Wrap get user identity err: {}", err);
+                error!("Wrap get user identity err: {}", err.msg);
                 let err = actix_web::error::ErrorInternalServerError("获取第三方用户身份信息错误");
                 return Err((err, req));
             }
@@ -238,7 +238,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
                 token: Some(token.to_string()),
             },
             Err(err) => {
-                error!("Wrap get user identity err: {}", err);
+                error!("Wrap get user identity err: {}", err.msg);
                 let err = actix_web::error::ErrorInternalServerError("获取学生账户信息错误");
                 return Err((err, req));
             }

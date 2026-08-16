@@ -2,17 +2,17 @@ use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
 use crate::app::config::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
+use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use log::error;
-use std::io::{Error, ErrorKind};
 
 // 添加任务
 pub async fn add(
     app_state: web::Data<AppState>,
     req: TaskAddReq,
     user_info: UserInfo,
-) -> Result<i64, Error> {
+) -> Result<i64, AppError> {
     let db = &app_state.get_ref().db;
 
     let row_id = Task::insert(
@@ -28,7 +28,7 @@ pub async fn add(
     .await
     .map_err(|e| {
         error!("task add err: {:?}", e);
-        Error::new(ErrorKind::Other, "任务添加失败")
+        AppError::db_error("任务添加失败")
     })?;
 
     Ok(row_id)
@@ -50,7 +50,10 @@ fn to_base_resp(row: &Task) -> TaskInfoResp {
     }
 }
 
-pub async fn list(app_state: web::Data<AppState>, req: TaskListReq) -> Result<TaskListResp, Error> {
+pub async fn list(
+    app_state: web::Data<AppState>,
+    req: TaskListReq,
+) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
     // 1. 查询总数
@@ -58,7 +61,7 @@ pub async fn list(app_state: web::Data<AppState>, req: TaskListReq) -> Result<Ta
         .await
         .map_err(|e| {
             error!("task count by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("任务计数查询失败")
         })?;
 
     if total == 0 {
@@ -85,7 +88,7 @@ pub async fn list(app_state: web::Data<AppState>, req: TaskListReq) -> Result<Ta
     .await
     .map_err(|e| {
         error!("task list by id err: {:?}", e);
-        Error::new(ErrorKind::Other, "查询失败")
+        AppError::db_error("任务列表查询失败")
     })?;
 
     // 4. 转换并返回

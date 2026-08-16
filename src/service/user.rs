@@ -9,19 +9,19 @@ use crate::service::class_student::get_student_by_user_id;
 use crate::service::user_identity::get_user_identity_by_user_id;
 use crate::service::user_session::get_user_session_by_token;
 use crate::util::argon2::verify_password;
+use crate::util::error::AppError;
 use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 use uuid::Uuid;
 
 // 换取登录 token
 pub async fn exchange(
     app_state: web::Data<AppState>,
     req: ExchangeTokenReq,
-) -> Result<String, Error> {
+) -> Result<String, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -29,7 +29,7 @@ pub async fn exchange(
 
     // 只有第三方登录用户需要换取登录 token
     if session.source != UserSource::User.as_i16() {
-        return Err(Error::new(ErrorKind::InvalidInput, "非法的交换 token"));
+        return Err(AppError::param_error("非法的交换 token"));
     }
 
     // 用户信息
@@ -43,7 +43,7 @@ pub async fn exchange(
     // 替换用户临时 session 为 登录 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
         error!("Exchange save user session save err: {}", err);
-        Error::new(ErrorKind::Other, "更新用户 session 信息错误")
+        AppError::db_error("更新用户 session 信息错误")
     })?;
 
     Ok(login_token)
@@ -54,10 +54,10 @@ pub async fn login(
     app_state: web::Data<AppState>,
     req: UserLoginReq,
     client_info: ClientInfo,
-) -> Result<UserInfo, Error> {
+) -> Result<UserInfo, AppError> {
     // 检查登录来源是否支持
-    let source = UserSource::from_i16(req.source)
-        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "非法的登录来源"))?;
+    let source =
+        UserSource::from_i16(req.source).ok_or_else(|| AppError::param_error("非法的登录来源"))?;
 
     let db = &app_state.db;
 
@@ -73,7 +73,7 @@ pub async fn login(
             )
             .await
         }
-        _ => Err(Error::new(ErrorKind::InvalidInput, "非法的登录类型")),
+        _ => Err(AppError::business_error("非法的登录类型")),
     }
 }
 
@@ -82,10 +82,10 @@ async fn handle_normal_login(
     db: &PgPool,
     req: &UserLoginReq,
     client_info: &ClientInfo,
-) -> Result<UserInfo, Error> {
+) -> Result<UserInfo, AppError> {
     let token: String = req.token.clone().unwrap_or_default();
     if token.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "登录信息不存在"));
+        return Err(AppError::param_error("登录信息不存在"));
     }
 
     // session 信息
@@ -104,7 +104,7 @@ async fn handle_normal_login(
     // 更新用户 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
         error!("Login save user session save err: {}", err);
-        Error::new(ErrorKind::Other, "更新用户 session 信息错误")
+        AppError::db_error("更新用户 session 信息错误")
     })?;
 
     // 更新用户统计信息
@@ -112,7 +112,7 @@ async fn handle_normal_login(
     user.login_count = user.login_count + 1;
     let _ = UserIdentity::save(db, &user).await.map_err(|err| {
         error!("Login save user session save err: {}", err);
-        Error::new(ErrorKind::Other, "更新用户信息错误")
+        AppError::db_error("更新用户信息错误")
     })?;
 
     Ok(UserInfo {
@@ -131,11 +131,11 @@ async fn handle_student_login(
     req: &UserLoginReq,
     client_info: &ClientInfo,
     pepper: &str,
-) -> Result<UserInfo, Error> {
+) -> Result<UserInfo, AppError> {
     let account: String = req.account.clone().unwrap_or_default();
     let password: String = req.password.clone().unwrap_or_default();
     if account.is_empty() || password.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "登录信息不存在"));
+        return Err(AppError::param_error("登录信息不存在"));
     }
 
     // 查询学生账户信息
@@ -143,15 +143,15 @@ async fn handle_student_login(
         .await
         .map_err(|e| {
             error!("查询学生账户失败: {}", e);
-            Error::new(ErrorKind::Other, "学生账户查询出错")
+            AppError::db_error("学生账户查询出错")
         })?
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "学生账户不存在"))?;
+        .ok_or_else(|| AppError::not_found("学生账户不存在"))?;
 
     // 进行密码比对
     match verify_password(pepper, password.as_str(), student.password.as_str()) {
         Ok(_) => {}
         Err(_) => {
-            return Err(Error::new(ErrorKind::Other, "用户名密码不匹配"));
+            return Err(AppError::business_error("用户名密码不匹配"));
         }
     }
 
@@ -171,7 +171,7 @@ async fn handle_student_login(
     };
     let _ = UserSession::save(db, session).await.map_err(|e| {
         error!("Save user session failed: {}", e);
-        Error::new(ErrorKind::Other, "生成学生登录信息失败")
+        AppError::db_error("生成学生登录信息失败")
     })?;
 
     // 更新用户统计信息
@@ -181,7 +181,7 @@ async fn handle_student_login(
         .await
         .map_err(|err| {
             error!("Update student user session student by id error: {}", err);
-            Error::new(ErrorKind::Other, "更新学生用户统计信息错误")
+            AppError::db_error("更新学生用户统计信息错误")
         })?;
 
     Ok(UserInfo {
@@ -195,7 +195,7 @@ async fn handle_student_login(
 }
 
 // 获取用户信息
-pub async fn info(app_state: web::Data<AppState>, token: &str) -> Result<UserInfo, Error> {
+pub async fn info(app_state: web::Data<AppState>, token: &str) -> Result<UserInfo, AppError> {
     let db = &app_state.db;
 
     let session = get_user_session_by_token(db, token).await?;
@@ -226,12 +226,12 @@ pub async fn info(app_state: web::Data<AppState>, token: &str) -> Result<UserInf
                 token: None,
             })
         }
-        _ => Err(Error::new(ErrorKind::InvalidInput, "未知的用户来源")),
+        _ => Err(AppError::business_error("未知的用户来源")),
     }
 }
 
 // 退出登录
-pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> Result<bool, Error> {
+pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> Result<bool, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -242,7 +242,7 @@ pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> Resu
         .await
         .map_err(|err| {
             error!("Login delete user session delete err: {}", err);
-            Error::new(ErrorKind::Other, " 清空 Session 失败")
+            AppError::db_error("清空 Session 失败")
         })?;
 
     Ok(true)
@@ -263,12 +263,12 @@ pub async fn get_user_name(db: &PgPool, user_id: i64) -> String {
 pub async fn get_user_map(
     db: &PgPool,
     author_ids: Vec<i64>,
-) -> Result<HashMap<i64, String>, Error> {
+) -> Result<HashMap<i64, String>, AppError> {
     let user_list = UserIdentity::find_by_user_ids(db, &author_ids)
         .await
         .map_err(|e| {
             error!("user list by id err: {:?}", e);
-            Error::new(ErrorKind::Other, "作者信息查询失败")
+            AppError::db_error("作者信息查询失败")
         })?;
     let user_map: HashMap<i64, String> = user_list
         .into_iter()

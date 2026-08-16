@@ -14,6 +14,7 @@ use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
 use crate::service::{question, user};
+use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::Utc;
@@ -21,7 +22,6 @@ use log::{error, info};
 use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 
 // 添加精选试卷
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
@@ -29,7 +29,7 @@ pub async fn top_add(
     app_state: web::Data<AppState>,
     req: TopPaperReq,
     user_info: UserInfo,
-) -> Result<i64, Error> {
+) -> Result<i64, AppError> {
     let db = &app_state.db;
     let is_update = req.common.id.is_some();
 
@@ -44,7 +44,7 @@ pub async fn top_add(
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
         error!("Failed to top begin transaction: {}", e);
-        Error::new(ErrorKind::Other, "启动事务失败")
+        AppError::db_error("启动事务失败")
     })?;
 
     // 统计总题目数（在构建 Paper 之前）
@@ -54,7 +54,7 @@ pub async fn top_add(
     let paper = build_paper_meta_from_request(&user_info, &req.common, total_question_count);
     let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
         error!("Failed to insert top paper: {}", err);
-        Error::new(ErrorKind::Other, "试卷主体信息添加失败")
+        AppError::db_error("试卷主体信息添加失败")
     })?;
 
     // 构建题型和题目
@@ -71,7 +71,7 @@ pub async fn top_add(
             .await
             .map_err(|err| {
                 error!("Failed to insert top paper groups: {}", err);
-                Error::new(ErrorKind::Other, "试卷题型信息添加失败")
+                AppError::db_error("试卷题型信息添加失败")
             })?;
     }
 
@@ -81,14 +81,14 @@ pub async fn top_add(
             .await
             .map_err(|err| {
                 error!("Failed to insert top paper questions: {}", err);
-                Error::new(ErrorKind::Other, "试卷题目信息添加失败")
+                AppError::db_error("试卷题目信息添加失败")
             })?;
     }
 
     // 提交事务
     tx.commit().await.map_err(|e| {
         error!("Failed to top commit transaction: {}", e);
-        Error::new(ErrorKind::Other, "提交事务失败")
+        AppError::db_error("提交事务失败")
     })?;
 
     // 记录操作日志
@@ -101,48 +101,46 @@ pub async fn top_add(
 }
 
 // 参数验证函数
-fn validate_paper_top_request(req: &TopPaperReq) -> Result<(), Error> {
+fn validate_paper_top_request(req: &TopPaperReq) -> Result<(), AppError> {
     validate_paper_meta_request(&req.common)?;
 
     if req.groups.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "试卷至少需要一个题型"));
+        return Err(AppError::param_error("试卷至少需要一个题型"));
     }
 
     for (idx, group) in req.groups.iter().enumerate() {
         if group.type_name.trim().is_empty() {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!("第{}个题型名称不能为空", idx + 1),
+            return Err(AppError::param_error(
+                format!("第{}个题型名称不能为空", idx + 1).as_str(),
             ));
         }
         if group.questions.is_empty() {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!("题型'{}'至少需要一道题目", group.type_name),
+            return Err(AppError::param_error(
+                format!("题型'{}'至少需要一道题目", group.type_name).as_str(),
             ));
         }
 
         // 验证题目
         for (q_idx, question) in group.questions.iter().enumerate() {
             if question.stem.trim().is_empty() {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
+                return Err(AppError::param_error(
                     format!(
                         "题型'{}'的第{}道题目题干不能为空",
                         group.type_name,
                         q_idx + 1
-                    ),
+                    )
+                    .as_str(),
                 ));
             }
             // 验证分数
             if question.score < 0 {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
+                return Err(AppError::param_error(
                     format!(
                         "题型'{}'的第{}道题目分数不能为负数",
                         group.type_name,
                         q_idx + 1
-                    ),
+                    )
+                    .as_str(),
                 ));
             }
         }
@@ -152,47 +150,41 @@ fn validate_paper_top_request(req: &TopPaperReq) -> Result<(), Error> {
 }
 
 // 只允许编辑自己的试卷
-async fn validate_is_allow_edit(db: &PgPool, id: i64, user_id: i64) -> Result<(), Error> {
+async fn validate_is_allow_edit(db: &PgPool, id: i64, user_id: i64) -> Result<(), AppError> {
     let has_paper = Paper::find_by_id(db, id)
         .await
         .map_err(|err| {
             error!("Add paper err: {}", err);
-            Error::new(ErrorKind::Other, "查询试卷信息错误")
+            AppError::db_error("查询试卷信息错误")
         })?
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "试卷不存在"))?;
+        .ok_or_else(|| AppError::not_found("试卷不存在"))?;
     if has_paper.author_id != user_id {
-        return Err(Error::new(
-            ErrorKind::PermissionDenied,
-            "只允许编辑自己的试卷",
-        ));
+        return Err(AppError::permission_denied("只允许编辑自己的试卷"));
     }
 
     Ok(())
 }
 
 // 验证试卷基础必填字段
-fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), Error> {
+fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
     // 考点名称或者学段等不能为空
     if req.related_id <= 0 {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "考点名称/学段导航不能为空",
-        ));
+        return Err(AppError::param_error("考点名称/学段导航不能为空"));
     }
     if req.tag.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "标签不能为空"));
+        return Err(AppError::param_error("标签不能为空"));
     }
     if req.year.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "年份不能为空"));
+        return Err(AppError::param_error("年份不能为空"));
     }
     if req.title.trim().is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "试卷标题不能为空"));
+        return Err(AppError::param_error("试卷标题不能为空"));
     }
 
     // 草稿中和待审核支持编辑
     let paper_status = PaperStatus::from_i16(req.status).as_i16();
     if !vec![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
-        return Err(Error::new(ErrorKind::InvalidInput, "试卷状态不支持编辑"));
+        return Err(AppError::business_error("试卷状态不支持编辑"));
     }
 
     Ok(())
@@ -281,12 +273,12 @@ async fn delete_top_info(
     tx: &mut Transaction<'_, Postgres>,
     paper_id: i64,
     source: &str,
-) -> Result<(), Error> {
+) -> Result<(), AppError> {
     let del_group_rows = PaperGroup::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
             error!("Failed {} to delete top paper group: {}", source, err);
-            Error::new(ErrorKind::Other, "删除题型分类失败")
+            AppError::db_error("删除题型分类失败")
         })?;
     info!(
         "Deleted {} top paper group rows: {:?}",
@@ -297,7 +289,7 @@ async fn delete_top_info(
         .await
         .map_err(|err| {
             error!("Failed {} to delete top paper question: {}", source, err);
-            Error::new(ErrorKind::Other, "删除题目列表失败")
+            AppError::db_error("删除题目列表失败")
         })?;
     info!(
         "Deleted {} top paper question rows: {:?}",
@@ -308,7 +300,7 @@ async fn delete_top_info(
 }
 
 // 精选试卷-试卷详情
-pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPaperResp, Error> {
+pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPaperResp, AppError> {
     let db = &app_state.db;
 
     // 查询试卷主体
@@ -316,11 +308,11 @@ pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPape
         .await
         .map_err(|err| {
             error!("Select top paper id: {}, error: {}", id, err);
-            Error::new(ErrorKind::NotFound, "试卷不存在")
+            AppError::db_error("试卷查询出错")
         })?
         .ok_or_else(|| {
             error!("Select top paper id: {} is empty", id);
-            Error::new(ErrorKind::NotFound, "试卷不存在")
+            AppError::not_found("试卷不存在")
         })?;
 
     // 查询题型
@@ -332,7 +324,7 @@ pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPape
                 paper.id.unwrap_or_default(),
                 err
             );
-            Error::new(ErrorKind::Other, "查询试卷题型失败")
+            AppError::db_error("查询试卷题型失败")
         })?;
 
     // 如果有题型，才查询题目
@@ -348,7 +340,7 @@ pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPape
                     paper.id.unwrap_or_default(),
                     err
                 );
-                Error::new(ErrorKind::Other, "查询试卷题目失败")
+                AppError::db_error("查询试卷题目失败")
             })?
     };
 
@@ -452,24 +444,23 @@ pub async fn list(
     app_state: web::Data<AppState>,
     req: PaperListReq,
     user_info: Option<UserInfo>,
-) -> Result<PaperListResp, Error> {
+) -> Result<PaperListResp, AppError> {
     let db = &app_state.db;
 
     // 检查参数
     if req.related_id <= 0 {
-        return Err(Error::new(ErrorKind::InvalidInput, "考点/学段分类不能为空"));
+        return Err(AppError::param_error("考点/学段分类不能为空"));
     }
 
     // 页面来源
     let req_source = PaperPageSource::from_str(&req.source)
-        .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "不清楚的查询来源"))?;
+        .ok_or_else(|| AppError::param_error("不清楚的查询来源"))?;
 
     // 我的试卷等时需要登录
     let (author_id, status) = if req_source == PaperPageSource::List {
         (None, PaperStatus::Published as i16)
     } else {
-        let user_info =
-            user_info.ok_or_else(|| Error::new(ErrorKind::PermissionDenied, "需要登录方能访问"))?;
+        let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
         let status = req.status.unwrap_or(PaperStatus::Published as i16);
         if req_source == PaperPageSource::MyPaper {
             (Some(user_info.user_id), status)
@@ -486,7 +477,7 @@ pub async fn list(
         .await
         .map_err(|err| {
             error!("Select paper count err: {}", err);
-            Error::new(ErrorKind::Other, "查询试卷总数失败")
+            AppError::db_error("查询试卷总数失败")
         })?;
 
     // 3. 查询列表
@@ -494,7 +485,7 @@ pub async fn list(
         .await
         .map_err(|err| {
             error!("Select paper list err: {}", err);
-            Error::new(ErrorKind::Other, "查询试卷列表失败")
+            AppError::db_error("查询试卷列表失败")
         })?;
 
     let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
@@ -511,12 +502,12 @@ pub async fn list(
 pub async fn latest(
     app_state: web::Data<AppState>,
     path: (i16, i64),
-) -> Result<Vec<CommonPaperResp>, Error> {
+) -> Result<Vec<CommonPaperResp>, AppError> {
     let papers = Paper::get_latest_papers(&app_state.db, path.0, path.1)
         .await
         .map_err(|err| {
             error!("Select paper list err: {}", err);
-            Error::new(ErrorKind::Other, "查询试卷列表失败")
+            AppError::db_error("查询试卷列表失败")
         })?;
 
     let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
@@ -529,13 +520,13 @@ pub async fn preview(
     app_state: web::Data<AppState>,
     req: GenPaperPreviewReq,
     user_info: UserInfo,
-) -> Result<GenPaperResp, Error> {
+) -> Result<GenPaperResp, AppError> {
     // 题型和题量非空
     if req.conf.question_cate_ids.len() == 0 {
-        return Err(Error::new(ErrorKind::InvalidInput, "题型不能为空"));
+        return Err(AppError::param_error("题型不能为空"));
     }
     if req.conf.question_types.len() == 0 {
-        return Err(Error::new(ErrorKind::InvalidInput, "题量配置不能为空"));
+        return Err(AppError::param_error("题量配置不能为空"));
     }
 
     let db = &app_state.db;
@@ -575,7 +566,7 @@ pub async fn preview(
         .await
         .map_err(|err| {
             error!("Select question err: {}", err);
-            Error::new(ErrorKind::Other, "查询题目失败")
+            AppError::db_error("查询题目失败")
         })?;
 
         // 批量获取作者名称
@@ -661,7 +652,7 @@ pub async fn gen_add(
     app_state: web::Data<AppState>,
     req: PaperGenReq,
     user_info: UserInfo,
-) -> Result<i64, Error> {
+) -> Result<i64, AppError> {
     let db = &app_state.db;
     let is_update = req.common.id.is_some();
 
@@ -675,7 +666,7 @@ pub async fn gen_add(
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
         error!("Failed to gen begin transaction: {}", e);
-        Error::new(ErrorKind::Other, "启动事务失败")
+        AppError::db_error("启动事务失败")
     })?;
 
     // 构建并插入试卷主体（包含总题目数）
@@ -686,7 +677,7 @@ pub async fn gen_add(
     );
     let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
         error!("Failed to insert gen paper: {}", err);
-        Error::new(ErrorKind::Other, "试卷主体信息添加失败")
+        AppError::db_error("试卷主体信息添加失败")
     })?;
 
     // 如果是更新则删除字表
@@ -700,7 +691,7 @@ pub async fn gen_add(
         .await
         .map_err(|err| {
             error!("Failed to insert gen paper gen config: {}", err);
-            Error::new(ErrorKind::Other, "试卷题目选择配置信息添加失败")
+            AppError::db_error("试卷题目选择配置信息添加失败")
         })?;
 
     // 构建题型和题目
@@ -712,7 +703,7 @@ pub async fn gen_add(
             .await
             .map_err(|err| {
                 error!("Failed to insert gen paper groups: {}", err);
-                Error::new(ErrorKind::Other, "试卷题型信息添加失败")
+                AppError::db_error("试卷题型信息添加失败")
             })?;
     }
 
@@ -722,7 +713,7 @@ pub async fn gen_add(
             .await
             .map_err(|err| {
                 error!("Failed to insert gen paper questions: {}", err);
-                Error::new(ErrorKind::Other, "试卷题目信息添加失败")
+                AppError::db_error("试卷题目信息添加失败")
             })?;
     }
 
@@ -737,31 +728,29 @@ pub async fn gen_add(
     // 提交事务
     tx.commit().await.map_err(|e| {
         error!("Failed to gen commit transaction: {}", e);
-        Error::new(ErrorKind::Other, "提交事务失败")
+        AppError::db_error("提交事务失败")
     })?;
 
     Ok(paper_id)
 }
 
 // 参数验证函数
-fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), Error> {
+fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
     validate_paper_meta_request(&req.common)?;
 
     if req.groups.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "试卷至少需要一个题型"));
+        return Err(AppError::param_error("试卷至少需要一个题型"));
     }
 
     for (idx, group) in req.groups.iter().enumerate() {
         if group.type_name.trim().is_empty() {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!("第{}个题型名称不能为空", idx + 1),
+            return Err(AppError::param_error(
+                format!("第{}个题型名称不能为空", idx + 1).as_str(),
             ));
         }
         if group.questions.is_empty() {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!("题型'{}'至少需要一道题目", group.type_name),
+            return Err(AppError::param_error(
+                format!("题型'{}'至少需要一道题目", group.type_name).as_str(),
             ));
         }
 
@@ -769,13 +758,13 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), Error> {
         for (q_idx, question) in group.questions.iter().enumerate() {
             // 验证分数
             if question.score < 0 {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
+                return Err(AppError::param_error(
                     format!(
                         "题型'{}'的第{}道题目分数不能为负数",
                         group.type_name,
                         q_idx + 1
-                    ),
+                    )
+                    .as_str(),
                 ));
             }
         }
@@ -856,12 +845,12 @@ async fn delete_gen_info(
     tx: &mut Transaction<'_, Postgres>,
     paper_id: i64,
     source: &str,
-) -> Result<(), Error> {
+) -> Result<(), AppError> {
     let del_config_rows = PaperGenConfig::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
             error!("Failed {} to delete gen paper gen config: {}", source, err);
-            Error::new(ErrorKind::Other, "删除试卷题型配置失败")
+            AppError::db_error("删除试卷题型配置失败")
         })?;
     info!(
         "Deleted {} gen paper gen config rows: {:?}",
@@ -872,7 +861,7 @@ async fn delete_gen_info(
         .await
         .map_err(|err| {
             error!("Failed {} to delete gen paper group: {}", source, err);
-            Error::new(ErrorKind::Other, "删除试卷题型分类失败")
+            AppError::db_error("删除试卷题型分类失败")
         })?;
     info!(
         "Deleted {} gen paper group rows: {:?}",
@@ -886,8 +875,9 @@ async fn delete_gen_info(
                 "Failed {} to delete gen paper gen question: {}",
                 source, err
             );
-            Error::new(ErrorKind::Other, "删除试卷题目列表失败")
+            AppError::db_error("删除试卷题目列表失败")
         })?;
+
     info!(
         "Deleted {} gen paper gen question rows: {:?}",
         source, del_question_rows
@@ -897,7 +887,7 @@ async fn delete_gen_info(
 }
 
 // 手动组卷-试卷详情
-pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPaperResp, Error> {
+pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPaperResp, AppError> {
     let db = &app_state.db;
 
     // 查询试卷主体
@@ -905,11 +895,11 @@ pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPape
         .await
         .map_err(|err| {
             error!("Select gen paper id: {}, error: {}", id, err);
-            Error::new(ErrorKind::NotFound, "试卷信息查询错误")
+            AppError::db_error("试卷信息查询错误")
         })?
         .ok_or_else(|| {
             error!("Select gen paper id: {} is empty", id);
-            Error::new(ErrorKind::NotFound, "试卷不存在")
+            AppError::not_found("试卷不存在")
         })?;
 
     // 配置信息
@@ -917,11 +907,11 @@ pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPape
         .await
         .map_err(|err| {
             error!("Select gen paper gen config id: {}, error: {}", id, err);
-            Error::new(ErrorKind::NotFound, "试卷配置信息查询错误")
+            AppError::db_error("试卷配置信息查询错误")
         })?
         .ok_or_else(|| {
             error!("Select gen paper gen config id: {} is empty", id);
-            Error::new(ErrorKind::NotFound, "试卷配置信息不存在")
+            AppError::not_found("试卷配置信息不存在")
         })?;
 
     // 查询题型
@@ -933,7 +923,7 @@ pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPape
                 paper.id.unwrap_or_default(),
                 err
             );
-            Error::new(ErrorKind::Other, "查询试卷题型失败")
+            AppError::db_error("查询试卷题型失败")
         })?;
 
     // 如果有题型，才查询题目
@@ -949,7 +939,7 @@ pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPape
                     paper.id.unwrap_or_default(),
                     err
                 );
-                Error::new(ErrorKind::Other, "查询试卷题目失败")
+                AppError::db_error("查询试卷题目失败")
             })?
     };
 
@@ -963,7 +953,7 @@ pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPape
                 paper.id.unwrap_or_default(),
                 err
             );
-            Error::new(ErrorKind::Other, "查询试卷题目详情失败")
+            AppError::db_error("查询试卷题目详情失败")
         })?;
 
     // 收集题型标识和作者信息
@@ -995,7 +985,7 @@ fn to_gen_resp(
     paper_questions: Vec<PaperGenQuestion>,
     user_map: &HashMap<i64, String>,
     question_raw_map: HashMap<i64, Question>,
-) -> Result<GenPaperResp, Error> {
+) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
         common: to_common_paper_resp(paper),
         conf: GenPaperGenConfig {
@@ -1018,7 +1008,7 @@ fn to_gen_resp(
                 "gen group_id {} question_id {} not found in map",
                 group_id, question.question_id
             );
-            Error::new(ErrorKind::Other, "题目不存在")
+            AppError::param_error("题目不存在")
         })?;
 
         let question_resp = to_gen_paper_question_resp(question, raw, user_map);
@@ -1073,9 +1063,9 @@ pub async fn delete(
     app_state: web::Data<AppState>,
     req: DeleteReq,
     user_info: UserInfo,
-) -> Result<bool, Error> {
+) -> Result<bool, AppError> {
     if req.id <= 0 {
-        return Err(Error::new(ErrorKind::Other, "试卷标识为空"));
+        return Err(AppError::param_error("试卷标识为空"));
     }
 
     let db = &app_state.db;
@@ -1085,27 +1075,27 @@ pub async fn delete(
         .await
         .map_err(|err| {
             error!("Failed to find paper: {}", err);
-            Error::new(ErrorKind::Other, "试卷查询错误")
+            AppError::db_error("试卷查询错误")
         })?
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "试卷不存在"))?;
+        .ok_or_else(|| AppError::not_found("试卷不存在"))?;
     if has_paper.author_id != user_info.user_id {
-        return Err(Error::new(ErrorKind::Other, "只允许删除自己的试卷"));
+        return Err(AppError::permission_denied("只允许删除自己的试卷"));
     }
 
     // 只有草稿的试卷可以删除
     if has_paper.status != PaperStatus::Draft.as_i16() {
-        return Err(Error::new(ErrorKind::Other, "只允许删除草稿中的试卷"));
+        return Err(AppError::business_error("只允许删除草稿中的试卷"));
     }
 
     let rows = Paper::delete(db, req.id).await.map_err(|err| {
         error!("paper delete by id err: {:?}", err);
-        Error::new(ErrorKind::Other, "删除失败")
+        AppError::db_error("删除失败")
     })?;
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
         error!("Failed delete to gen begin transaction: {}", e);
-        Error::new(ErrorKind::Other, "启动事务失败")
+        AppError::db_error("启动事务失败")
     })?;
 
     // 删除试卷明细
@@ -1127,7 +1117,7 @@ pub async fn delete(
     // 提交事务
     tx.commit().await.map_err(|e| {
         error!("Failed delete to gen commit transaction: {}", e);
-        Error::new(ErrorKind::Other, "提交事务失败")
+        AppError::db_error("提交事务失败")
     })?;
 
     Ok(rows > 0)

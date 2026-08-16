@@ -12,6 +12,6 @@ use log::error;
 
 pub async fn upload(config: &AppState) {
     if let Err(e) = question_upload::batch(config).await {
-        error!("Upload question failed err: {}", e);
+        error!("Upload question failed err: {}", e.msg);
     }
 }
