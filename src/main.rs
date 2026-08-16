@@ -11,63 +11,7 @@ mod util;
 use crate::app::cron::run_cron;
 use crate::app::web::run_web;
 use crate::util::snowflake::init_snowflake;
-use serde::Deserialize;
-use sqlx::PgPool;
 use std::env;
-
-// 服务相关环境变量配置
-#[derive(Deserialize)]
-struct EnvConfig {
-    // db
-    database_url: String,
-
-    // server
-    server_host: String,
-    server_port: u16,
-
-    // meta
-    meta_path: String,
-
-    // github
-    github_client_id: String,
-    github_client_secret: String,
-    github_redirect_uri: String,
-
-    // qq
-    qq_client_id: String,
-    qq_client_secret: String,
-    qq_redirect_uri: String,
-
-    // homepage
-    website_home_url: String,
-
-    // oauth secret
-    oauth_state_secret: String,
-
-    // student pepper
-    student_pepper: String,
-
-    // smtp email 服务配置
-    smtp_server: String,
-    smtp_port: u16,
-    smtp_username: String,
-    smtp_password: String,
-    smtp_from_name: String,
-    smtp_from_email: String,
-}
-
-// 应用配置
-#[derive(Clone)]
-pub struct AppConfig {
-    db: PgPool,                                          // 数据库连接池
-    meta_path: String,                                   // 元数据存储根目录
-    github: (String, String, String),                    // GitHub (client_id, secret, redirect_uri)
-    qq: (String, String, String),                        // qq (client_id, secret, redirect_uri)
-    website_home_url: String,                            // 网站首页
-    oauth_state_secret: String,                          // 第三方登录校验 secret
-    student_pepper: String,                              // 学生账户胡椒值
-    smtp: (String, u16, String, String, String, String), // smtp(server, port, username, password, from_name, from_email)
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

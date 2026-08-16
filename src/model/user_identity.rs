@@ -41,8 +41,8 @@ impl ProviderType {
 // 用户角色
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RoleType {
-    Normal = 1, // 1 普通
-    // Student = 2, // 2 学生
+    Normal = 1,  // 1 普通
+    Student = 2, // 2 学生
     Teacher = 3, // 3 教师
 }
 
@@ -55,8 +55,8 @@ impl RoleType {
 // 用户状态
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StatusType {
-    Active = 1, // 1 正常
-    Paused = 2, // 2 暂停
+    Active = 1,     // 1 正常
+    Paused = 2,     // 2 暂停
     Forbidden = 20, // 20 封禁
 }
 

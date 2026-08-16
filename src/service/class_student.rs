@@ -1,11 +1,12 @@
-use crate::AppConfig;
 use crate::api::class_student::{ClassStudentEditReq, ClassStudentReq, ClassStudentResp};
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::model::class_student::{ClassStudent, StudentStatus};
 use crate::util::argon2::{generate_random_password, hash_password};
-use crate::util::email::{EmailConfig, get_student_account_html, send_html_email};
+use crate::util::email::{get_student_account_html, send_html_email};
 use crate::util::local::to_local_datetime;
+use crate::util::snowflake;
 use actix_web::web;
 use chrono::Utc;
 use futures_util::future::try_join_all;
@@ -21,7 +22,7 @@ use tokio::time::timeout;
 
 // 添加学生账户
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: ClassStudentReq,
     user_info: TeacherUserInfo,
 ) -> Result<u64, Error> {
@@ -33,7 +34,7 @@ pub async fn add(
         return Err(Error::new(ErrorKind::InvalidInput, "没有有效的学生账户"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let class_row = check_class_info(db, req.class_id, user_info.0.user_id, true).await?;
 
@@ -56,8 +57,12 @@ pub async fn add(
     }
 
     // 记录账户和登录密码
-    let (add_list, account_to_map) =
-        build_student_req(app_conf.student_pepper.clone(), req.class_id, accounts).await?;
+    let (add_list, account_to_map) = build_student_req(
+        app_state.config.login.student_pepper.clone(),
+        req.class_id,
+        accounts,
+    )
+    .await?;
 
     let count = ClassStudent::batch_insert(db, &add_list)
         .await
@@ -66,7 +71,7 @@ pub async fn add(
             Error::new(ErrorKind::InvalidInput, "导入班级学生出错")
         })?;
 
-    send_account_email(app_conf, &class_row, account_to_map).await?;
+    send_account_email(app_state, &class_row, account_to_map).await?;
 
     Ok(count)
 }
@@ -169,10 +174,13 @@ async fn build_student_req(
                 let student = ClassStudent {
                     id: 0,
                     class_id,
+                    user_id: snowflake::generate_id(),
                     account: account.clone(),
                     password: hashed,
                     status: StudentStatus::Active.as_i16(),
                     remark: "".to_string(),
+                    last_login_time: None,
+                    login_count: 0,
                     created_at: None,
                     updated_at: None,
                 };
@@ -201,12 +209,10 @@ async fn build_student_req(
 
 // 发送学生账户密码文件给教师个人邮箱
 async fn send_account_email(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     class_info: &Class,
     account_to_map: HashMap<String, String>,
 ) -> Result<(), Error> {
-    let email_conf: EmailConfig = get_smtp_email_config(app_conf);
-
     let account_htm = get_student_account_html(&account_to_map);
 
     // 邮件标题
@@ -225,7 +231,7 @@ async fn send_account_email(
     let title = titles.join("-");
 
     send_html_email(
-        &email_conf,
+        &app_state.config.smtp,
         class_info.email.as_str(),
         title.as_str(),
         account_htm.as_str(),
@@ -237,25 +243,13 @@ async fn send_account_email(
     Ok(())
 }
 
-// 从配置文件中读取邮箱服务配置
-fn get_smtp_email_config(app_conf: web::Data<AppConfig>) -> EmailConfig {
-    EmailConfig {
-        smtp_server: app_conf.smtp.0.to_string(),
-        smtp_port: app_conf.smtp.1,
-        username: app_conf.smtp.2.to_string(),
-        password: app_conf.smtp.3.to_string(),
-        from_name: app_conf.smtp.4.to_string(),
-        from_email: app_conf.smtp.5.to_string(),
-    }
-}
-
 // 班级内学生账户列表
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     class_id: i64,
     user_info: TeacherUserInfo,
 ) -> Result<Vec<ClassStudentResp>, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     check_class_info(db, class_id, user_info.0.user_id, false).await?;
 
@@ -273,10 +267,17 @@ fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
     ClassStudentResp {
         id: raw.id,
         class_id: raw.class_id,
+        user_id: raw.user_id,
         account: raw.account,
         status: raw.status,
         status_desc: StudentStatus::desc(raw.status),
         remark: raw.remark,
+        last_login_time: if raw.last_login_time.is_none() {
+            "".to_string()
+        } else {
+            to_local_datetime(raw.last_login_time.unwrap_or_default())
+        },
+        login_count: raw.login_count,
         created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
         updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
     }
@@ -284,7 +285,7 @@ fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
 
 // 编辑用户信息
 pub async fn edit(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: ClassStudentEditReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, Error> {
@@ -292,7 +293,7 @@ pub async fn edit(
 
     let account = req.account.clone().trim().to_string();
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let class_row = check_class_info(db, req.class_id, user_info.0.user_id, true).await?;
 
@@ -310,10 +311,13 @@ pub async fn edit(
     let mut edit_req: ClassStudent = ClassStudent {
         id: student.id,
         class_id: req.class_id,
+        user_id: student.user_id,
         account: account.clone(),
         password: student.password.clone(),
         status: StudentStatus::from_i16(req.status).as_i16(),
         remark: req.remark,
+        last_login_time: student.last_login_time,
+        login_count: student.login_count,
         created_at: None,
         updated_at: None,
     };
@@ -322,13 +326,14 @@ pub async fn edit(
     let mut password: String = "".to_string();
     if req.reset_pwd {
         password = generate_random_password();
-        let hashed = hash_password(&app_conf.student_pepper, &password).map_err(|err| {
-            error!(
-                "Generate student account {} password err: {}",
-                req.account, err
-            );
-            Error::new(ErrorKind::InvalidInput, "生成学生密码失败, 请重试")
-        })?;
+        let hashed =
+            hash_password(&app_state.config.login.student_pepper, &password).map_err(|err| {
+                error!(
+                    "Generate student account {} password err: {}",
+                    req.account, err
+                );
+                Error::new(ErrorKind::InvalidInput, "生成学生密码失败, 请重试")
+            })?;
 
         // 更细密码
         edit_req.password = hashed;
@@ -348,7 +353,7 @@ pub async fn edit(
         account_to_map
             .entry(req.account.clone())
             .or_insert(password);
-        send_account_email(app_conf, &class_row, account_to_map).await?;
+        send_account_email(app_state, &class_row, account_to_map).await?;
     }
 
     Ok(rows > 0)
@@ -395,4 +400,17 @@ async fn check_student_is_edit(
         ErrorKind::InvalidInput,
         format!("账户: {} 已存在, 无法修改", account),
     ))
+}
+
+// 通过用户获取学生信息, 不存在返回错误
+pub async fn get_student_by_user_id(db: &PgPool, user_id: i64) -> Result<ClassStudent, Error> {
+    let student = ClassStudent::find_by_user_id(db, user_id)
+        .await
+        .map_err(|e| {
+            error!("查询学生账户失败: {}", e);
+            Error::new(ErrorKind::NotFound, "学生账户不存在")
+        })?
+        .ok_or_else(|| Error::new(ErrorKind::NotFound, "学生账户不存在"))?;
+
+    Ok(student)
 }

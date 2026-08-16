@@ -1,8 +1,8 @@
-use crate::AppConfig;
 use crate::api::question::{
     CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
     QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
+use crate::app::config::AppState;
 use crate::enums::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
@@ -31,12 +31,12 @@ pub fn to_plain_text(title: &str) -> String {
 
 // 添加题目
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     mut req: CreateQuestionReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     let source_id = req.source_id;
     let is_add = req.id.is_none();
@@ -149,8 +149,8 @@ pub fn to_info_resp(row: &Question, author_name: String) -> QuestionInfoResp {
 }
 
 // 通过主键获取详情
-pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInfoResp, Error> {
-    let db = &app_conf.get_ref().db;
+pub async fn info(app_state: web::Data<AppState>, id: i64) -> Result<QuestionInfoResp, Error> {
+    let db = &app_state.get_ref().db;
     let row = Question::find_by_id(db, id).await.map_err(|err| {
         error!("question get by id err: {:?}", err);
         Error::new(ErrorKind::Other, "查询失败")
@@ -163,11 +163,11 @@ pub async fn info(app_conf: web::Data<AppConfig>, id: i64) -> Result<QuestionInf
 
 // 题目列表
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: QuestionListReq,
     user_info: Option<UserInfo>,
 ) -> Result<QuestionListResp, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 页面来源
     let req_source = QuestionPageSource::from_str(&req.source)
@@ -282,10 +282,10 @@ fn to_list_resp(
 
 // 变式题题目列表
 pub async fn similar(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: QuestionSimilarListReq,
 ) -> Result<QuestionListResp, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
@@ -350,10 +350,10 @@ pub async fn similar(
 
 // 课本原题
 pub async fn original(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: OriginalReq,
 ) -> Result<Option<i64>, Error> {
-    let id = Question::original(&app_conf.db, req.id)
+    let id = Question::original(&app_state.db, req.id)
         .await
         .map_err(|e| {
             error!("original request by id err: {:?}", e);
@@ -365,7 +365,7 @@ pub async fn original(
 
 // 删除题目
 pub async fn delete(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: DeleteReq,
     user_info: UserInfo,
 ) -> Result<bool, Error> {
@@ -373,7 +373,7 @@ pub async fn delete(
         return Err(Error::new(ErrorKind::Other, "题目标识为空"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 只允许删除自己的题目
     let has_question = Question::find_by_id(db, req.id).await.map_err(|err| {

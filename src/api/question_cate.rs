@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::question_cate;
 use crate::util::response::ApiResponse;
@@ -29,7 +29,7 @@ pub struct QuestionCateResp {
 // 添加题型
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CreateQuestionCateReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
@@ -39,7 +39,7 @@ pub async fn add(
 // 题型列表 - 通过章节或者考点标识
 #[get("/list/{related_id}")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
@@ -49,7 +49,7 @@ pub async fn list(
 // 删除题型
 #[get("/remove/{id}")]
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {

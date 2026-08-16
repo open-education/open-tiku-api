@@ -1,5 +1,5 @@
-use crate::AppConfig;
 use crate::api::class::{ClassInfoReq, ClassInfoResp, ClassListReq, ClassListResp};
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::local::to_local_datetime;
@@ -9,13 +9,13 @@ use std::io::{Error, ErrorKind};
 
 // 添加班级
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: ClassInfoReq,
     user_info: TeacherUserInfo,
 ) -> Result<i64, Error> {
     validate_class_req(&req)?;
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     if req.id.is_some() {
         let has = Class::find_by_id(db, req.id.clone().unwrap_or_default())
@@ -73,11 +73,11 @@ fn build_class_req(req: ClassInfoReq, user_id: i64) -> Class {
 
 // 班级列表
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: ClassListReq,
     user_info: TeacherUserInfo,
 ) -> Result<ClassListResp, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let count = Class::count(db, user_info.0.user_id, &req)
         .await

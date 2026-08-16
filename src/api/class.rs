@@ -1,10 +1,9 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::class;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
 use serde::{Deserialize, Serialize};
-
 // 班级管理
 
 // 班级添加
@@ -24,7 +23,7 @@ pub struct ClassInfoReq {
 // 班级添加
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<ClassInfoReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<i64> {
@@ -73,7 +72,7 @@ pub struct ClassListResp {
 // 班级列表
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<ClassListReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<ClassListResp> {

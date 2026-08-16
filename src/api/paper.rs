@@ -1,5 +1,5 @@
-use crate::AppConfig;
 use crate::api::question::QuestionInfoResp;
+use crate::app::config::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::paper_gen_config::{DifficultyLevelInfo, QuestionTypeInfo};
 use crate::model::question::{Content, QuestionOption};
@@ -68,7 +68,7 @@ pub struct TopPaperQuestionReq {
 // 添加精选试卷
 #[post("/top/add")]
 pub async fn top_add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<TopPaperReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
@@ -167,7 +167,7 @@ pub struct TopPaperQuestionResp {
 
 #[get("/top/info/{id}")]
 pub async fn top_info(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<TopPaperResp> {
     ApiResponse::response(paper::top_info(app_conf, path.into_inner().0).await)
@@ -203,7 +203,7 @@ pub struct PaperListResp {
 
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<PaperListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<PaperListResp> {
@@ -212,7 +212,7 @@ pub async fn list(
 
 #[get("/latest/{paperType}/{count}")]
 pub async fn latest(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i16, i64)>,
 ) -> ApiResponse<Vec<CommonPaperResp>> {
     ApiResponse::response(paper::latest(app_conf, path.into_inner()).await)
@@ -276,7 +276,7 @@ pub struct GenPaperQuestionResp {
 
 #[post("/gen/preview")]
 pub async fn preview(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<GenPaperPreviewReq>,
     user_info: UserInfo,
 ) -> ApiResponse<GenPaperResp> {
@@ -315,7 +315,7 @@ pub struct PaperGenReq {
 // 保存试卷
 #[post("/gen/add")]
 pub async fn gen_add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<PaperGenReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
@@ -324,7 +324,7 @@ pub async fn gen_add(
 
 #[get("/gen/info/{id}")]
 pub async fn gen_info(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<GenPaperResp> {
     ApiResponse::response(paper::gen_info(app_conf, path.into_inner().0).await)
@@ -337,7 +337,7 @@ pub struct DeleteReq {
 
 #[post("/delete")]
 pub async fn delete(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {

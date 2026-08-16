@@ -1,7 +1,10 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::constant::meta;
-use crate::model::user_identity::{RoleType, StatusType, UserIdentity};
-use crate::model::user_session::UserSession;
+use crate::model::user_identity::RoleType;
+use crate::model::user_session::{UserSession, UserSource};
+use crate::service::class_student::get_student_by_user_id;
+use crate::service::user_identity::get_user_identity_by_user_id;
+use crate::service::user_session::get_user_session_by_token;
 use actix_web::dev::{Payload, ServiceRequest, ServiceResponse};
 use actix_web::error::ErrorUnauthorized;
 use actix_web::http::header::USER_AGENT;
@@ -10,11 +13,9 @@ use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, web};
 use chrono::{Duration, Utc};
 use log::error;
 use serde::Serialize;
-use sqlx::PgPool;
 use std::future::{Ready, ready};
-use std::io::ErrorKind;
 
-// 普通登录用户信息验证
+// 三方普通登录用户信息验证
 #[derive(Serialize, Clone)]
 pub struct UserInfo {
     #[serde(rename(serialize = "userId"))]
@@ -23,7 +24,7 @@ pub struct UserInfo {
     pub email: Option<String>,
     pub role: i16,
     pub status: i16,
-    #[serde(skip)] // 序列化和反序列化时都跳过
+    // 不需要处理可见性, 前端随便就能看到, 也是公开可查看的值
     pub token: Option<String>,
 }
 
@@ -62,6 +63,25 @@ impl FromRequest for TeacherUserInfo {
     }
 }
 
+// 学生用户
+#[derive(Serialize, Clone)]
+pub struct StudentUserInfo(pub UserInfo);
+
+impl FromRequest for StudentUserInfo {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        if let Some(user_info) = req.extensions().get::<UserInfo>() {
+            if user_info.role == RoleType::Student.as_i16() {
+                return ready(Ok(StudentUserInfo(user_info.clone())));
+            }
+        }
+
+        ready(Err(ErrorUnauthorized("权限不足, 仅限学生用户访问")))
+    }
+}
+
 // 客户端信息
 pub struct ClientInfo {
     pub ip: String,
@@ -72,7 +92,7 @@ impl FromRequest for ClientInfo {
     type Error = Error;
     type Future = Ready<Result<Self, Self::Error>>;
 
-    fn from_request(req: &HttpRequest, _payload: &mut actix_web::dev::Payload) -> Self::Future {
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         let client_ip = req
             .headers()
             .get("X-Real-IP")
@@ -164,40 +184,68 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
                 return Ok(req);
             }
 
-            let err = actix_web::error::ErrorUnauthorized("Missing or invalid token");
+            let err = ErrorUnauthorized("Missing or invalid token");
             return Err((err, req));
         }
     };
 
     // 获取全局配置
-    let app_conf = match req.app_data::<web::Data<AppConfig>>() {
+    let app_state = match req.app_data::<web::Data<AppState>>() {
         Some(data) => data,
         None => {
-            let err = actix_web::error::ErrorInternalServerError("参数错误");
+            let err = actix_web::error::ErrorInternalServerError("服务配置参数错误");
             return Err((err, req));
         }
     };
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 获取用户会话
-    let mut session = match get_user_session(db, token).await {
+    let mut session = match get_user_session_by_token(db, token).await {
         Ok(s) => s,
         Err(err) => {
             error!("Wrap get user session err: {}", err);
-            let err = actix_web::error::ErrorInternalServerError(err);
+            let err = actix_web::error::ErrorInternalServerError("获取用户登录信息错误");
             return Err((err, req));
         }
     };
 
     // 获取用户身份
-    let user = match get_user_identity(db, session.user_id).await {
-        Ok(u) => u,
-        Err(err) => {
-            error!("Wrap get user identity err: {}", err);
-            let err = actix_web::error::ErrorInternalServerError(err);
-            return Err((err, req));
+    let user_info: UserInfo = if session.source == UserSource::User.as_i16() {
+        match get_user_identity_by_user_id(db, session.user_id).await {
+            Ok(user) => UserInfo {
+                user_id: user.user_id,
+                username: user.provider_username,
+                email: user.provider_email,
+                role: user.role,
+                status: user.status,
+                token: Some(token.to_string()),
+            },
+            Err(err) => {
+                error!("Wrap get user identity err: {}", err);
+                let err = actix_web::error::ErrorInternalServerError("获取第三方用户身份信息错误");
+                return Err((err, req));
+            }
         }
+    } else if session.source == UserSource::Student.as_i16() {
+        match get_student_by_user_id(db, session.user_id).await {
+            Ok(user) => UserInfo {
+                user_id: user.user_id,
+                username: Some(user.account),
+                email: None,
+                role: UserSource::Student.as_i16(),
+                status: user.status,
+                token: Some(token.to_string()),
+            },
+            Err(err) => {
+                error!("Wrap get user identity err: {}", err);
+                let err = actix_web::error::ErrorInternalServerError("获取学生账户信息错误");
+                return Err((err, req));
+            }
+        }
+    } else {
+        let err = ErrorUnauthorized("不支持的登录 token");
+        return Err((err, req));
     };
 
     // 如果过期时间有效的用户则需要给用户续期
@@ -209,75 +257,14 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
             Ok(u) => u,
             Err(err) => {
                 error!("Wrap save user session err: {}", err);
-                let err = actix_web::error::ErrorInternalServerError(err);
+                let err = actix_web::error::ErrorInternalServerError("更新用户 Session 信息错误");
                 return Err((err, req));
             }
         };
     }
 
     // 插入用户信息并返回
-    req.extensions_mut().insert(UserInfo {
-        user_id: user.user_id,
-        username: user.provider_username,
-        email: user.provider_email,
-        role: user.role,
-        status: user.status,
-        token: Some(token.to_string()),
-    });
+    req.extensions_mut().insert(user_info);
 
     Ok(req)
-}
-
-// 根据 token 获取用户 session 信息
-pub async fn get_user_session(db: &PgPool, token: &str) -> Result<UserSession, std::io::Error> {
-    let session = UserSession::find_by_token(db, token)
-        .await
-        .map_err(|err| {
-            error!("Query user session err: {}", err);
-            std::io::Error::new(ErrorKind::InvalidInput, "非法的 token")
-        })?
-        .ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput, "token 不存在"))?;
-    if session.expired_at < Utc::now() {
-        // 删除过期的 session
-        let _ = UserSession::delete_by_id(db, session.id.unwrap())
-            .await
-            .map_err(|err| {
-                error!("Wrap delete user session err: {}", err);
-                std::io::Error::new(ErrorKind::InvalidInput, "删除过期 token 错误")
-            })?;
-
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "已过期请重新登录",
-        ));
-    }
-
-    Ok(session)
-}
-
-// 获取用户信息
-pub async fn get_user_identity(db: &PgPool, user_id: i64) -> Result<UserIdentity, std::io::Error> {
-    let user = UserIdentity::find_by_user_id(db, user_id)
-        .await
-        .map_err(|err| {
-            error!("Query user identity err: {}", err);
-            std::io::Error::new(ErrorKind::InvalidInput, "读取用户信息错误")
-        })?
-        .ok_or_else(|| std::io::Error::new(ErrorKind::InvalidInput, "用户不存在"))?;
-
-    // 非法用户不允许登录
-    if user.status != StatusType::Active.as_i16() {
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            if user.status == StatusType::Paused.as_i16() {
-                "该账户已被暂停"
-            } else if user.status == StatusType::Forbidden.as_i16() {
-                "该账户已被封禁"
-            } else {
-                "该账户无法继续使用"
-            },
-        ));
-    }
-
-    Ok(user)
 }

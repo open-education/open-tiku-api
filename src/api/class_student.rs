@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::class_student;
 use crate::util::response::ApiResponse;
@@ -18,7 +18,7 @@ pub struct ClassStudentReq {
 // 添加学生账户
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<ClassStudentReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<u64> {
@@ -30,11 +30,16 @@ pub struct ClassStudentResp {
     pub id: i64,
     #[serde(rename(serialize = "classId"))]
     pub class_id: i64,
+    pub user_id: i64,
     pub account: String,
     pub status: i16, // 1 正常 2 暂停 3 停用
     #[serde(rename(serialize = "statusDesc"))]
     pub status_desc: String,
     pub remark: String,
+    #[serde(rename(serialize = "lastLoginTime"))]
+    pub last_login_time: String,
+    #[serde(rename(serialize = "loginCount"))]
+    pub login_count: i64,
     #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
     #[serde(rename(serialize = "updatedAt"))]
@@ -44,7 +49,7 @@ pub struct ClassStudentResp {
 // 获取班级的学生账户-不分页直接展示全部
 #[get("/{class_id}/list")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i64,)>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ClassStudentResp>> {
@@ -67,7 +72,7 @@ pub struct ClassStudentEditReq {
 // 编辑学生账户信息
 #[post("/edit")]
 pub async fn edit(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<ClassStudentEditReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {

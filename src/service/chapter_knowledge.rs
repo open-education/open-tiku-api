@@ -5,11 +5,11 @@ use crate::api::chapter_knowledge::{
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
 
+use crate::app::config::AppState;
 use std::io::{Error, ErrorKind};
 
 // 查询唯一绑定关系是否一存在
@@ -41,10 +41,10 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 
 // 通过章节或者知识点获取关联信息
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     id: i32,
 ) -> Result<Vec<ChapterKnowledgeResp>, Error> {
-    let rows = ChapterKnowledge::find_by_ids(&app_conf.get_ref().db, vec![id])
+    let rows = ChapterKnowledge::find_by_ids(&app_state.get_ref().db, vec![id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -60,10 +60,10 @@ pub async fn list(
 
 // 绑定关联关系
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: CreateChapterKnowledgeReq,
 ) -> Result<i32, Error> {
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     check_unique(db, &req).await?;
 
@@ -77,7 +77,7 @@ pub async fn add(
 
 // 解除关联关系
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: RemoveChapterKnowledgeReq,
 ) -> Result<bool, Error> {
     let chapter_id: i32 = req.chapter_id;
@@ -90,7 +90,7 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "考点标识为空"));
     }
 
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     // 查询关联记录
     let relation_row = ChapterKnowledge::find_unique(&db, chapter_id, knowledge_id)

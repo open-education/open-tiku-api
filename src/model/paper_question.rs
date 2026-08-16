@@ -77,13 +77,13 @@ impl PaperQuestion {
         tx: &mut Transaction<'_, Postgres>,
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             r#"
         DELETE FROM paper_question
         WHERE paper_id = $1
         "#,
-            paper_id
         )
+        .bind(paper_id)
         .execute(&mut **tx)
         .await?;
 

@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::chapter_knowledge;
 use crate::util::response::ApiResponse;
@@ -25,7 +25,7 @@ pub struct ChapterKnowledgeResp {
 // 关联章节小节和知识点小类
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CreateChapterKnowledgeReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
@@ -35,7 +35,7 @@ pub async fn add(
 // 通过菜单标识获取关联详情-章节小节或者知识点小类标识
 #[get("/list/{chapter_or_knowledge_id}")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
@@ -54,7 +54,7 @@ pub struct RemoveChapterKnowledgeReq {
 // 解除绑定关系
 #[post("/remove")]
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<RemoveChapterKnowledgeReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {

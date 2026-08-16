@@ -12,3 +12,5 @@ pub mod task;
 pub mod textbook;
 pub mod textbook_dict;
 pub mod user;
+pub mod user_identity;
+pub mod user_session;

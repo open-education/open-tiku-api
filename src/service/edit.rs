@@ -1,5 +1,5 @@
-use crate::AppConfig;
 use crate::api::edit::CommonEditStatusReq;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::question::{Question, QuestionStatus};
@@ -9,7 +9,7 @@ use std::io::{Error, ErrorKind};
 
 // 更新题目状态
 pub async fn question_status(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, Error> {
@@ -17,7 +17,7 @@ pub async fn question_status(
         return Err(Error::new(ErrorKind::NotFound, "题目标识不存在"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let question = Question::find_by_id(db, req.id).await.map_err(|e| {
         error!("查询题目失败: {}", e);
@@ -77,7 +77,7 @@ pub async fn question_status(
 
 // 更新试卷状态
 pub async fn paper_status(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, Error> {
@@ -85,7 +85,7 @@ pub async fn paper_status(
         return Err(Error::new(ErrorKind::NotFound, "试卷标识不存在"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let paper = Paper::find_by_id(db, req.id)
         .await

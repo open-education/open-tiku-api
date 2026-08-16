@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::edit;
 use crate::util::response::ApiResponse;
@@ -18,7 +18,7 @@ pub struct CommonEditStatusReq {
 // 更新题目状态
 #[post("/question/status")]
 pub async fn question_status(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
@@ -28,7 +28,7 @@ pub async fn question_status(
 // 更新试卷状态
 #[post("/paper/status")]
 pub async fn paper_status(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {

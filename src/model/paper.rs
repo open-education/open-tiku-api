@@ -357,7 +357,8 @@ impl Paper {
 
     /// 根据 ID 删除记录
     pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query!("DELETE FROM paper WHERE id = $1", id)
+        let result = sqlx::query("DELETE FROM paper WHERE id = $1")
+            .bind(id)
             .execute(pool)
             .await?;
         Ok(result.rows_affected())

@@ -1,5 +1,5 @@
-use crate::AppConfig;
 use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
+use crate::app::config::AppState;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use actix_web::web;
@@ -18,10 +18,10 @@ fn to_resp(row: QuestionCate) -> QuestionCateResp {
 
 // 题型列表
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     related_id: i32,
 ) -> Result<Vec<QuestionCateResp>, Error> {
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     let rows = QuestionCate::find_all_by_related_ids(db, vec![related_id])
         .await
@@ -36,8 +36,8 @@ pub async fn list(
 }
 
 // 添加题型
-pub async fn add(app_conf: web::Data<AppConfig>, req: CreateQuestionCateReq) -> Result<i32, Error> {
-    let row_id = QuestionCate::save(&app_conf.get_ref().db, req)
+pub async fn add(app_state: web::Data<AppState>, req: CreateQuestionCateReq) -> Result<i32, Error> {
+    let row_id = QuestionCate::save(&app_state.get_ref().db, req)
         .await
         .map_err(|err| {
             error!("error adding question: {}", err);
@@ -48,8 +48,8 @@ pub async fn add(app_conf: web::Data<AppConfig>, req: CreateQuestionCateReq) -> 
 }
 
 // 删除题型
-pub async fn remove(app_conf: web::Data<AppConfig>, id: i32) -> Result<bool, Error> {
-    let db = &app_conf.get_ref().db;
+pub async fn remove(app_state: web::Data<AppState>, id: i32) -> Result<bool, Error> {
+    let db = &app_state.get_ref().db;
 
     // 关联题目后就不允许删除了
     let exist = Question::exist_by_cate_id(db, id).await.map_err(|err| {

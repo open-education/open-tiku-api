@@ -1,19 +1,10 @@
+use crate::app::config::SmtpEmailConfig;
 use lettre::message::Mailbox;
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-
-#[derive(Clone, Debug)]
-pub struct EmailConfig {
-    pub smtp_server: String,
-    pub smtp_port: u16,
-    pub username: String,
-    pub password: String, // QQ邮箱授权码
-    pub from_name: String,
-    pub from_email: String,
-}
 
 // 生成班级学生账户的邮件模板
 pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
@@ -48,7 +39,7 @@ pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
 
 // 异步发送邮件
 pub async fn send_html_email(
-    config: &EmailConfig,
+    config: &SmtpEmailConfig,
     to: &str,
     subject: &str,
     html_body: &str,
@@ -76,9 +67,9 @@ pub async fn send_html_email(
         .map_err(|e| Error::new(ErrorKind::InvalidData, format!("构建邮件失败: {}", e)))?;
 
     let creds = Credentials::new(config.username.clone(), config.password.clone());
-    let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp_server)
+    let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.server)
         .map_err(|e| Error::new(ErrorKind::ConnectionRefused, format!("SMTP连接失败: {}", e)))?
-        .port(config.smtp_port)
+        .port(config.port)
         .credentials(creds)
         .build();
 
@@ -91,14 +82,15 @@ pub async fn send_html_email(
 
 #[cfg(test)]
 mod tests {
-    use crate::util::email::{EmailConfig, get_student_account_html, send_html_email};
+    use crate::app::config::SmtpEmailConfig;
+    use crate::util::email::{get_student_account_html, send_html_email};
     use std::collections::HashMap;
 
     #[actix_web::test]
     async fn test_send_email() {
-        let config = EmailConfig {
-            smtp_server: "smtp.qq.com".to_string(),
-            smtp_port: 587,
+        let config = SmtpEmailConfig {
+            server: "smtp.qq.com".to_string(),
+            port: 587,
             username: "978771018@qq.com".to_string(),
             password: "xxx".to_string(), // 必须使用 QQ 邮箱授权码, 不提供在代码中, 去配置 .env 中查找
             from_name: "zhangguangxun".to_string(),

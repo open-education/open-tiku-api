@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::textbook_dict;
 use crate::util::response::ApiResponse;
@@ -38,7 +38,7 @@ pub struct TextbookDictResp {
 // 字典添加
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CreateTextbookDictReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
@@ -48,7 +48,7 @@ pub async fn add(
 // 字典查询
 #[get("/list/{textbook_id}/{type_code}")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32, String)>,
 ) -> ApiResponse<Vec<TextbookDictResp>> {
     let path = path.into_inner();
@@ -58,7 +58,7 @@ pub async fn list(
 // 字典删除
 #[get("/remove/{id}")]
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
