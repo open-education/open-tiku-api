@@ -1,6 +1,6 @@
+use crate::util::error::AppError;
 use actix_web::{HttpResponse, Responder};
 use serde::Serialize;
-use std::io::Error;
 
 #[derive(Serialize)]
 pub struct ApiResponse<T: Serialize> {
@@ -18,15 +18,15 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
-    fn fail(error: Error) -> Self {
+    fn fail(error: AppError) -> Self {
         Self {
-            code: -1,
-            msg: error.to_string(),
+            code: error.code,
+            msg: error.msg,
             data: None,
         }
     }
 
-    pub fn response(res: Result<T, Error>) -> Self {
+    pub fn response(res: Result<T, AppError>) -> Self {
         match res {
             Ok(data) => Self::success(data),
             Err(e) => Self::fail(e),

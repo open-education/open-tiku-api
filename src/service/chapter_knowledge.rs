@@ -10,22 +10,21 @@ use log::error;
 use sqlx::PgPool;
 
 use crate::app::config::AppState;
-use std::io::{Error, ErrorKind};
+use crate::util::error::AppError;
 
 // 查询唯一绑定关系是否一存在
-async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), Error> {
+async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
     let res = ChapterKnowledge::find_unique(&pool, req.chapter_id, req.knowledge_id)
         .await
         .map_err(|err| {
             error!("add relation query err: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("章节/考点绑定关系查询失败")
         })?;
 
     if res.is_none() {
         Ok(())
     } else {
-        Err(Error::new(
-            ErrorKind::Other,
+        Err(AppError::param_error(
             "当前选择的章节和知识点已存在关联关系, 无需重复关联",
         ))
     }
@@ -43,12 +42,12 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 pub async fn list(
     app_state: web::Data<AppState>,
     id: i32,
-) -> Result<Vec<ChapterKnowledgeResp>, Error> {
+) -> Result<Vec<ChapterKnowledgeResp>, AppError> {
     let rows = ChapterKnowledge::find_by_ids(&app_state.get_ref().db, vec![id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("绑定关系查询失败")
         })?;
 
     if !rows.is_empty() {
@@ -62,14 +61,14 @@ pub async fn list(
 pub async fn add(
     app_state: web::Data<AppState>,
     req: CreateChapterKnowledgeReq,
-) -> Result<i32, Error> {
+) -> Result<i32, AppError> {
     let db = &app_state.get_ref().db;
 
     check_unique(db, &req).await?;
 
     let row_id = ChapterKnowledge::insert(db, &req).await.map_err(|err| {
         error!("error adding chapter knowledge: {}", err);
-        Error::new(ErrorKind::Other, "添加失败")
+        AppError::db_error("绑定失败")
     })?;
 
     Ok(row_id)
@@ -79,15 +78,15 @@ pub async fn add(
 pub async fn remove(
     app_state: web::Data<AppState>,
     req: RemoveChapterKnowledgeReq,
-) -> Result<bool, Error> {
+) -> Result<bool, AppError> {
     let chapter_id: i32 = req.chapter_id;
     if chapter_id <= 0 {
-        return Err(Error::new(ErrorKind::Other, "章节标识为空"));
+        return Err(AppError::param_error("章节标识为空"));
     }
 
     let knowledge_id: i32 = req.knowledge_id;
     if knowledge_id <= 0 {
-        return Err(Error::new(ErrorKind::Other, "考点标识为空"));
+        return Err(AppError::param_error("考点标识为空"));
     }
 
     let db = &app_state.get_ref().db;
@@ -97,20 +96,14 @@ pub async fn remove(
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "考点章节关联查询失败")
+            AppError::db_error("考点章节关联查询失败")
         })?;
     if relation_row.is_none() {
-        return Err(Error::new(
-            ErrorKind::Other,
-            "章节/考点没有关联关系, 无需解绑",
-        ));
+        return Err(AppError::param_error("章节/考点没有关联关系, 无需解绑"));
     }
     let relation_id = relation_row.unwrap().id;
     if relation_id != req.id {
-        return Err(Error::new(
-            ErrorKind::Other,
-            "章节/考点关联关系不匹配, 无需解绑",
-        ));
+        return Err(AppError::param_error("章节/考点关联关系不匹配, 无需解绑"));
     }
 
     // 如果有题型关联就不能解除了, 后续如果需要放开重新绑定再处理
@@ -118,18 +111,18 @@ pub async fn remove(
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "查询失败")
+            AppError::db_error("绑定关系查询失败")
         })?;
 
     if !rows.is_empty() {
-        return Err(Error::new(ErrorKind::Other, "已关联了题型, 不能解除关联"));
+        return Err(AppError::business_error("已关联了题型, 不能解除关联"));
     }
 
     let res = ChapterKnowledge::delete_by_id(db, req.id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
-            Error::new(ErrorKind::Other, "删除失败")
+            AppError::db_error("删除失败")
         })?;
 
     Ok(res > 0)

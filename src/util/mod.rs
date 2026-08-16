@@ -1,4 +1,6 @@
+pub mod error;
 pub mod argon2;
+pub mod email;
 pub mod file;
 pub mod github;
 pub mod local;
@@ -7,4 +9,3 @@ pub mod qq;
 pub mod response;
 pub mod snowflake;
 pub mod upload;
-pub mod email;

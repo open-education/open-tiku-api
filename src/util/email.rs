@@ -1,10 +1,11 @@
 use crate::app::config::SmtpEmailConfig;
+use crate::util::error::AppError;
 use lettre::message::Mailbox;
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
+use log::error;
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
 
 // 生成班级学生账户的邮件模板
 pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
@@ -43,20 +44,27 @@ pub async fn send_html_email(
     to: &str,
     subject: &str,
     html_body: &str,
-) -> Result<(), Error> {
+) -> Result<(), AppError> {
     let from = if config.from_name.trim().is_empty() {
         format!("<{}>", config.from_email)
             .parse::<Mailbox>()
-            .map_err(|e| Error::new(ErrorKind::InvalidInput, format!("发件人格式错误: {}", e)))?
+            .map_err(|e| {
+                error!("send mail from email err: {}", e);
+                AppError::param_error("发件人格式错误")
+            })?
     } else {
         format!("{} <{}>", config.from_name, config.from_email)
             .parse::<Mailbox>()
-            .map_err(|e| Error::new(ErrorKind::InvalidInput, format!("发件人格式错误: {}", e)))?
+            .map_err(|e| {
+                error!("send mail from name err: {}", e);
+                AppError::param_error("发件人格式错误")
+            })?
     };
 
-    let to = to
-        .parse::<Mailbox>()
-        .map_err(|e| Error::new(ErrorKind::InvalidInput, format!("收件人格式错误: {}", e)))?;
+    let to = to.parse::<Mailbox>().map_err(|e| {
+        error!("send mail to email err: {}", e);
+        AppError::param_error("收件人格式错误")
+    })?;
 
     let email = Message::builder()
         .from(from)
@@ -64,19 +72,25 @@ pub async fn send_html_email(
         .subject(subject)
         .header(ContentType::TEXT_HTML)
         .body(html_body.to_string())
-        .map_err(|e| Error::new(ErrorKind::InvalidData, format!("构建邮件失败: {}", e)))?;
+        .map_err(|e| {
+            error!("send email content err: {}", e);
+            AppError::internal_error("构建邮件失败")
+        })?;
 
     let creds = Credentials::new(config.username.clone(), config.password.clone());
     let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.server)
-        .map_err(|e| Error::new(ErrorKind::ConnectionRefused, format!("SMTP连接失败: {}", e)))?
+        .map_err(|e| {
+            error!("send email transport err: {}", e);
+            AppError::internal_error("SMTP连接失败")
+        })?
         .port(config.port)
         .credentials(creds)
         .build();
 
-    mailer
-        .send(email)
-        .await
-        .map_err(|e| Error::new(ErrorKind::Other, format!("邮件发送失败: {}", e)))?;
+    mailer.send(email).await.map_err(|e| {
+        error!("send email mailer err: {}", e);
+        AppError::internal_error("邮件发送失败")
+    })?;
     Ok(())
 }
 
@@ -114,7 +128,7 @@ mod tests {
         )
         .await
         {
-            println!("发送失败: {}", e);
+            println!("发送失败: {}", e.msg);
         } else {
             println!("发送成功");
         }

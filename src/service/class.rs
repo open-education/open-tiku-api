@@ -2,17 +2,17 @@ use crate::api::class::{ClassInfoReq, ClassInfoResp, ClassListReq, ClassListResp
 use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
+use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use actix_web::web;
 use log::error;
-use std::io::{Error, ErrorKind};
 
 // 添加班级
 pub async fn add(
     app_state: web::Data<AppState>,
     req: ClassInfoReq,
     user_info: TeacherUserInfo,
-) -> Result<i64, Error> {
+) -> Result<i64, AppError> {
     validate_class_req(&req)?;
 
     let db = &app_state.db;
@@ -22,33 +22,30 @@ pub async fn add(
             .await
             .map_err(|err| {
                 error!("Select class err: {}", err);
-                Error::new(ErrorKind::Other, "查询班级信息错误")
+                AppError::db_error("查询班级信息错误")
             })?
-            .ok_or_else(|| Error::new(ErrorKind::NotFound, "班级不存在"))?;
+            .ok_or_else(|| AppError::not_found("班级不存在"))?;
         if has.author_id != user_info.0.user_id {
-            return Err(Error::new(
-                ErrorKind::PermissionDenied,
-                "只允许编辑自己的班级",
-            ));
+            return Err(AppError::permission_denied("只允许编辑自己的班级"));
         }
     }
 
     let class = build_class_req(req, user_info.0.user_id);
     let row_id = Class::save(db, class).await.map_err(|err| {
         error!("Save class err: {}", err);
-        Error::new(ErrorKind::Other, "班级创建失败")
+        AppError::db_error("班级创建失败")
     })?;
 
     Ok(row_id)
 }
 
 // 验证请求参数
-fn validate_class_req(req: &ClassInfoReq) -> Result<(), Error> {
+fn validate_class_req(req: &ClassInfoReq) -> Result<(), AppError> {
     if req.year.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "年份不能为空"));
+        return Err(AppError::param_error("年份不能为空"));
     }
     if req.label.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "班级名称不能为空"));
+        return Err(AppError::param_error("班级名称不能为空"));
     }
 
     Ok(())
@@ -76,21 +73,21 @@ pub async fn list(
     app_state: web::Data<AppState>,
     req: ClassListReq,
     user_info: TeacherUserInfo,
-) -> Result<ClassListResp, Error> {
+) -> Result<ClassListResp, AppError> {
     let db = &app_state.db;
 
     let count = Class::count(db, user_info.0.user_id, &req)
         .await
         .map_err(|err| {
             error!("Class count err: {}", err);
-            Error::new(ErrorKind::Other, "班级计数信息查询失败")
+            AppError::db_error("班级计数信息查询失败")
         })?;
 
     let rows = Class::list(db, user_info.0.user_id, &req)
         .await
         .map_err(|err| {
             error!("Select class err: {}", err);
-            Error::new(ErrorKind::Other, "班级信息查询失败")
+            AppError::db_error("班级信息查询失败")
         })?;
 
     Ok(ClassListResp {
