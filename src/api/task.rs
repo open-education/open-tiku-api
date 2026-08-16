@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::UserInfo;
 use crate::service::task;
 use crate::util::response::ApiResponse;
@@ -23,7 +23,7 @@ pub struct TaskAddReq {
 // 创建任务
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<TaskAddReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
@@ -76,7 +76,7 @@ pub struct TaskListResp {
 // 任务列表
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<TaskListReq>,
 ) -> ApiResponse<TaskListResp> {
     ApiResponse::response(task::list(app_conf, req.into_inner()).await)

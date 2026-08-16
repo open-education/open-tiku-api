@@ -1,5 +1,5 @@
-use crate::AppConfig;
-use crate::middleware::user::UserInfo;
+use crate::app::config::AppState;
+use crate::middleware::user::TeacherUserInfo;
 use crate::service::edit;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
@@ -18,9 +18,9 @@ pub struct CommonEditStatusReq {
 // 更新题目状态
 #[post("/question/status")]
 pub async fn question_status(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
-    user_info: UserInfo,
+    user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::question_status(app_conf, req.into_inner(), user_info).await)
 }
@@ -28,9 +28,9 @@ pub async fn question_status(
 // 更新试卷状态
 #[post("/paper/status")]
 pub async fn paper_status(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
-    user_info: UserInfo,
+    user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
     ApiResponse::response(edit::paper_status(app_conf, req.into_inner(), user_info).await)
 }

@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;
@@ -62,7 +62,7 @@ pub struct CreateQuestionReq {
 // 添加题目
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CreateQuestionReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
@@ -144,7 +144,7 @@ pub struct QuestionInfoResp {
 
 #[get("/info/{id}")]
 pub async fn info(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<QuestionInfoResp> {
     ApiResponse::response(question::info(app_conf, path.into_inner().0).await)
@@ -185,7 +185,7 @@ pub struct QuestionListResp {
 // 题目列表
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<QuestionListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
@@ -213,7 +213,7 @@ pub struct QuestionSimilarListReq {
 
 #[post("/similar")]
 pub async fn similar(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::similar(app_conf, req.into_inner()).await)
@@ -227,7 +227,7 @@ pub struct OriginalReq {
 // 课本原题标识
 #[post("/original")]
 pub async fn original(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<OriginalReq>,
 ) -> ApiResponse<Option<i64>> {
     ApiResponse::response(question::original(app_conf, req.into_inner()).await)
@@ -240,7 +240,7 @@ pub struct DeleteReq {
 
 #[post("/delete")]
 pub async fn delete(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {

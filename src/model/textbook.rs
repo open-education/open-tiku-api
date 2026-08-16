@@ -73,9 +73,9 @@ impl Textbook {
     }
 
     /// 删除记录
-    /// 返回 Result<()> 或受影响的行数
     pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query!("DELETE FROM textbook WHERE id = $1", id)
+        let result = sqlx::query("DELETE FROM textbook WHERE id = $1")
+            .bind(id)
             .execute(pool)
             .await?;
 

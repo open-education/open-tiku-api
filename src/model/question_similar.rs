@@ -14,7 +14,7 @@ pub struct QuestionSimilar {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum QuestionSimilarType {
-    Similar = 1, // 变式题
+    Similar = 1,                  // 变式题
     OriginalTextbookQuestion = 2, // 课本原题
 }
 
@@ -32,24 +32,25 @@ impl QuestionSimilar {
         child_id: i64,
         question_type: i16,
     ) -> Result<i64, sqlx::Error> {
-        // 使用 ON CONFLICT DO NOTHING 防止重复关联报错
-        // RETURNING id 返回生成的主键
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             INSERT INTO question_similar (question_id, child_id, question_type)
             VALUES ($1, $2, $3)
             ON CONFLICT (question_id, child_id) DO NOTHING
             RETURNING id
             "#,
-            question_id,
-            child_id,
-            question_type
         )
-        .fetch_optional(pool) // 使用 optional 因为 DO NOTHING 可能不返回行
+        .bind(question_id)
+        .bind(child_id)
+        .bind(question_type)
+        .map(|row: sqlx::postgres::PgRow| {
+            use sqlx::Row;
+            row.get::<i64, _>("id")
+        })
+        .fetch_one(pool)
         .await?;
 
-        // 如果已存在则返回 0 或错误，取决于你的业务逻辑
-        Ok(row.map(|r| r.id).unwrap_or(0))
+        Ok(row)
     }
 
     /// 批量建立题目关联

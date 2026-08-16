@@ -1,11 +1,11 @@
-use crate::AppConfig;
 use crate::api::paper::{
     CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp, DeleteReq,
     GenPaperGenConfig, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
-use crate::r#enum::paper::PaperPageSource;
+use crate::app::config::AppState;
+use crate::enums::paper::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus, PaperType};
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};
@@ -26,11 +26,11 @@ use std::io::{Error, ErrorKind};
 // 添加精选试卷
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
 pub async fn top_add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: TopPaperReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
     let is_update = req.common.id.is_some();
 
     // 参数验证
@@ -308,8 +308,8 @@ async fn delete_top_info(
 }
 
 // 精选试卷-试卷详情
-pub async fn top_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<TopPaperResp, Error> {
-    let db = &app_conf.db;
+pub async fn top_info(app_state: web::Data<AppState>, id: i64) -> Result<TopPaperResp, Error> {
+    let db = &app_state.db;
 
     // 查询试卷主体
     let paper = Paper::find_by_id(db, id)
@@ -449,11 +449,11 @@ fn to_top_paper_question_resp(row: PaperQuestion) -> TopPaperQuestionResp {
 
 // 列表查询
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: PaperListReq,
     user_info: Option<UserInfo>,
 ) -> Result<PaperListResp, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 检查参数
     if req.related_id <= 0 {
@@ -509,10 +509,10 @@ pub async fn list(
 
 // 最新试卷
 pub async fn latest(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     path: (i16, i64),
 ) -> Result<Vec<CommonPaperResp>, Error> {
-    let papers = Paper::get_latest_papers(&app_conf.db, path.0, path.1)
+    let papers = Paper::get_latest_papers(&app_state.db, path.0, path.1)
         .await
         .map_err(|err| {
             error!("Select paper list err: {}", err);
@@ -526,7 +526,7 @@ pub async fn latest(
 
 // 预览详情, 暂时还没有存表
 pub async fn preview(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: GenPaperPreviewReq,
     user_info: UserInfo,
 ) -> Result<GenPaperResp, Error> {
@@ -538,7 +538,7 @@ pub async fn preview(
         return Err(Error::new(ErrorKind::InvalidInput, "题量配置不能为空"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     let question_cate_ids = req.conf.question_cate_ids;
     let tag_ids = req.conf.tag_ids;
@@ -658,11 +658,11 @@ pub async fn preview(
 
 // 保存手动生成的试卷
 pub async fn gen_add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: PaperGenReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
-    let db = &app_conf.db;
+    let db = &app_state.db;
     let is_update = req.common.id.is_some();
 
     validate_paper_gen_request(&req)?;
@@ -897,8 +897,8 @@ async fn delete_gen_info(
 }
 
 // 手动组卷-试卷详情
-pub async fn gen_info(app_conf: web::Data<AppConfig>, id: i64) -> Result<GenPaperResp, Error> {
-    let db = &app_conf.db;
+pub async fn gen_info(app_state: web::Data<AppState>, id: i64) -> Result<GenPaperResp, Error> {
+    let db = &app_state.db;
 
     // 查询试卷主体
     let paper = Paper::find_by_id(db, id)
@@ -1070,7 +1070,7 @@ fn to_gen_paper_question_resp(
 
 // 删除试卷
 pub async fn delete(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: DeleteReq,
     user_info: UserInfo,
 ) -> Result<bool, Error> {
@@ -1078,7 +1078,7 @@ pub async fn delete(
         return Err(Error::new(ErrorKind::Other, "试卷标识为空"));
     }
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 只允许删除自己的试卷
     let has_paper = Paper::find_by_id(db, req.id)

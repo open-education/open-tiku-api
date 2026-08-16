@@ -1,8 +1,6 @@
-use crate::AppConfig;
 use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
-use crate::middleware::user::UserInfo;
+use crate::app::config::AppState;
 use crate::model::other_dict::TextbookDict;
-use crate::model::user_identity::RoleType;
 use actix_web::web;
 use log::error;
 use std::io::{Error, ErrorKind};
@@ -19,16 +17,8 @@ fn to_resp(row: TextbookDict) -> TextbookDictResp {
 }
 
 // 添加字典
-pub async fn add(
-    app_conf: web::Data<AppConfig>,
-    req: CreateTextbookDictReq,
-    user_info: UserInfo,
-) -> Result<i32, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
-    let db = &app_conf.get_ref().db;
+pub async fn add(app_state: web::Data<AppState>, req: CreateTextbookDictReq) -> Result<i32, Error> {
+    let db = &app_state.get_ref().db;
 
     // 新增时需要判重
     if req.id.is_none() {
@@ -54,11 +44,11 @@ pub async fn add(
 
 // 根据类型获取字典列表
 pub async fn get_list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     textbook_id: i32,
     type_code: String,
 ) -> Result<Vec<TextbookDictResp>, Error> {
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     let rows = TextbookDict::find_by_textbook_and_type(db, textbook_id, &type_code)
         .await
@@ -72,18 +62,10 @@ pub async fn get_list(
 }
 
 // 删除字典
-pub async fn delete(
-    app_conf: web::Data<AppConfig>,
-    id: i32,
-    user_info: UserInfo,
-) -> Result<bool, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
+pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, Error> {
     //todo 被使用的字典不能删除, 字典id在题目题目类型和标签中
 
-    let row = TextbookDict::delete(&app_conf.get_ref().db, id)
+    let row = TextbookDict::delete(&app_state.get_ref().db, id)
         .await
         .map_err(|e| {
             error!("error deleting unique textbook item: {}", e);

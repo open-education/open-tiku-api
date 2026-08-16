@@ -31,7 +31,8 @@ impl ChapterKnowledge {
 
     // 删除关联关系
     pub async fn delete_by_id(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query!("DELETE FROM chapter_knowledge WHERE id = $1 ", id,)
+        let result = sqlx::query("DELETE FROM chapter_knowledge WHERE id = $1 ")
+            .bind(id)
             .execute(pool)
             .await?;
 

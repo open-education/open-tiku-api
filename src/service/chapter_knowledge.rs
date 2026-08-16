@@ -5,13 +5,11 @@ use crate::api::chapter_knowledge::{
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 
-use crate::AppConfig;
 use actix_web::web;
 use log::error;
 use sqlx::PgPool;
 
-use crate::middleware::user::UserInfo;
-use crate::model::user_identity::RoleType;
+use crate::app::config::AppState;
 use std::io::{Error, ErrorKind};
 
 // 查询唯一绑定关系是否一存在
@@ -43,10 +41,10 @@ fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
 
 // 通过章节或者知识点获取关联信息
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     id: i32,
 ) -> Result<Vec<ChapterKnowledgeResp>, Error> {
-    let rows = ChapterKnowledge::find_by_ids(&app_conf.get_ref().db, vec![id])
+    let rows = ChapterKnowledge::find_by_ids(&app_state.get_ref().db, vec![id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
@@ -62,15 +60,10 @@ pub async fn list(
 
 // 绑定关联关系
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: CreateChapterKnowledgeReq,
-    user_info: UserInfo,
 ) -> Result<i32, Error> {
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     check_unique(db, &req).await?;
 
@@ -84,9 +77,8 @@ pub async fn add(
 
 // 解除关联关系
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: RemoveChapterKnowledgeReq,
-    user_info: UserInfo,
 ) -> Result<bool, Error> {
     let chapter_id: i32 = req.chapter_id;
     if chapter_id <= 0 {
@@ -98,11 +90,7 @@ pub async fn remove(
         return Err(Error::new(ErrorKind::Other, "考点标识为空"));
     }
 
-    if user_info.role != RoleType::Teacher.as_i16() {
-        return Err(Error::new(ErrorKind::PermissionDenied, "权限不足"));
-    }
-
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     // 查询关联记录
     let relation_row = ChapterKnowledge::find_unique(&db, chapter_id, knowledge_id)

@@ -12,17 +12,15 @@
 
 ```
 // 服务相关环境变量配置
-#[derive(Deserialize)]
-struct EnvConfig {
-    database_url: String,
-    server_host: String,
-    server_port: u16,
-    meta_path: String,
+#[derive(Clone)]
+pub struct AppState {
+    pub config: AppConfig,
+    pub db: PgPool,
 }
 ```
 
-本地开发时请拷贝 [.env.example](.env.example) 文件为 `.env` 文件到同级目录位置并将 Key 对应的值更新为自己的环境配置，
-该文件已在忽略文件中标记不会提交到代码库中.
+本地开发时请拷贝 [config.example.toml](.env.example) 文件为 `config.toml` 文件到同级目录位置并将 Key 对应的值更新为自己的环境配置，
+该文件已在忽略文件中标记不会提交到代码库中, 一些账户相关的信息等需要从其它渠道等获取.
 
 ### 数据库
 
@@ -93,7 +91,7 @@ zhangguangxun@VM-0-4-debian:~/open-tiku-api$
 
 目前仅提供了基于 Debian 的部署脚本 [deploy.sh](deploy.sh), 详情可查看该文件内容.
 
-首次部署时需要先指定线上 .env 文件, 后续部署项目会自动查找 .env 文件, 不需要 `source .env` 重复指定
+首次部署时需要先指定线上 `config.toml` 文件, 后续部署项目会自动在可执行文件同级目录查找该文件
 
 ```
 sh deploy.sh start -v v0.0.1-beta

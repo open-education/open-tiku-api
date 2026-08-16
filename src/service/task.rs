@@ -1,5 +1,5 @@
-use crate::AppConfig;
 use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
+use crate::app::config::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
 use crate::util::local::to_local_datetime;
@@ -9,11 +9,11 @@ use std::io::{Error, ErrorKind};
 
 // 添加任务
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     req: TaskAddReq,
     user_info: UserInfo,
 ) -> Result<i64, Error> {
-    let db = &app_conf.get_ref().db;
+    let db = &app_state.get_ref().db;
 
     let row_id = Task::insert(
         db,
@@ -50,8 +50,8 @@ fn to_base_resp(row: &Task) -> TaskInfoResp {
     }
 }
 
-pub async fn list(app_conf: web::Data<AppConfig>, req: TaskListReq) -> Result<TaskListResp, Error> {
-    let db = &app_conf.db;
+pub async fn list(app_state: web::Data<AppState>, req: TaskListReq) -> Result<TaskListResp, Error> {
+    let db = &app_state.db;
 
     // 1. 查询总数
     let total = Task::count_by_cate(db, req.question_cate_id, 1, req.task_type)

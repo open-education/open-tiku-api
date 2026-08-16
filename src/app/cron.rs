@@ -10,13 +10,13 @@ pub async fn run_cron(args: Vec<String>) {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // 定时任务不需要监听端口这部分配置无需关注
-    let (_, app_config) = config::init().await;
+    let app_state = config::init().await;
 
     // 将任务名称注册到匹配条件中
     match task_name.as_str() {
-        "question-upload" => task::question::upload(&app_config).await,
-        "session-cleanup" => task::session::cleanup(&app_config).await,
-        "fix-path" => task::fix::path(&app_config).await,
+        "question-upload" => task::question::upload(&app_state).await,
+        "session-cleanup" => task::session::cleanup(&app_state).await,
+        "fix-path" => task::fix::path(&app_state).await,
         _ => {
             eprintln!("未知任务: {}", task_name);
             std::process::exit(1);

@@ -1,9 +1,7 @@
-use crate::AppConfig;
 use crate::api::callback::CallbackQuery;
 
-use crate::constant::meta;
 use crate::model::user_identity::{ProviderType, RoleType, StatusType, UserIdentity};
-use crate::model::user_session::UserSession;
+use crate::model::user_session::{UserSession, UserSource};
 use crate::util::github::get_github_user;
 use crate::util::qq::get_qq_user;
 use crate::util::snowflake;
@@ -14,6 +12,8 @@ use sqlx::PgPool;
 use url::Url;
 use uuid::Uuid;
 
+use crate::app::config::AppState;
+use crate::constant::meta;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::Sha256;
@@ -66,7 +66,7 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
 
 // 获取第三方登录地址
 pub async fn login_url(
-    app_conf: web::Data<AppConfig>,
+    app_state: web::Data<AppState>,
     provider: i16,
 ) -> std::result::Result<String, std::io::Error> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
@@ -74,14 +74,14 @@ pub async fn login_url(
         std::io::Error::new(ErrorKind::InvalidInput, "不受支持的登录方式")
     })?;
 
-    let state = generate_state(&app_conf.oauth_state_secret).await;
+    let state = generate_state(&app_state.config.login.oauth_state_secret).await;
 
-    let (base, params) = match provider_type {
+    let (base, params): (&str, Vec<(&str, &str)>) = match provider_type {
         ProviderType::Github => (
             "https://github.com/login/oauth/authorize",
             vec![
-                ("client_id", app_conf.github.0.as_str()),
-                ("redirect_uri", &app_conf.github.2),
+                ("client_id", &app_state.config.login.github.client_id),
+                ("redirect_uri", &app_state.config.login.github.redirect_uri),
                 ("state", &state),
             ],
         ),
@@ -89,8 +89,8 @@ pub async fn login_url(
             "https://graph.qq.com/oauth2.0/authorize",
             vec![
                 ("response_type", "code"),
-                ("client_id", app_conf.qq.0.as_str()),
-                ("redirect_uri", &app_conf.qq.2),
+                ("client_id", &app_state.config.login.qq.client_id),
+                ("redirect_uri", &app_state.config.login.qq.redirect_uri),
                 ("state", &state),
                 ("scope", "get_user_info"),
             ],
@@ -107,17 +107,17 @@ pub async fn login_url(
 }
 
 // Github 登录
-pub async fn github(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_conf.oauth_state_secret).await?;
+pub async fn github(app_state: web::Data<AppState>, query: CallbackQuery) -> Result<HttpResponse> {
+    let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let github_user = get_github_user(
-        app_conf.github.0.as_str(),
-        app_conf.github.1.as_str(),
-        code.as_ref(),
+        &app_state.config.login.github.client_id,
+        &app_state.config.login.github.client_secret,
+        &code,
     )
     .await?;
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 保存用户信息
     // 名称拼接
@@ -145,24 +145,27 @@ pub async fn github(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Res
     Ok(HttpResponse::Found()
         .append_header((
             "Location",
-            format!("{}/?token={}", app_conf.website_home_url, temp_token),
+            format!(
+                "{}/?token={}",
+                app_state.config.login.website_home_url, temp_token
+            ),
         ))
         .finish())
 }
 
 // QQ 登录
-pub async fn qq(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_conf.oauth_state_secret).await?;
+pub async fn qq(app_state: web::Data<AppState>, query: CallbackQuery) -> Result<HttpResponse> {
+    let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let (open_id, qq_user) = get_qq_user(
-        app_conf.qq.0.as_str(),
-        app_conf.qq.1.as_str(),
-        app_conf.qq.2.as_str(),
-        code.as_ref(),
+        &app_state.config.login.qq.client_id,
+        &app_state.config.login.qq.client_secret,
+        &app_state.config.login.qq.redirect_uri,
+        &code,
     )
     .await?;
 
-    let db = &app_conf.db;
+    let db = &app_state.db;
 
     // 保存用户信息
     let user = save_user_identity(
@@ -184,7 +187,10 @@ pub async fn qq(app_conf: web::Data<AppConfig>, query: CallbackQuery) -> Result<
     Ok(HttpResponse::Found()
         .append_header((
             "Location",
-            format!("{}/?token={}", app_conf.website_home_url, temp_token),
+            format!(
+                "{}/?token={}",
+                app_state.config.login.website_home_url, temp_token
+            ),
         ))
         .finish())
 }
@@ -275,6 +281,7 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
     let session = UserSession {
         id: None,
         user_id,
+        source: UserSource::User.as_i16(),
         token: token.to_string(),
         expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
         renew_cnt: 0,

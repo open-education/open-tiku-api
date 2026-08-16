@@ -22,3 +22,6 @@ target
 
 # Database connect example
 .env
+
+# 配置文件不提交到代码库
+config.toml

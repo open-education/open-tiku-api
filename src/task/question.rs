@@ -1,4 +1,4 @@
-use crate::AppConfig;
+use crate::app::config::AppState;
 use crate::service::question_upload;
 use log::error;
 
@@ -10,7 +10,7 @@ use log::error;
 /// 执行命令 -c 后面需要使用单或者双引号包裹
 ///
 
-pub async fn upload(config: &AppConfig) {
+pub async fn upload(config: &AppState) {
     if let Err(e) = question_upload::batch(config).await {
         error!("Upload question failed err: {}", e);
     }

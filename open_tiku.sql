@@ -266,6 +266,7 @@ CREATE TABLE user_session
 (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT       NOT NULL,
+    source     SMALLINT     NOT NULL DEFAULT 1,  -- 用户来源 1 普通三方用户 2 学生账户
     token      VARCHAR(100) NOT NULL,            -- 登录 token
     expired_at TIMESTAMPTZ,                      -- 过期时间止, 过期后定时任务直接删除该条数据
     renew_cnt  SMALLINT              DEFAULT 0,  -- 续期次数
@@ -275,3 +276,42 @@ CREATE TABLE user_session
     updated_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_token ON user_session (token);
+
+-- 6. 班级
+CREATE TABLE class
+(
+    id         BIGSERIAL PRIMARY KEY,
+    year       VARCHAR(10)  NOT NULL,            -- 年份
+    grade      VARCHAR(50)  NOT NULL DEFAULT '', -- 年级
+    semester   VARCHAR(20)  NOT NULL DEFAULT '', -- 学期
+    label      VARCHAR(500) NOT NULL,            -- 班级名称
+    sort_order SMALLINT     NOT NULL DEFAULT 0,  -- 排序
+    email      VARCHAR(128) NOT NULL DEFAULT '', -- 接收结果的邮箱
+    author_id  BIGINT       NOT NULL,            -- 作者
+    remark     TEXT                  DEFAULT '', -- 备注
+    created_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_author_year ON class (author_id, year);
+
+-- 6.1 班级学生账户
+CREATE TABLE class_student
+(
+    id              BIGSERIAL PRIMARY KEY,
+    class_id        BIGINT       NOT NULL,            -- 班级标识
+    user_id         BIGINT       NOT NULL,            -- 学生账户标识
+    account         VARCHAR(128) NOT NULL,            -- 账户名称
+    password        VARCHAR(128) NOT NULL,            -- 密码
+    status          SMALLINT     NOT NULL DEFAULT 1,  -- 账户状态, 1 正常 2 暂停 3 停用
+    remark          VARCHAR(250) NOT NULL DEFAULT '', -- 备注说明
+    -- 登录
+    last_login_time TIMESTAMPTZ,                      -- 最后一次登录时间
+    login_count     BIGINT                DEFAULT 0,
+
+    created_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+
+    -- 账户名称唯一
+    CONSTRAINT unique_account UNIQUE (account)
+);
+CREATE INDEX idx_class_id ON class_student (class_id);

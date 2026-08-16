@@ -1,5 +1,5 @@
-use crate::AppConfig;
-use crate::middleware::user::UserInfo;
+use crate::app::config::AppState;
+use crate::middleware::user::TeacherUserInfo;
 use crate::service::question_cate;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
@@ -29,18 +29,19 @@ pub struct QuestionCateResp {
 // 添加题型
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     req: web::Json<CreateQuestionCateReq>,
-    user_info: UserInfo,
+    _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(question_cate::add(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(question_cate::add(app_conf, req.into_inner()).await)
 }
 
 // 题型列表 - 通过章节或者考点标识
 #[get("/list/{related_id}")]
 pub async fn list(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
+    _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
     ApiResponse::response(question_cate::list(app_conf, path.into_inner().0).await)
 }
@@ -48,9 +49,9 @@ pub async fn list(
 // 删除题型
 #[get("/remove/{id}")]
 pub async fn remove(
-    app_conf: web::Data<AppConfig>,
+    app_conf: web::Data<AppState>,
     path: web::Path<(i32,)>,
-    user_info: UserInfo,
+    _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0, user_info).await)
+    ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0).await)
 }

@@ -1,6 +1,6 @@
-use crate::AppConfig;
 use crate::api::question::CreateQuestionReq;
 use crate::api::text::QuestionSnippetReq;
+use crate::app::config::AppState;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
@@ -17,8 +17,8 @@ use std::fs;
 use std::io::{Error, ErrorKind};
 
 // 批量题目上传
-pub async fn batch(app_conf: &AppConfig) -> Result<(), Error> {
-    let db = &app_conf.db;
+pub async fn batch(app_state: &AppState) -> Result<(), Error> {
+    let db = &app_state.db;
 
     // 查询所有待执行的任务
     let waiting_task_list = Task::get_waiting_list(db, TaskType::UploadQuestion as i16)
@@ -68,7 +68,14 @@ pub async fn batch(app_conf: &AppConfig) -> Result<(), Error> {
         // 处理一个任务, 一个任务的事务是独立的
         let task_name = task_info.name.clone();
         info!("Process single task info process start: {}", task_name);
-        if let Err(e) = single(app_conf, task_info, &question_type_list, &question_tag_list).await {
+        if let Err(e) = single(
+            app_state,
+            task_info,
+            &question_type_list,
+            &question_tag_list,
+        )
+        .await
+        {
             error!("Process single task info err: {}", e);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
             if let Err(e) =
@@ -120,7 +127,7 @@ async fn get_or_load_dict(
 
 // 上传单个题目文件
 async fn single(
-    app_config: &AppConfig,
+    app_state: &AppState,
     task_info: Task,
     question_type_list: &Vec<TextbookDict>,
     question_tag_list: &Vec<TextbookDict>,
@@ -131,7 +138,7 @@ async fn single(
     // 读取文件内容 url 字段存取的是文件名称, 路径需要系统设计补完整
     let file_path = format!(
         "{}/{}/{}",
-        app_config.meta_path,
+        app_state.config.meta.path,
         meta::FILE_NAME,
         task_info.url
     );
@@ -149,7 +156,7 @@ async fn single(
     };
 
     // 这部分更新使用事务
-    let mut tx = app_config.db.begin().await.map_err(|e| {
+    let mut tx = app_state.db.begin().await.map_err(|e| {
         error!("Error beginning transaction: {}", e);
         Error::new(ErrorKind::Other, "启动事务失败")
     })?;
@@ -233,7 +240,7 @@ async fn single(
 
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
-        &app_config.db,
+        &app_state.db,
         &task_info.id,
         TaskStatus::Success as i16,
         result.join("\n"),

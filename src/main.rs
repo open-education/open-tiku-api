@@ -1,60 +1,17 @@
 mod api;
 mod app;
 mod constant;
+mod enums;
 mod middleware;
 mod model;
 mod service;
 mod task;
 mod util;
-mod r#enum;
 
 use crate::app::cron::run_cron;
 use crate::app::web::run_web;
 use crate::util::snowflake::init_snowflake;
-use serde::Deserialize;
-use sqlx::PgPool;
 use std::env;
-
-// 服务相关环境变量配置
-#[derive(Deserialize)]
-struct EnvConfig {
-    // db
-    database_url: String,
-
-    // server
-    server_host: String,
-    server_port: u16,
-
-    // meta
-    meta_path: String,
-
-    // github
-    github_client_id: String,
-    github_client_secret: String,
-    github_redirect_uri: String,
-
-    // qq
-    qq_client_id: String,
-    qq_client_secret: String,
-    qq_redirect_uri: String,
-
-    // homepage
-    website_home_url: String,
-
-    // oauth secret
-    oauth_state_secret: String,
-}
-
-// 应用配置
-#[derive(Clone)]
-pub struct AppConfig {
-    db: PgPool,                       // 数据库连接池
-    meta_path: String,                // 元数据存储根目录
-    github: (String, String, String), // GitHub (client_id, secret, redirect_uri)
-    qq: (String, String, String),     // qq (client_id, secret, redirect_uri)
-    website_home_url: String,         // 网站首页
-    oauth_state_secret: String,       // 第三方登录校验 secret
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

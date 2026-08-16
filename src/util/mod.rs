@@ -1,8 +1,10 @@
+pub mod argon2;
 pub mod file;
-pub mod response;
-pub mod upload;
-pub mod markdown_parse;
-pub mod local;
-pub mod snowflake;
 pub mod github;
+pub mod local;
+pub mod markdown_parse;
 pub mod qq;
+pub mod response;
+pub mod snowflake;
+pub mod upload;
+pub mod email;
