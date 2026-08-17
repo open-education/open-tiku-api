@@ -169,7 +169,7 @@ async fn handle_student_login(
         user_id: student.user_id,
         source: UserSource::Student.as_i16(),
         token: token.clone(),
-        expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
+        expired_at: Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR),
         renew_cnt: 1,
         client_ip: client_info.ip.clone(),
         user_agent: client_info.user_agent.clone(),
