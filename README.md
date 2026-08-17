@@ -10,7 +10,7 @@
 
 阅读 [config.rs](src/app/config.rs) 方法中的服务相关环境变量配置部分:
 
-```
+```rust
 // 服务相关环境变量配置
 #[derive(Clone)]
 pub struct AppState {
@@ -93,6 +93,6 @@ zhangguangxun@VM-0-4-debian:~/open-tiku-api$
 
 首次部署时需要先指定线上 `config.toml` 文件, 后续部署项目会自动在可执行文件同级目录查找该文件
 
-```
+```bash
 sh deploy.sh start -v v0.0.1-beta
 ```
