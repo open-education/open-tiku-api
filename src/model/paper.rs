@@ -260,8 +260,8 @@ impl Paper {
         status: i16,
         where_clause: &str,
         param_count: usize,
+        offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let offset = (req.page_no - 1) * req.page_size;
         // LIMIT 和 OFFSET 占位符为 param_count+1 和 param_count+2
         let sql = format!(
             "SELECT * FROM paper {} ORDER BY id LIMIT ${} OFFSET ${}",

@@ -161,6 +161,25 @@ impl ClassStudent {
         .await
     }
 
+    pub async fn find_by_user_ids(
+        pool: &PgPool,
+        user_ids: Vec<i64>,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT
+            id, class_id, user_id, account, password,
+            status, remark, last_login_time, login_count,
+            created_at, updated_at
+        FROM class_student
+        WHERE user_id = ANY($1)
+        "#,
+        )
+        .bind(user_ids)
+        .fetch_all(pool)
+        .await
+    }
+
     pub async fn find_by_accounts(
         pool: &PgPool,
         accounts: &[String],

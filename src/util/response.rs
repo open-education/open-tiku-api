@@ -12,7 +12,7 @@ pub struct ApiResponse<T: Serialize> {
 impl<T: Serialize> ApiResponse<T> {
     fn success(data: T) -> Self {
         Self {
-            code: 200,
+            code: 0,
             msg: "ok".to_string(),
             data: Some(data),
         }

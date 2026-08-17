@@ -105,7 +105,7 @@ pub async fn init() -> AppState {
         .options([("timezone", "Asia/Shanghai")]);
 
     let pool = PgPoolOptions::new()
-        .max_connections(2) // 连接池后续追加至 .env 配置文件中
+        .max_connections(2) // 连接池后续追加至配置文件中
         .connect_with(options)
         .await
         .unwrap_or_else(|err| {

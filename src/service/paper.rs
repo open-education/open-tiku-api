@@ -469,10 +469,10 @@ pub async fn list(
         }
     };
 
-    // 1. 构建过滤条件
+    // 构建过滤条件
     let (where_clause, param_count) = Paper::build_condition(&req, author_id);
 
-    // 2. 查询总数
+    // 查询总数
     let total = Paper::count(db, &req, author_id, status, &where_clause)
         .await
         .map_err(|err| {
@@ -480,18 +480,34 @@ pub async fn list(
             AppError::db_error("查询试卷总数失败")
         })?;
 
-    // 3. 查询列表
-    let papers = Paper::list(db, &req, author_id, status, &where_clause, param_count)
-        .await
-        .map_err(|err| {
-            error!("Select paper list err: {}", err);
-            AppError::db_error("查询试卷列表失败")
-        })?;
+    // 3查询列表
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 {
+        return Ok(PaperListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total,
+        });
+    }
 
-    let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
+    let papers = Paper::list(
+        db,
+        &req,
+        author_id,
+        status,
+        &where_clause,
+        param_count,
+        offset,
+    )
+    .await
+    .map_err(|err| {
+        error!("Select paper list err: {}", err);
+        AppError::db_error("查询试卷列表失败")
+    })?;
 
     Ok(PaperListResp {
-        list,
+        list: papers.into_iter().map(to_common_paper_resp).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total,

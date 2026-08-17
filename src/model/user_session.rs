@@ -11,6 +11,13 @@ pub enum UserSource {
 }
 
 impl UserSource {
+    pub fn desc(value: i16) -> String {
+        match value {
+            1 => "普通第三方用户".to_string(),
+            2 => "学生账户".to_string(),
+            _ => "未知".to_string(),
+        }
+    }
     pub fn from_i16(code: i16) -> Option<Self> {
         match code {
             1 => Some(Self::User),
@@ -34,6 +41,8 @@ pub struct UserSession {
     pub renew_cnt: i16,
     pub client_ip: String,
     pub user_agent: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl UserSession {
@@ -101,5 +110,26 @@ impl UserSession {
             .execute(pool)
             .await?;
         Ok(result.rows_affected())
+    }
+
+    pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM user_session"#)
+            .fetch_one(pool)
+            .await
+    }
+
+    pub async fn list(pool: &PgPool, limit: i32, offset: i32) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT *
+        FROM user_session
+        ORDER BY id DESC
+        LIMIT $1 OFFSET $2
+        "#,
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
     }
 }

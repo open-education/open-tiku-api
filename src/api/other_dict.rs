@@ -38,29 +38,29 @@ pub struct TextbookDictResp {
 // 字典添加
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<CreateTextbookDictReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook_dict::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(textbook_dict::add(app_state, req.into_inner()).await)
 }
 
 // 字典查询
 #[get("/list/{textbook_id}/{type_code}")]
 pub async fn list(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i32, String)>,
 ) -> ApiResponse<Vec<TextbookDictResp>> {
     let path = path.into_inner();
-    ApiResponse::response(textbook_dict::get_list(app_conf, path.0, path.1).await)
+    ApiResponse::response(textbook_dict::get_list(app_state, path.0, path.1).await)
 }
 
 // 字典删除
 #[get("/remove/{id}")]
 pub async fn remove(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(textbook_dict::delete(app_conf, path.into_inner().0).await)
+    ApiResponse::response(textbook_dict::delete(app_state, path.into_inner().0).await)
 }

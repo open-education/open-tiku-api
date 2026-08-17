@@ -91,7 +91,9 @@ pub fn user(cfg: &mut web::ServiceConfig) {
     cfg.service(user::exchange)
         .service(user::login)
         .service(user::info)
-        .service(user::logout);
+        .service(user::logout)
+        .service(user::account_list)
+        .service(user::session_list);
 }
 
 pub fn class(cfg: &mut web::ServiceConfig) {

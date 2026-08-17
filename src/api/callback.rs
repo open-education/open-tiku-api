@@ -9,10 +9,10 @@ use serde::Deserialize;
 // 用户登录时临时获取一个 state 值
 #[get("{provider}/login/url")]
 pub async fn login_url(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i16,)>,
 ) -> ApiResponse<String> {
-    ApiResponse::response(callback::login_url(app_conf, path.into_inner().0).await)
+    ApiResponse::response(callback::login_url(app_state, path.into_inner().0).await)
 }
 
 // 回调参数
@@ -25,17 +25,17 @@ pub struct CallbackQuery {
 // GitHub 登录回调
 #[get("/github")]
 pub async fn github(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     query: web::Query<CallbackQuery>,
 ) -> Result<HttpResponse> {
-    callback::github(app_conf, query.into_inner()).await
+    callback::github(app_state, query.into_inner()).await
 }
 
 // QQ 登录回调
 #[get("/qq")]
 pub async fn qq(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     query: web::Query<CallbackQuery>,
 ) -> Result<HttpResponse> {
-    callback::qq(app_conf, query.into_inner()).await
+    callback::qq(app_state, query.into_inner()).await
 }

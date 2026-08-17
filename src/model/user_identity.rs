@@ -15,6 +15,9 @@ pub struct UserIdentity {
     pub login_count: i64,
     pub role: i16,
     pub status: i16,
+    // 创建更新时间
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 // 登录平台类型
@@ -33,20 +36,14 @@ impl ProviderType {
         }
     }
 
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
+    pub fn desc(value: i16) -> String {
+        match value {
+            1 => "GitHub".to_string(),
+            2 => "QQ".to_string(),
+            _ => "Unknown".to_string(),
+        }
     }
-}
 
-// 用户角色
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum RoleType {
-    Normal = 1,  // 1 普通
-    Student = 2, // 2 学生
-    Teacher = 3, // 3 教师
-}
-
-impl RoleType {
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }
@@ -61,6 +58,14 @@ pub enum StatusType {
 }
 
 impl StatusType {
+    pub fn desc(value: i16) -> String {
+        match value {
+            1 => "激活".to_string(),
+            2 => "暂停".to_string(),
+            20 => "封禁".to_string(),
+            _ => "Unknown".to_string(),
+        }
+    }
     pub fn as_i16(&self) -> i16 {
         *self as i16
     }
@@ -137,7 +142,7 @@ impl UserIdentity {
 
     pub async fn find_by_user_ids(
         pool: &PgPool,
-        user_ids: &[i64],
+        user_ids: Vec<i64>,
     ) -> Result<Vec<Self>, sqlx::Error> {
         if user_ids.is_empty() {
             return Ok(Vec::new());
@@ -149,6 +154,27 @@ impl UserIdentity {
         "#,
         )
         .bind(user_ids)
+        .fetch_all(pool)
+        .await
+    }
+
+    pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM user_identity"#)
+            .fetch_one(pool)
+            .await
+    }
+
+    pub async fn list(pool: &PgPool, limit: i32, offset: i32) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT *
+        FROM user_identity
+        ORDER BY id DESC
+        LIMIT $1 OFFSET $2
+        "#,
+        )
+        .bind(limit)
+        .bind(offset)
         .fetch_all(pool)
         .await
     }
