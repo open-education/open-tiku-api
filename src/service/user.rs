@@ -307,7 +307,7 @@ pub async fn account_list(
         });
     }
 
-    let rows = UserIdentity::list(db, req.page_no, offset)
+    let rows = UserIdentity::list(db, req.page_size, offset)
         .await
         .map_err(|e| {
             error!("list user list rows err: {}", e);
@@ -367,7 +367,7 @@ pub async fn session_list(
         });
     }
 
-    let rows = UserSession::list(db, req.page_no, offset)
+    let rows = UserSession::list(db, req.page_size, offset)
         .await
         .map_err(|e| {
             error!("list user list rows err: {}", e);
