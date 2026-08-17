@@ -1,6 +1,6 @@
-pub mod error;
 pub mod argon2;
 pub mod email;
+pub mod error;
 pub mod file;
 pub mod github;
 pub mod local;
