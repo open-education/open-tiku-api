@@ -200,17 +200,16 @@ pub async fn list(
         AppError::db_error("题目计数查询失败")
     })?;
 
-    if total == 0 {
+    // 计算偏移量
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 {
         return Ok(QuestionListResp {
             list: vec![],
-            page_no: 1,
-            page_size: 10,
+            page_no: req.page_no,
+            page_size: req.page_size,
             total,
         });
     }
-
-    // 计算偏移量
-    let offset = (req.page_no - 1) * req.page_size;
 
     // 查询列表 (添加 ? 运算符解包 Result)
     let list_data = Question::list_by_cate_and_type(

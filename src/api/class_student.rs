@@ -18,11 +18,11 @@ pub struct ClassStudentReq {
 // 添加学生账户
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<ClassStudentReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<u64> {
-    ApiResponse::response(class_student::add(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(class_student::add(app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Serialize)]
@@ -49,11 +49,11 @@ pub struct ClassStudentResp {
 // 获取班级的学生账户-不分页直接展示全部
 #[get("/{class_id}/list")]
 pub async fn list(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i64,)>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ClassStudentResp>> {
-    ApiResponse::response(class_student::list(app_conf, path.into_inner().0, user_info).await)
+    ApiResponse::response(class_student::list(app_state, path.into_inner().0, user_info).await)
 }
 
 // 修改学生账户信息
@@ -72,9 +72,9 @@ pub struct ClassStudentEditReq {
 // 编辑学生账户信息
 #[post("/edit")]
 pub async fn edit(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<ClassStudentEditReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(class_student::edit(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(class_student::edit(app_state, req.into_inner(), user_info).await)
 }

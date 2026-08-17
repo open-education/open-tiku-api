@@ -18,19 +18,19 @@ pub struct CommonEditStatusReq {
 // 更新题目状态
 #[post("/question/status")]
 pub async fn question_status(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::question_status(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(edit::question_status(app_state, req.into_inner(), user_info).await)
 }
 
 // 更新试卷状态
 #[post("/paper/status")]
 pub async fn paper_status(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::paper_status(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(edit::paper_status(app_state, req.into_inner(), user_info).await)
 }

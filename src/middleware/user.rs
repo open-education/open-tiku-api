@@ -1,6 +1,6 @@
 use crate::app::config::AppState;
 use crate::constant::meta;
-use crate::model::user_identity::RoleType;
+use crate::enums::user::RoleType;
 use crate::model::user_session::{UserSession, UserSource};
 use crate::service::class_student::get_student_by_user_id;
 use crate::service::user_identity::get_user_identity_by_user_id;

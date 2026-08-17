@@ -94,9 +94,12 @@ impl Class {
         Ok(row)
     }
 
-    pub async fn list(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<Vec<Self>> {
-        let offset = (req.page_no - 1) * req.page_size;
-
+    pub async fn list(
+        pool: &PgPool,
+        author_id: i64,
+        req: &ClassListReq,
+        offset: i32,
+    ) -> Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at

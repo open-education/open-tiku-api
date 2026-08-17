@@ -23,11 +23,11 @@ pub struct ClassInfoReq {
 // 班级添加
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<ClassInfoReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(class::add(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(class::add(app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -72,9 +72,9 @@ pub struct ClassListResp {
 // 班级列表
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<ClassListReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<ClassListResp> {
-    ApiResponse::response(class::list(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(class::list(app_state, req.into_inner(), user_info).await)
 }

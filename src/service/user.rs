@@ -1,15 +1,20 @@
-use crate::api::user::{ExchangeTokenReq, UserLoginReq};
+use crate::api::user::{
+    ExchangeTokenReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
+    UserSessionInfoResp, UserSessionListReq, UserSessionListResp,
+};
 use crate::app::config::AppState;
 use crate::constant::meta;
+use crate::enums::user::RoleType;
 use crate::middleware::user::{ClientInfo, UserInfo};
 use crate::model::class_student::ClassStudent;
-use crate::model::user_identity::{RoleType, UserIdentity};
+use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
 use crate::model::user_session::{UserSession, UserSource};
 use crate::service::class_student::get_student_by_user_id;
 use crate::service::user_identity::get_user_identity_by_user_id;
 use crate::service::user_session::get_user_session_by_token;
 use crate::util::argon2::verify_password;
 use crate::util::error::AppError;
+use crate::util::local::to_local_datetime;
 use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
@@ -168,6 +173,8 @@ async fn handle_student_login(
         renew_cnt: 1,
         client_ip: client_info.ip.clone(),
         user_agent: client_info.user_agent.clone(),
+        created_at: None,
+        updated_at: None,
     };
     let _ = UserSession::save(db, session).await.map_err(|e| {
         error!("Save user session failed: {}", e);
@@ -264,7 +271,7 @@ pub async fn get_user_map(
     db: &PgPool,
     author_ids: Vec<i64>,
 ) -> Result<HashMap<i64, String>, AppError> {
-    let user_list = UserIdentity::find_by_user_ids(db, &author_ids)
+    let user_list = UserIdentity::find_by_user_ids(db, author_ids)
         .await
         .map_err(|e| {
             error!("user list by id err: {:?}", e);
@@ -276,4 +283,183 @@ pub async fn get_user_map(
         .collect();
 
     Ok(user_map)
+}
+
+// 第三方账户列表
+pub async fn account_list(
+    app_state: web::Data<AppState>,
+    req: UserListReq,
+) -> Result<UserListResp, AppError> {
+    let db = &app_state.db;
+
+    let count = UserIdentity::count(db).await.map_err(|e| {
+        error!("list user count err: {}", e);
+        AppError::db_error("用户计数查询失败")
+    })?;
+
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= count as i32 {
+        return Ok(UserListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total: count,
+        });
+    }
+
+    let rows = UserIdentity::list(db, req.page_no, offset)
+        .await
+        .map_err(|e| {
+            error!("list user list rows err: {}", e);
+            AppError::db_error("用户列表查询失败")
+        })?;
+
+    Ok(UserListResp {
+        list: rows.into_iter().map(to_user_identity_info_resp).collect(),
+        page_no: req.page_no,
+        page_size: req.page_size,
+        total: count,
+    })
+}
+
+fn to_user_identity_info_resp(raw: UserIdentity) -> UserIdentityInfoResp {
+    UserIdentityInfoResp {
+        id: raw.id.unwrap_or_default(),
+        user_id: raw.user_id,
+        provider: raw.provider,
+        provider_desc: ProviderType::desc(raw.provider),
+        provider_username: raw.provider_username.unwrap_or_default(),
+        provider_email: raw.provider_email.unwrap_or_default(),
+        last_login_time: if raw.last_login_time.is_some() {
+            to_local_datetime(raw.last_login_time.unwrap_or_default())
+        } else {
+            "".to_string()
+        },
+        login_count: raw.login_count,
+        role: raw.role,
+        role_desc: RoleType::desc(raw.role),
+        status: raw.status,
+        status_desc: StatusType::desc(raw.status),
+        created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
+        updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
+    }
+}
+
+// session 列表
+pub async fn session_list(
+    app_state: web::Data<AppState>,
+    req: UserSessionListReq,
+) -> Result<UserSessionListResp, AppError> {
+    let db = &app_state.db;
+
+    let count = UserSession::count(db).await.map_err(|e| {
+        error!("list user count err: {}", e);
+        AppError::db_error("用户 Session 计数查询失败")
+    })?;
+
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= count as i32 {
+        return Ok(UserSessionListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total: 0,
+        });
+    }
+
+    let rows = UserSession::list(db, req.page_no, offset)
+        .await
+        .map_err(|e| {
+            error!("list user list rows err: {}", e);
+            AppError::db_error("用户 Session 列表查询失败")
+        })?;
+
+    // 根据来源获取两份用户信息
+    let mut account_ids: Vec<i64> = vec![];
+    let mut student_ids: Vec<i64> = vec![];
+    for row in &rows {
+        if row.source == UserSource::User.as_i16() {
+            account_ids.push(row.user_id);
+        } else {
+            student_ids.push(row.user_id);
+        }
+    }
+
+    let mut account_map: HashMap<i64, UserIdentity> = HashMap::new();
+    if !account_ids.is_empty() {
+        let account_list = UserIdentity::find_by_user_ids(db, account_ids)
+            .await
+            .map_err(|e| {
+                error!("list user list err: {}", e);
+                AppError::db_error("用户列表查询失败")
+            })?;
+        account_map = account_list
+            .into_iter()
+            .map(|item| (item.user_id, item))
+            .collect();
+    }
+
+    let mut student_map: HashMap<i64, ClassStudent> = HashMap::new();
+    if !student_ids.is_empty() {
+        let student_list = ClassStudent::find_by_user_ids(db, student_ids)
+            .await
+            .map_err(|e| {
+                error!("list class student list err: {}", e);
+                AppError::db_error("学生账户列表查询失败")
+            })?;
+        student_map = student_list
+            .into_iter()
+            .map(|item| (item.user_id, item))
+            .collect();
+    }
+
+    Ok(UserSessionListResp {
+        list: to_session_info_resp(rows, account_map, student_map),
+        page_no: req.page_no,
+        page_size: req.page_size,
+        total: count,
+    })
+}
+
+fn to_session_info_resp(
+    rows: Vec<UserSession>,
+    account_map: HashMap<i64, UserIdentity>,
+    student_map: HashMap<i64, ClassStudent>,
+) -> Vec<UserSessionInfoResp> {
+    let mut resp_list: Vec<UserSessionInfoResp> = vec![];
+    for row in rows.into_iter() {
+        let mut username: String = "".to_string();
+        let mut provider_desc: String = "".to_string();
+
+        if row.source == UserSource::User.as_i16() {
+            if let Some(account) = account_map.get(&row.user_id) {
+                username = account
+                    .provider_username
+                    .clone()
+                    .unwrap_or("未知".to_string());
+                provider_desc = ProviderType::desc(account.provider);
+            }
+        } else {
+            if let Some(student) = student_map.get(&row.user_id) {
+                username = student.account.clone();
+                provider_desc = "班级".to_string();
+            }
+        }
+
+        resp_list.push(UserSessionInfoResp {
+            id: row.id.unwrap_or_default(),
+            user_id: row.user_id,
+            source_desc: UserSource::desc(row.source),
+            username: username.clone(),
+            provider_desc: provider_desc.clone(),
+            expired_at: to_local_datetime(row.expired_at),
+            renew_cnt: row.renew_cnt,
+            client_ip: row.client_ip.clone(),
+            user_agent: row.user_agent.clone(),
+            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
+            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
+        })
+    }
+
+    resp_list
 }

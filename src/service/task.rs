@@ -64,17 +64,16 @@ pub async fn list(
             AppError::db_error("任务计数查询失败")
         })?;
 
-    if total == 0 {
+    // 2. 计算偏移量
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 {
         return Ok(TaskListResp {
             list: vec![],
-            page_no: 1,
-            page_size: 10,
+            page_no: req.page_no,
+            page_size: req.page_size,
             total,
         });
     }
-
-    // 2. 计算偏移量
-    let offset = (req.page_no - 1) * req.page_size;
 
     // 3. 查询列表
     let list_data = Task::list_by_cate(

@@ -1,6 +1,6 @@
 use crate::api::callback::CallbackQuery;
 
-use crate::model::user_identity::{ProviderType, RoleType, StatusType, UserIdentity};
+use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
 use crate::model::user_session::{UserSession, UserSource};
 use crate::util::github::get_github_user;
 use crate::util::qq::get_qq_user;
@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::app::config::AppState;
 use crate::constant::meta;
+use crate::enums::user::RoleType;
 use crate::util::error::AppError;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -261,6 +262,8 @@ async fn save_user_identity(
             login_count: 0,
             role: RoleType::Normal.as_i16(),
             status: StatusType::Active.as_i16(),
+            created_at: None,
+            updated_at: None,
         });
 
     // 如果是修改数据则只覆盖三方平台字段
@@ -288,6 +291,8 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
         renew_cnt: 0,
         client_ip: "".to_string(),
         user_agent: "".to_string(),
+        created_at: None,
+        updated_at: None,
     };
 
     let _ = UserSession::save(db, session).await.map_err(|e| {

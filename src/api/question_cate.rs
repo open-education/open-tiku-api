@@ -29,29 +29,29 @@ pub struct QuestionCateResp {
 // 添加题型
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<CreateQuestionCateReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(question_cate::add(app_conf, req.into_inner()).await)
+    ApiResponse::response(question_cate::add(app_state, req.into_inner()).await)
 }
 
 // 题型列表 - 通过章节或者考点标识
 #[get("/list/{related_id}")]
 pub async fn list(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
-    ApiResponse::response(question_cate::list(app_conf, path.into_inner().0).await)
+    ApiResponse::response(question_cate::list(app_state, path.into_inner().0).await)
 }
 
 // 删除题型
 #[get("/remove/{id}")]
 pub async fn remove(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question_cate::remove(app_conf, path.into_inner().0).await)
+    ApiResponse::response(question_cate::remove(app_state, path.into_inner().0).await)
 }

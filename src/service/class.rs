@@ -83,7 +83,17 @@ pub async fn list(
             AppError::db_error("班级计数信息查询失败")
         })?;
 
-    let rows = Class::list(db, user_info.0.user_id, &req)
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= count as i32 {
+        return Ok(ClassListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total: count,
+        });
+    }
+
+    let rows = Class::list(db, user_info.0.user_id, &req, offset)
         .await
         .map_err(|err| {
             error!("Select class err: {}", err);

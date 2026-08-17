@@ -62,11 +62,11 @@ pub struct CreateQuestionReq {
 // 添加题目
 #[post("/add")]
 pub async fn add(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<CreateQuestionReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(question::add(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(question::add(app_state, req.into_inner(), user_info).await)
 }
 
 // 题库基本信息返回
@@ -144,10 +144,10 @@ pub struct QuestionInfoResp {
 
 #[get("/info/{id}")]
 pub async fn info(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<QuestionInfoResp> {
-    ApiResponse::response(question::info(app_conf, path.into_inner().0).await)
+    ApiResponse::response(question::info(app_state, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -185,11 +185,11 @@ pub struct QuestionListResp {
 // 题目列表
 #[post("/list")]
 pub async fn list(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<QuestionListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::list(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(question::list(app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -213,10 +213,10 @@ pub struct QuestionSimilarListReq {
 
 #[post("/similar")]
 pub async fn similar(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::similar(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::similar(app_state, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -227,10 +227,10 @@ pub struct OriginalReq {
 // 课本原题标识
 #[post("/original")]
 pub async fn original(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<OriginalReq>,
 ) -> ApiResponse<Option<i64>> {
-    ApiResponse::response(question::original(app_conf, req.into_inner()).await)
+    ApiResponse::response(question::original(app_state, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -240,9 +240,9 @@ pub struct DeleteReq {
 
 #[post("/delete")]
 pub async fn delete(
-    app_conf: web::Data<AppState>,
+    app_state: web::Data<AppState>,
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question::delete(app_conf, req.into_inner(), user_info).await)
+    ApiResponse::response(question::delete(app_state, req.into_inner(), user_info).await)
 }
