@@ -20,8 +20,5 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-# Database connect example
-.env
-
 # 配置文件不提交到代码库
 config.toml
