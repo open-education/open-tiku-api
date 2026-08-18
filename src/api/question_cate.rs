@@ -33,7 +33,7 @@ pub async fn add(
     req: web::Json<CreateQuestionCateReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(question_cate::add(app_state, req.into_inner()).await)
+    ApiResponse::response(question_cate::add(&app_state, req.into_inner()).await)
 }
 
 // 题型列表 - 通过章节或者考点标识
@@ -43,7 +43,7 @@ pub async fn list(
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
-    ApiResponse::response(question_cate::list(app_state, path.into_inner().0).await)
+    ApiResponse::response(question_cate::list(&app_state, path.into_inner().0).await)
 }
 
 // 删除题型
@@ -53,5 +53,5 @@ pub async fn remove(
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question_cate::remove(app_state, path.into_inner().0).await)
+    ApiResponse::response(question_cate::remove(&app_state, path.into_inner().0).await)
 }

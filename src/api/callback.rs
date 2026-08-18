@@ -12,7 +12,7 @@ pub async fn login_url(
     app_state: web::Data<AppState>,
     path: web::Path<(i16,)>,
 ) -> ApiResponse<String> {
-    ApiResponse::response(callback::login_url(app_state, path.into_inner().0).await)
+    ApiResponse::response(callback::login_url(&app_state, path.into_inner().0).await)
 }
 
 // 回调参数
@@ -28,7 +28,7 @@ pub async fn github(
     app_state: web::Data<AppState>,
     query: web::Query<CallbackQuery>,
 ) -> Result<HttpResponse> {
-    callback::github(app_state, query.into_inner()).await
+    callback::github(&app_state, query.into_inner()).await
 }
 
 // QQ 登录回调
@@ -37,5 +37,5 @@ pub async fn qq(
     app_state: web::Data<AppState>,
     query: web::Query<CallbackQuery>,
 ) -> Result<HttpResponse> {
-    callback::qq(app_state, query.into_inner()).await
+    callback::qq(&app_state, query.into_inner()).await
 }

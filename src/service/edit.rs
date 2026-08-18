@@ -4,12 +4,11 @@ use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::question::{Question, QuestionStatus};
 use crate::util::error::AppError;
-use actix_web::web;
 use log::error;
 
 // 更新题目状态
 pub async fn question_status(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {
@@ -70,7 +69,7 @@ pub async fn question_status(
 
 // 更新试卷状态
 pub async fn paper_status(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {

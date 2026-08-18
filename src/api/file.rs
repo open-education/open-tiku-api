@@ -14,7 +14,7 @@ pub async fn upload_image(
     app_state: web::Data<AppState>,
     payload: Multipart,
 ) -> ApiResponse<UploadFileResp> {
-    ApiResponse::response(service::file::upload_image(app_state, payload).await)
+    ApiResponse::response(service::file::upload_image(&app_state, payload).await)
 }
 
 // 文件上传
@@ -23,7 +23,7 @@ pub async fn upload_file(
     app_state: web::Data<AppState>,
     payload: Multipart,
 ) -> ApiResponse<UploadFileResp> {
-    ApiResponse::response(service::file::upload_file(app_state, payload).await)
+    ApiResponse::response(service::file::upload_file(&app_state, payload).await)
 }
 
 // 图片读取
@@ -32,7 +32,7 @@ pub async fn read_image(
     app_state: web::Data<AppState>,
     path: web::Path<(String,)>,
 ) -> actix_web::Result<HttpResponse> {
-    service::file::read_image(app_state, path.into_inner().0.as_str())
+    service::file::read_image(&app_state, path.into_inner().0.as_str())
 }
 
 // 文件读取
@@ -41,7 +41,7 @@ pub async fn read_file(
     app_state: web::Data<AppState>,
     path: web::Path<(String,)>,
 ) -> actix_web::Result<HttpResponse> {
-    service::file::read_file(app_state, path.into_inner().0.as_str())
+    service::file::read_file(&app_state, path.into_inner().0.as_str())
 }
 
 #[derive(Deserialize)]
@@ -57,5 +57,5 @@ pub async fn delete_file(
     app_state: web::Data<AppState>,
     req: web::Json<DeleteFileReq>,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(service::file::delete_file(app_state, req.into_inner()).await)
+    ApiResponse::response(service::file::delete_file(&app_state, req.into_inner()).await)
 }

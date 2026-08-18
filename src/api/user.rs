@@ -19,7 +19,7 @@ pub async fn exchange(
     app_state: web::Data<AppState>,
     req: web::Json<ExchangeTokenReq>,
 ) -> ApiResponse<String> {
-    ApiResponse::response(user::exchange(app_state, req.into_inner()).await)
+    ApiResponse::response(user::exchange(&app_state, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -42,7 +42,7 @@ pub async fn login(
     req: web::Json<UserLoginReq>,
     client_info: ClientInfo,
 ) -> ApiResponse<UserInfo> {
-    ApiResponse::response(user::login(app_state, req.into_inner(), client_info).await)
+    ApiResponse::response(user::login(&app_state, req.into_inner(), client_info).await)
 }
 
 // 通过 token 获取用户信息
@@ -51,13 +51,13 @@ pub async fn info(
     app_state: web::Data<AppState>,
     path: web::Path<(String,)>,
 ) -> ApiResponse<UserInfo> {
-    ApiResponse::response(user::info(app_state, path.into_inner().0.as_str()).await)
+    ApiResponse::response(user::info(&app_state, path.into_inner().0.as_str()).await)
 }
 
 // 退出登录
 #[get("logout")]
 pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> ApiResponse<bool> {
-    ApiResponse::response(user::logout(app_state, user_info).await)
+    ApiResponse::response(user::logout(&app_state, user_info).await)
 }
 
 // 第三方登录用户列表
@@ -113,7 +113,7 @@ pub async fn account_list(
     req: web::Json<UserListReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<UserListResp> {
-    ApiResponse::response(user::account_list(app_state, req.into_inner()).await)
+    ApiResponse::response(user::account_list(&app_state, req.into_inner()).await)
 }
 
 // Session 列表
@@ -165,5 +165,5 @@ pub async fn session_list(
     req: web::Json<UserSessionListReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<UserSessionListResp> {
-    ApiResponse::response(user::session_list(app_state, req.into_inner()).await)
+    ApiResponse::response(user::session_list(&app_state, req.into_inner()).await)
 }

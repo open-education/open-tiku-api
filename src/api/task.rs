@@ -27,7 +27,7 @@ pub async fn add(
     req: web::Json<TaskAddReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(task::add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(task::add(&app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -79,5 +79,5 @@ pub async fn list(
     app_state: web::Data<AppState>,
     req: web::Json<TaskListReq>,
 ) -> ApiResponse<TaskListResp> {
-    ApiResponse::response(task::list(app_state, req.into_inner()).await)
+    ApiResponse::response(task::list(&app_state, req.into_inner()).await)
 }

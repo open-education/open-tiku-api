@@ -22,7 +22,7 @@ pub async fn add(
     req: web::Json<ClassStudentReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<u64> {
-    ApiResponse::response(class_student::add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(class_student::add(&app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Serialize)]
@@ -53,7 +53,7 @@ pub async fn list(
     path: web::Path<(i64,)>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ClassStudentResp>> {
-    ApiResponse::response(class_student::list(app_state, path.into_inner().0, user_info).await)
+    ApiResponse::response(class_student::list(&app_state, path.into_inner().0, user_info).await)
 }
 
 // 修改学生账户信息
@@ -76,5 +76,5 @@ pub async fn edit(
     req: web::Json<ClassStudentEditReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(class_student::edit(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(class_student::edit(&app_state, req.into_inner(), user_info).await)
 }

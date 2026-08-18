@@ -72,7 +72,7 @@ pub async fn top_add(
     req: web::Json<TopPaperReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(paper::top_add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(paper::top_add(&app_state, req.into_inner(), user_info).await)
 }
 
 // 查看精选试卷详情
@@ -170,7 +170,7 @@ pub async fn top_info(
     app_state: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<TopPaperResp> {
-    ApiResponse::response(paper::top_info(app_state, path.into_inner().0).await)
+    ApiResponse::response(paper::top_info(&app_state, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -207,7 +207,7 @@ pub async fn list(
     req: web::Json<PaperListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<PaperListResp> {
-    ApiResponse::response(paper::list(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(paper::list(&app_state, req.into_inner(), user_info).await)
 }
 
 #[get("/latest/{paperType}/{count}")]
@@ -215,7 +215,7 @@ pub async fn latest(
     app_state: web::Data<AppState>,
     path: web::Path<(i16, i64)>,
 ) -> ApiResponse<Vec<CommonPaperResp>> {
-    ApiResponse::response(paper::latest(app_state, path.into_inner()).await)
+    ApiResponse::response(paper::latest(&app_state, path.into_inner()).await)
 }
 
 // 以下为配置信息
@@ -280,7 +280,7 @@ pub async fn preview(
     req: web::Json<GenPaperPreviewReq>,
     user_info: UserInfo,
 ) -> ApiResponse<GenPaperResp> {
-    ApiResponse::response(paper::preview(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(paper::preview(&app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -319,7 +319,7 @@ pub async fn gen_add(
     req: web::Json<PaperGenReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(paper::gen_add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(paper::gen_add(&app_state, req.into_inner(), user_info).await)
 }
 
 #[get("/gen/info/{id}")]
@@ -327,7 +327,7 @@ pub async fn gen_info(
     app_state: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<GenPaperResp> {
-    ApiResponse::response(paper::gen_info(app_state, path.into_inner().0).await)
+    ApiResponse::response(paper::gen_info(&app_state, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -341,5 +341,5 @@ pub async fn delete(
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(paper::delete(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(paper::delete(&app_state, req.into_inner(), user_info).await)
 }
