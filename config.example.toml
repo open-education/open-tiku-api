@@ -12,6 +12,8 @@ port = 8082
 # 数据库连接信息
 [database]
 url = "postgres://tiku_rw:123456@localhost/open_tiku_test"
+web_max_connections = 2
+task_max_connections = 2
 
 # 图片等资源存储路径
 [meta]

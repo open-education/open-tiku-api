@@ -19,6 +19,8 @@ pub struct ServerConfig {
 #[derive(Deserialize, Clone)]
 pub struct DatabaseConfig {
     pub url: String,
+    pub web_max_connections: u32,
+    pub task_max_connections: u32,
 }
 
 // 图片等资源存储路径
@@ -82,35 +84,32 @@ pub struct AppState {
 
 // 公共初始化配置函数
 // 目前 web cron 服务共用一个数据库连接池, 后续有变更再拆分
-pub async fn init() -> AppState {
+pub async fn init(is_task: bool) -> AppState {
     let builder = Config::builder()
         .add_source(File::new("config", FileFormat::Toml))
         // 新增文件是覆盖关系
         .build()
-        .unwrap_or_else(|err| {
-            panic!("Failed to read config.toml err: {}", err);
-        });
+        .expect("Failed to read config.toml");
 
     // 反序列化成应用配置文件
-    let config: AppConfig = builder.try_deserialize().unwrap_or_else(|err| {
-        panic!(
-            "Failed to read environment variable configuration err: {}",
-            err
-        );
-    });
+    let config: AppConfig = builder
+        .try_deserialize()
+        .expect("Failed to read environment variable configuration");
 
     // 初始化数据库连接池
     let options = PgConnectOptions::from_str(&config.database.url)
-        .unwrap_or_else(|err| panic!("database url format is incorrect: {}", err))
+        .expect("database url format is incorrect")
         .options([("timezone", "Asia/Shanghai")]);
 
     let pool = PgPoolOptions::new()
-        .max_connections(2) // 连接池后续追加至配置文件中
+        .max_connections(if is_task {
+            config.database.task_max_connections
+        } else {
+            config.database.web_max_connections
+        }) // 连接池最大数量 task 需要单独控制, 通常较小
         .connect_with(options)
         .await
-        .unwrap_or_else(|err| {
-            panic!("Unable to connect to the database: {}", err);
-        });
+        .expect("Failed to connect to database");
 
     AppState { config, db: pool }
 }
