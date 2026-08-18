@@ -29,7 +29,7 @@ pub async fn add(
     req: web::Json<CreateChapterKnowledgeReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(chapter_knowledge::add(app_state, req.into_inner()).await)
+    ApiResponse::response(chapter_knowledge::add(&app_state, req.into_inner()).await)
 }
 
 // 通过菜单标识获取关联详情-章节小节或者知识点小类标识
@@ -39,7 +39,7 @@ pub async fn list(
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
-    ApiResponse::response(chapter_knowledge::list(app_state, path.into_inner().0).await)
+    ApiResponse::response(chapter_knowledge::list(&app_state, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -58,5 +58,5 @@ pub async fn remove(
     req: web::Json<RemoveChapterKnowledgeReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(chapter_knowledge::remove(app_state, req.into_inner()).await)
+    ApiResponse::response(chapter_knowledge::remove(&app_state, req.into_inner()).await)
 }

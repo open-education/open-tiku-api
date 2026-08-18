@@ -5,7 +5,7 @@ use crate::model::user_session::{UserSession, UserSource};
 use crate::util::github::get_github_user;
 use crate::util::qq::get_qq_user;
 use crate::util::snowflake;
-use actix_web::{Error, HttpResponse, Result, error, web};
+use actix_web::{Error, HttpResponse, Result, error};
 use chrono::{Duration, Utc};
 use log::error;
 use sqlx::PgPool;
@@ -68,7 +68,7 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
 
 // 获取第三方登录地址
 pub async fn login_url(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     provider: i16,
 ) -> std::result::Result<String, AppError> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
@@ -109,7 +109,7 @@ pub async fn login_url(
 }
 
 // Github 登录
-pub async fn github(app_state: web::Data<AppState>, query: CallbackQuery) -> Result<HttpResponse> {
+pub async fn github(app_state: &AppState, query: CallbackQuery) -> Result<HttpResponse> {
     let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let github_user = get_github_user(
@@ -156,7 +156,7 @@ pub async fn github(app_state: web::Data<AppState>, query: CallbackQuery) -> Res
 }
 
 // QQ 登录
-pub async fn qq(app_state: web::Data<AppState>, query: CallbackQuery) -> Result<HttpResponse> {
+pub async fn qq(app_state: &AppState, query: CallbackQuery) -> Result<HttpResponse> {
     let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let (open_id, qq_user) = get_qq_user(

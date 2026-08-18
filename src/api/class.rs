@@ -4,6 +4,7 @@ use crate::service::class;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
 use serde::{Deserialize, Serialize};
+
 // 班级管理
 
 // 班级添加
@@ -27,7 +28,7 @@ pub async fn add(
     req: web::Json<ClassInfoReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(class::add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(class::add(&app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -76,5 +77,5 @@ pub async fn list(
     req: web::Json<ClassListReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<ClassListResp> {
-    ApiResponse::response(class::list(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(class::list(&app_state, req.into_inner(), user_info).await)
 }

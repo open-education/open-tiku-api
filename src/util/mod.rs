@@ -4,7 +4,7 @@ pub mod error;
 pub mod file;
 pub mod github;
 pub mod local;
-pub mod markdown_parse;
+pub mod markdown;
 pub mod qq;
 pub mod response;
 pub mod snowflake;

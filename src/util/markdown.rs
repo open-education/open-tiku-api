@@ -330,7 +330,7 @@ pub fn get_question(content: &str) -> RawQuestion {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::markdown_parse::get_questions;
+    use crate::util::markdown::get_questions;
 
     #[test]
     fn test_parse() {

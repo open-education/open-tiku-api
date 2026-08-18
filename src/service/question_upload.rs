@@ -8,8 +8,8 @@ use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::error::AppError;
-use crate::util::markdown_parse;
-use crate::util::markdown_parse::RawQuestion;
+use crate::util::markdown;
+use crate::util::markdown::RawQuestion;
 use log::{error, info};
 use sqlx::PgPool;
 use sqlx::types::Json;
@@ -148,7 +148,7 @@ async fn single(
 
     result.push("读取文件\n".to_string());
 
-    let all_questions = markdown_parse::get_questions(&content)?;
+    let all_questions = markdown::get_questions(&content)?;
     if all_questions.is_empty() {
         error!("Task name: {} all questions is empty", task_info.name);
         return Err(AppError::business_error("该文件没有读取到任何有效的题目"));
@@ -273,7 +273,7 @@ fn get_question_type_and_options(
     // 4. 处理选择题选项
     let options = if let Some(info) = question_type_info {
         if info.is_select {
-            let choices = markdown_parse::get_choices(&raw.choices);
+            let choices = markdown::get_choices(&raw.choices);
             let opts: Vec<QuestionOption> = choices
                 .into_iter()
                 .enumerate()
@@ -330,7 +330,7 @@ fn to_req(
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,
-        difficulty_level: markdown_parse::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
@@ -364,7 +364,7 @@ pub async fn parse_question_snippet(
         return Err(AppError::param_error("接收内容不能为空"));
     }
 
-    let raw = markdown_parse::get_question(req.content.as_str());
+    let raw = markdown::get_question(req.content.as_str());
     if raw.stem.is_empty() {
         return Err(AppError::business_error("解析后无法查找到题目题干"));
     }
@@ -409,7 +409,7 @@ pub async fn parse_question_snippet(
         title: raw.stem.clone(),
         content_plain: Some(question::to_plain_text(&raw.stem)),
         comment: None,
-        difficulty_level: markdown_parse::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),

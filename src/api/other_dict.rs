@@ -42,7 +42,7 @@ pub async fn add(
     req: web::Json<CreateTextbookDictReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<i32> {
-    ApiResponse::response(textbook_dict::add(app_state, req.into_inner()).await)
+    ApiResponse::response(textbook_dict::add(&app_state, req.into_inner()).await)
 }
 
 // 字典查询
@@ -52,7 +52,7 @@ pub async fn list(
     path: web::Path<(i32, String)>,
 ) -> ApiResponse<Vec<TextbookDictResp>> {
     let path = path.into_inner();
-    ApiResponse::response(textbook_dict::get_list(app_state, path.0, path.1).await)
+    ApiResponse::response(textbook_dict::get_list(&app_state, path.0, path.1).await)
 }
 
 // 字典删除
@@ -62,5 +62,5 @@ pub async fn remove(
     path: web::Path<(i32,)>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(textbook_dict::delete(app_state, path.into_inner().0).await)
+    ApiResponse::response(textbook_dict::delete(&app_state, path.into_inner().0).await)
 }

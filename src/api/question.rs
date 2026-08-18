@@ -66,7 +66,7 @@ pub async fn add(
     req: web::Json<CreateQuestionReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
-    ApiResponse::response(question::add(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(question::add(&app_state, req.into_inner(), user_info).await)
 }
 
 // 题库基本信息返回
@@ -147,7 +147,7 @@ pub async fn info(
     app_state: web::Data<AppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<QuestionInfoResp> {
-    ApiResponse::response(question::info(app_state, path.into_inner().0).await)
+    ApiResponse::response(question::info(&app_state, path.into_inner().0).await)
 }
 
 #[derive(Deserialize)]
@@ -189,7 +189,7 @@ pub async fn list(
     req: web::Json<QuestionListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::list(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(question::list(&app_state, req.into_inner(), user_info).await)
 }
 
 #[derive(Deserialize)]
@@ -216,7 +216,7 @@ pub async fn similar(
     app_state: web::Data<AppState>,
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
-    ApiResponse::response(question::similar(app_state, req.into_inner()).await)
+    ApiResponse::response(question::similar(&app_state, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -230,7 +230,7 @@ pub async fn original(
     app_state: web::Data<AppState>,
     req: web::Json<OriginalReq>,
 ) -> ApiResponse<Option<i64>> {
-    ApiResponse::response(question::original(app_state, req.into_inner()).await)
+    ApiResponse::response(question::original(&app_state, req.into_inner()).await)
 }
 
 #[derive(Deserialize)]
@@ -244,5 +244,5 @@ pub async fn delete(
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(question::delete(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(question::delete(&app_state, req.into_inner(), user_info).await)
 }

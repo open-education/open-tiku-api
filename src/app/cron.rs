@@ -10,7 +10,7 @@ pub async fn run_cron(args: Vec<String>) {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // 定时任务不需要监听端口这部分配置无需关注
-    let app_state = config::init().await;
+    let app_state = config::init(true).await;
 
     // 将任务名称注册到匹配条件中
     match task_name.as_str() {

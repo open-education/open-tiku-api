@@ -22,7 +22,7 @@ pub async fn question_status(
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::question_status(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(edit::question_status(&app_state, req.into_inner(), user_info).await)
 }
 
 // 更新试卷状态
@@ -32,5 +32,5 @@ pub async fn paper_status(
     req: web::Json<CommonEditStatusReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
-    ApiResponse::response(edit::paper_status(app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(edit::paper_status(&app_state, req.into_inner(), user_info).await)
 }

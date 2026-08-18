@@ -4,16 +4,15 @@ use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use actix_web::web;
 use log::error;
 
 // 添加任务
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: TaskAddReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
-    let db = &app_state.get_ref().db;
+    let db = &app_state.db;
 
     let row_id = Task::insert(
         db,
@@ -50,10 +49,7 @@ fn to_base_resp(row: &Task) -> TaskInfoResp {
     }
 }
 
-pub async fn list(
-    app_state: web::Data<AppState>,
-    req: TaskListReq,
-) -> Result<TaskListResp, AppError> {
+pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
     // 1. 查询总数

@@ -8,7 +8,6 @@ use crate::util::email::{get_student_account_html, send_html_email};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use crate::util::snowflake;
-use actix_web::web;
 use chrono::Utc;
 use futures_util::future::try_join_all;
 use log::{error, info};
@@ -22,7 +21,7 @@ use tokio::time::timeout;
 
 // 添加学生账户
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: ClassStudentReq,
     user_info: TeacherUserInfo,
 ) -> Result<u64, AppError> {
@@ -209,7 +208,7 @@ async fn build_student_req(
 
 // 发送学生账户密码文件给教师个人邮箱
 async fn send_account_email(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     class_info: &Class,
     account_to_map: HashMap<String, String>,
 ) -> Result<(), AppError> {
@@ -245,7 +244,7 @@ async fn send_account_email(
 
 // 班级内学生账户列表
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     class_id: i64,
     user_info: TeacherUserInfo,
 ) -> Result<Vec<ClassStudentResp>, AppError> {
@@ -285,7 +284,7 @@ fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
 
 // 编辑用户信息
 pub async fn edit(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: ClassStudentEditReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {

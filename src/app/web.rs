@@ -10,7 +10,7 @@ pub async fn run_web() -> std::io::Result<()> {
     // 初始化日志
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    let app_state = config::init().await;
+    let app_state = config::init(false).await;
 
     let addr = format!(
         "{}:{}",

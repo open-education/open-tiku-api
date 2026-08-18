@@ -2,7 +2,6 @@ use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
 use crate::app::config::AppState;
 use crate::model::other_dict::TextbookDict;
 use crate::util::error::AppError;
-use actix_web::web;
 use log::error;
 
 fn to_resp(row: TextbookDict) -> TextbookDictResp {
@@ -17,11 +16,8 @@ fn to_resp(row: TextbookDict) -> TextbookDictResp {
 }
 
 // 添加字典
-pub async fn add(
-    app_state: web::Data<AppState>,
-    req: CreateTextbookDictReq,
-) -> Result<i32, AppError> {
-    let db = &app_state.get_ref().db;
+pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32, AppError> {
+    let db = &app_state.db;
 
     // 新增时需要判重
     if req.id.is_none() {
@@ -47,11 +43,11 @@ pub async fn add(
 
 // 根据类型获取字典列表
 pub async fn get_list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     textbook_id: i32,
     type_code: String,
 ) -> Result<Vec<TextbookDictResp>, AppError> {
-    let db = &app_state.get_ref().db;
+    let db = &app_state.db;
 
     let rows = TextbookDict::find_by_textbook_and_type(db, textbook_id, &type_code)
         .await
@@ -65,15 +61,13 @@ pub async fn get_list(
 }
 
 // 删除字典
-pub async fn delete(app_state: web::Data<AppState>, id: i32) -> Result<bool, AppError> {
+pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     //todo 被使用的字典不能删除, 字典id在题目题目类型和标签中
 
-    let row = TextbookDict::delete(&app_state.get_ref().db, id)
-        .await
-        .map_err(|e| {
-            error!("error deleting unique textbook item: {}", e);
-            AppError::db_error("字典删除失败")
-        })?;
+    let row = TextbookDict::delete(&app_state.db, id).await.map_err(|e| {
+        error!("error deleting unique textbook item: {}", e);
+        AppError::db_error("字典删除失败")
+    })?;
 
     Ok(row > 0)
 }

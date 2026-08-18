@@ -101,13 +101,13 @@ mod tests {
     use std::collections::HashMap;
 
     #[actix_web::test]
-    async fn test_send_email() {
+    async fn test_qq_send_email() {
         let config = SmtpEmailConfig {
             server: "smtp.qq.com".to_string(),
             port: 587,
             username: "978771018@qq.com".to_string(),
-            password: "xxx".to_string(), // 必须使用 QQ 邮箱授权码, 不提供在代码中, 去配置 .env 中查找
-            from_name: "zhangguangxun".to_string(),
+            password: "xxx".to_string(), // 必须使用 QQ 邮箱授权码, 不提供在代码中, 去配置中查找
+            from_name: "OpenTiku".to_string(),
             from_email: "978771018@qq.com".to_string(),
         };
 
@@ -123,7 +123,76 @@ mod tests {
         if let Err(e) = send_html_email(
             &config,
             "zhangguangxun1@outlook.com",
-            "学生账户相关信息",
+            "测试QQ邮箱-学生账户相关信息",
+            get_student_account_html(&map).as_str(),
+        )
+        .await
+        {
+            println!("发送失败: {}", e.msg);
+        } else {
+            println!("发送成功");
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_smarter_mail_send_email() {
+        let config = SmtpEmailConfig {
+            server: "mail.oef.org.cn".to_string(),
+            port: 587,
+            username: "z@oef.org.cn".to_string(),
+            password: "xxx".to_string(), // 邮箱账户登录密码
+            from_name: "OpenTiku".to_string(),
+            from_email: "z@oef.org.cn".to_string(),
+        };
+
+        let mut map: HashMap<String, String> = HashMap::new();
+        map.entry("zhangsan".to_string())
+            .or_insert("q2323232332".to_string());
+        map.entry("lisi".to_string())
+            .or_insert("q2323232sdse332".to_string());
+        map.entry("wangwu".to_string())
+            .or_insert("q23232342343432332".to_string());
+
+        // 调用异步函数，使用 .await
+        if let Err(e) = send_html_email(
+            &config,
+            "978771018@qq.com",
+            "测试 SmarterMail-学生账户相关信息",
+            get_student_account_html(&map).as_str(),
+        )
+        .await
+        {
+            println!("发送失败: {}", e.msg);
+        } else {
+            println!("发送成功");
+        }
+    }
+
+    // 容量限制 15000 emails/month 500 emails/day 1 email/2 secs
+    #[actix_web::test]
+    async fn test_oniqi_send_email() {
+        let config = SmtpEmailConfig {
+            server: "mail.cyberpersons.com".to_string(),
+            port: 587,
+            username: "smtp_c74179e9f58058c9".to_string(),
+            password: "xxx".to_string(), // 邮箱账户登录密码
+            from_name: "OpenTiku".to_string(),
+            from_email: "tiku@oniqi.com".to_string(),
+        };
+
+        let mut map: HashMap<String, String> = HashMap::new();
+        map.entry("zhangsan".to_string())
+            .or_insert("q2323232332".to_string());
+        map.entry("lisi".to_string())
+            .or_insert("q2323232sdse332".to_string());
+        map.entry("wangwu".to_string())
+            .or_insert("q23232342343432332".to_string());
+
+        // 调用异步函数，使用 .await
+        if let Err(e) = send_html_email(
+            &config,
+            "978771018@qq.com",
+            "测试 onigi-学生账户相关信息",
             get_student_account_html(&map).as_str(),
         )
         .await

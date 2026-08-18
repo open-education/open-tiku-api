@@ -4,12 +4,11 @@ use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use actix_web::web;
 use log::error;
 
 // 添加班级
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: ClassInfoReq,
     user_info: TeacherUserInfo,
 ) -> Result<i64, AppError> {
@@ -70,7 +69,7 @@ fn build_class_req(req: ClassInfoReq, user_id: i64) -> Class {
 
 // 班级列表
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: ClassListReq,
     user_info: TeacherUserInfo,
 ) -> Result<ClassListResp, AppError> {

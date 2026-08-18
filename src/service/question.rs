@@ -10,7 +10,6 @@ use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::service::user::{get_user_map, get_user_name};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use actix_web::web;
 use log::error;
 use regex::Regex;
 use std::collections::HashMap;
@@ -31,12 +30,12 @@ pub fn to_plain_text(title: &str) -> String {
 
 // 添加题目
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     mut req: CreateQuestionReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
-    let db = &app_state.get_ref().db;
+    let db = &app_state.db;
 
     let source_id = req.source_id;
     let is_add = req.id.is_none();
@@ -143,8 +142,8 @@ pub fn to_info_resp(row: &Question, author_name: String) -> QuestionInfoResp {
 }
 
 // 通过主键获取详情
-pub async fn info(app_state: web::Data<AppState>, id: i64) -> Result<QuestionInfoResp, AppError> {
-    let db = &app_state.get_ref().db;
+pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, AppError> {
+    let db = &app_state.db;
     let row = Question::find_by_id(db, id).await.map_err(|err| {
         error!("question get by id err: {:?}", err);
         AppError::db_error("查询失败")
@@ -157,7 +156,7 @@ pub async fn info(app_state: web::Data<AppState>, id: i64) -> Result<QuestionInf
 
 // 题目列表
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: QuestionListReq,
     user_info: Option<UserInfo>,
 ) -> Result<QuestionListResp, AppError> {
@@ -273,7 +272,7 @@ fn to_list_resp(
 
 // 变式题题目列表
 pub async fn similar(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: QuestionSimilarListReq,
 ) -> Result<QuestionListResp, AppError> {
     let db = &app_state.db;
@@ -340,10 +339,7 @@ pub async fn similar(
 }
 
 // 课本原题
-pub async fn original(
-    app_state: web::Data<AppState>,
-    req: OriginalReq,
-) -> Result<Option<i64>, AppError> {
+pub async fn original(app_state: &AppState, req: OriginalReq) -> Result<Option<i64>, AppError> {
     let id = Question::original(&app_state.db, req.id)
         .await
         .map_err(|e| {
@@ -356,7 +352,7 @@ pub async fn original(
 
 // 删除题目
 pub async fn delete(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: DeleteReq,
     user_info: UserInfo,
 ) -> Result<bool, AppError> {

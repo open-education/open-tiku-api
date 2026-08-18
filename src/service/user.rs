@@ -15,7 +15,6 @@ use crate::service::user_session::get_user_session_by_token;
 use crate::util::argon2::verify_password;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use actix_web::web;
 use chrono::{Duration, Utc};
 use log::error;
 use sqlx::PgPool;
@@ -23,10 +22,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 // 换取登录 token
-pub async fn exchange(
-    app_state: web::Data<AppState>,
-    req: ExchangeTokenReq,
-) -> Result<String, AppError> {
+pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<String, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -56,7 +52,7 @@ pub async fn exchange(
 
 // 登录
 pub async fn login(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: UserLoginReq,
     client_info: ClientInfo,
 ) -> Result<UserInfo, AppError> {
@@ -202,7 +198,7 @@ async fn handle_student_login(
 }
 
 // 获取用户信息
-pub async fn info(app_state: web::Data<AppState>, token: &str) -> Result<UserInfo, AppError> {
+pub async fn info(app_state: &AppState, token: &str) -> Result<UserInfo, AppError> {
     let db = &app_state.db;
 
     let session = get_user_session_by_token(db, token).await?;
@@ -238,7 +234,7 @@ pub async fn info(app_state: web::Data<AppState>, token: &str) -> Result<UserInf
 }
 
 // 退出登录
-pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> Result<bool, AppError> {
+pub async fn logout(app_state: &AppState, user_info: UserInfo) -> Result<bool, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -287,7 +283,7 @@ pub async fn get_user_map(
 
 // 第三方账户列表
 pub async fn account_list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: UserListReq,
 ) -> Result<UserListResp, AppError> {
     let db = &app_state.db;
@@ -347,7 +343,7 @@ fn to_user_identity_info_resp(raw: UserIdentity) -> UserIdentityInfoResp {
 
 // session 列表
 pub async fn session_list(
-    app_state: web::Data<AppState>,
+    app_state: &AppState,
     req: UserSessionListReq,
 ) -> Result<UserSessionListResp, AppError> {
     let db = &app_state.db;
