@@ -8,7 +8,7 @@ use crate::task;
 pub async fn run_cron(args: Vec<String>) {
     let task_name = args.get(2).expect("需要指定任务名称");
 
-    init_logger();
+    let _logger_guard = init_logger("task.log");
 
     let app_state = config::init(true).await;
 

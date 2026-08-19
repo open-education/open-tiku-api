@@ -52,6 +52,7 @@ rand = "0.10.2"
 lettre = { version = "0.11", features = ["tokio1-native-tls", "builder"] }
 config = { version = "0.15.25", features = ["toml"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "time"] }
 tracing-actix-web = "0.7.22"
 tracing-appender = "0.2.5"
+time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
