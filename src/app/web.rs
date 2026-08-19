@@ -9,7 +9,8 @@ use tracing_actix_web::TracingLogger;
 /// web 服务入口
 
 pub async fn run_web() -> std::io::Result<()> {
-    init_logger();
+    let guard = init_logger("app.log");
+    Box::leak(Box::new(guard));
 
     let app_state = config::init(false).await;
 
