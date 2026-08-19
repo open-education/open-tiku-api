@@ -5,8 +5,8 @@ use crate::api::chapter_knowledge::{
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 
-use log::error;
 use sqlx::PgPool;
+use tracing::error;
 
 use crate::app::config::AppState;
 use crate::util::error::AppError;

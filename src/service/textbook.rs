@@ -5,9 +5,9 @@ use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
 use crate::util::error::AppError;
-use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use tracing::error;
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
 pub fn get_levels_by_parent_id(

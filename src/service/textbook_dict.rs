@@ -2,7 +2,7 @@ use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
 use crate::app::config::AppState;
 use crate::model::other_dict::TextbookDict;
 use crate::util::error::AppError;
-use log::error;
+use tracing::error;
 
 fn to_resp(row: TextbookDict) -> TextbookDictResp {
     TextbookDictResp {

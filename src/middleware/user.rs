@@ -11,9 +11,9 @@ use actix_web::http::header::USER_AGENT;
 use actix_web::middleware::Next;
 use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, web};
 use chrono::{Duration, Utc};
-use log::error;
 use serde::Serialize;
 use std::future::{Ready, ready};
+use tracing::error;
 
 // 三方普通登录用户信息验证
 #[derive(Serialize, Clone)]

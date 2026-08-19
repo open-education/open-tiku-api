@@ -4,7 +4,7 @@ use crate::util::error::AppError;
 use crate::util::{file, upload};
 use actix_multipart::Multipart;
 use actix_web::HttpResponse;
-use log::error;
+use tracing::error;
 
 // 上传图片
 pub async fn upload_image(

@@ -2,9 +2,9 @@ use crate::constant::meta;
 use crate::util::error::AppError;
 use actix_multipart::Multipart;
 use futures_util::StreamExt;
-use log::error;
 use serde::Serialize;
 use std::path::Path;
+use tracing::error;
 
 #[derive(Serialize)]
 pub struct UploadFileResp {

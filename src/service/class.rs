@@ -4,7 +4,7 @@ use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use log::error;
+use tracing::error;
 
 // 添加班级
 pub async fn add(

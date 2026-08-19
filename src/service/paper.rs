@@ -17,10 +17,10 @@ use crate::service::{question, user};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use chrono::Utc;
-use log::{error, info};
 use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
+use tracing::{error, info};
 
 // 添加精选试卷
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法

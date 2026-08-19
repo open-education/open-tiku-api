@@ -4,7 +4,7 @@ use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::question::{Question, QuestionStatus};
 use crate::util::error::AppError;
-use log::error;
+use tracing::error;
 
 // 更新题目状态
 pub async fn question_status(

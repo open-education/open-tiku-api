@@ -1,14 +1,15 @@
 use crate::app::config;
+use crate::app::log::init_logger;
 use crate::app::route;
 use crate::middleware::user::auth;
-use actix_web::middleware::{Logger, from_fn};
+use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer, web};
+use tracing_actix_web::TracingLogger;
 
 /// web 服务入口
 
 pub async fn run_web() -> std::io::Result<()> {
-    // 初始化日志
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    init_logger();
 
     let app_state = config::init(false).await;
 
@@ -20,8 +21,7 @@ pub async fn run_web() -> std::io::Result<()> {
     // 注意路由匹配按定义顺序匹配, 所以更具体的路由需要配置在前面
     HttpServer::new(move || {
         App::new()
-            .wrap(Logger::default())
-            .wrap(Logger::new("%a %{User-Agent}i"))
+            .wrap(TracingLogger::default())
             .wrap(from_fn(auth))
             .app_data(web::Data::new(app_state.clone()))
             .service(web::scope("/file").configure(route::file))

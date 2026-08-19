@@ -1,7 +1,7 @@
 use crate::model::user_identity::{StatusType, UserIdentity};
 use crate::util::error::AppError;
-use log::error;
 use sqlx::PgPool;
+use tracing::error;
 
 // 获取第三方用户信息
 pub async fn get_user_identity_by_user_id(

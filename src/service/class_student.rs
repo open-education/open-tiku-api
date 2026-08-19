@@ -10,7 +10,6 @@ use crate::util::local::to_local_datetime;
 use crate::util::snowflake;
 use chrono::Utc;
 use futures_util::future::try_join_all;
-use log::{error, info};
 use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -18,6 +17,7 @@ use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio::task;
 use tokio::time::timeout;
+use tracing::{error, info};
 
 // 添加学生账户
 pub async fn add(
