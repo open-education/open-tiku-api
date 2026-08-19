@@ -10,11 +10,11 @@ use crate::service::question;
 use crate::util::error::AppError;
 use crate::util::markdown;
 use crate::util::markdown::RawQuestion;
-use log::{error, info};
 use sqlx::PgPool;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
+use tracing::{error, info};
 
 // 批量题目上传
 pub async fn batch(app_state: &AppState) -> Result<(), AppError> {

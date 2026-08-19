@@ -1,7 +1,7 @@
 use actix_web::{Error, error};
-use log::{error, info};
 use reqwest::Client;
 use serde::Deserialize;
+use tracing::{error, info};
 
 // 解析 github 账户信息
 

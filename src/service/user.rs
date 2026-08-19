@@ -16,9 +16,9 @@ use crate::util::argon2::verify_password;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use chrono::{Duration, Utc};
-use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use tracing::error;
 use uuid::Uuid;
 
 // 换取登录 token

@@ -1,6 +1,6 @@
 use crate::app::config::AppState;
 use crate::service::question_upload;
-use log::error;
+use tracing::error;
 
 /// 批量上传题目
 ///

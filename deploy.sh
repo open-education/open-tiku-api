@@ -4,7 +4,7 @@ set -e
 
 # 配置
 APP_NAME="open-tiku-api"
-LOG_DIR="log"
+APP_LOG_FILE="log/app.log.$(date +%Y-%m-%d)" # 日志文件, 注意应用配置的规则, 如果调整了需要更新
 PID_FILE="${APP_NAME}.pid"
 
 # 显示帮助信息
@@ -215,16 +215,11 @@ start_app() {
         stop_app
     fi
 
-    # 准备日志目录
-    mkdir -p "$LOG_DIR"
-    _log_file="$LOG_DIR/${APP_NAME}_$(date '+%Y%m%d_%H%M%S').log"
-
     # 启动
     echo "启动命令: $APP_NAME"
-    echo "日志文件: $_log_file"
 
     # 使用 nohup 启动
-    nohup "./$APP_NAME" > "$_log_file" 2>&1 &
+    nohup "./$APP_NAME" > /dev/null 2>&1 &
     _app_pid=$!
 
     # 保存 PID
@@ -238,16 +233,15 @@ start_app() {
         echo "启动成功"
         echo "进程ID: $_app_pid"
         echo "版本: $_version"
-        echo "日志: $_log_file"
 
         # 显示初始日志
         echo "--- 初始日志 ---"
-        tail -5 "$_log_file" 2>/dev/null || echo "(日志文件为空)"
+        tail -5 "$APP_LOG_FILE" 2>/dev/null || echo "(日志文件为空)"
         return 0
     else
         echo "启动失败"
         echo "查看错误日志:"
-        tail -10 "$_log_file" 2>/dev/null || echo "(无错误日志)"
+        tail -10 "$APP_LOG_FILE" 2>/dev/null || echo "(无错误日志)"
         rm -f "$PID_FILE"
         return 1
     fi

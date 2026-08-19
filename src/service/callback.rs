@@ -7,8 +7,8 @@ use crate::util::qq::get_qq_user;
 use crate::util::snowflake;
 use actix_web::{Error, HttpResponse, Result, error};
 use chrono::{Duration, Utc};
-use log::error;
 use sqlx::PgPool;
+use tracing::error;
 use url::Url;
 use uuid::Uuid;
 

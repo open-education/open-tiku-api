@@ -3,7 +3,7 @@ use crate::app::config::AppState;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use crate::util::error::AppError;
-use log::error;
+use tracing::error;
 
 fn to_resp(row: QuestionCate) -> QuestionCateResp {
     QuestionCateResp {

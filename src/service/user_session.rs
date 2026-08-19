@@ -1,8 +1,8 @@
 use crate::model::user_session::UserSession;
 use crate::util::error::AppError;
 use chrono::Utc;
-use log::error;
 use sqlx::PgPool;
+use tracing::error;
 
 // 根据 token 获取用户 session 信息
 pub async fn get_user_session_by_token(db: &PgPool, token: &str) -> Result<UserSession, AppError> {

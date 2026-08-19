@@ -1,4 +1,5 @@
 use crate::app::config;
+use crate::app::log::init_logger;
 use crate::task;
 
 /// 运行定时任务入口
@@ -7,9 +8,8 @@ use crate::task;
 pub async fn run_cron(args: Vec<String>) {
     let task_name = args.get(2).expect("需要指定任务名称");
 
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    init_logger();
 
-    // 定时任务不需要监听端口这部分配置无需关注
     let app_state = config::init(true).await;
 
     // 将任务名称注册到匹配条件中

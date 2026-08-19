@@ -1,7 +1,7 @@
 use actix_web::{Error, error};
-use log::{error, info};
 use reqwest::Client;
 use serde::Deserialize;
+use tracing::{error, info};
 
 // qq 登录账户
 // 网站应用接入流程: [https://wiki.connect.qq.com/网站应用接入流程]

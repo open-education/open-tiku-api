@@ -4,8 +4,8 @@ use lettre::message::Mailbox;
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
-use log::error;
 use std::collections::HashMap;
+use tracing::error;
 
 // 生成班级学生账户的邮件模板
 pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {

@@ -3,9 +3,9 @@ use crate::app::config::AppState;
 use crate::constant;
 use crate::model::textbook::Textbook;
 use crate::service::textbook::{get_levels_by_parent_id, to_level_map};
-use log::error;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use tracing::error;
 
 // 补充导航 path 路径值
 pub async fn path(conf: &AppState) {

@@ -4,7 +4,7 @@ use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use log::error;
+use tracing::error;
 
 // 添加任务
 pub async fn add(

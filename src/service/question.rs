@@ -10,9 +10,9 @@ use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
 use crate::service::user::{get_user_map, get_user_name};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use log::error;
 use regex::Regex;
 use std::collections::HashMap;
+use tracing::error;
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {

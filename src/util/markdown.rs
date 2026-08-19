@@ -1,10 +1,10 @@
 use crate::util::error::AppError;
-use log::error;
 use pulldown_cmark::utils::TextMergeStream;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
 use rust_decimal::Decimal;
 use std::str::FromStr;
+use tracing::error;
 
 /// 从 markdown 文档中解析出题目结构和内容
 /// 1. 目前表格处理只能处理固定的表格, 存在其余表格时无法正确解析, 需后续完善

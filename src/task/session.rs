@@ -1,6 +1,6 @@
 use crate::app::config::AppState;
 use crate::model::user_session::UserSession;
-use log::{error, info};
+use tracing::{error, info};
 
 // 删除过期的 sessions
 
