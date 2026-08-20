@@ -262,6 +262,7 @@ async fn save_user_identity(
             login_count: 0,
             role: RoleType::Normal.as_i16(),
             status: StatusType::Active.as_i16(),
+            remark: "".to_string(),
             created_at: None,
             updated_at: None,
         });

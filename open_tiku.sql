@@ -240,22 +240,24 @@ CREATE TABLE user_identity
     user_id           BIGINT       NOT NULL,
 
     -- 三方平台标识
-    provider          SMALLINT     NOT NULL, -- 1 github, 2 qq
-    provider_user_id  VARCHAR(100) NOT NULL, -- 第三方平台返回的 OpenID / UserID
+    provider          SMALLINT     NOT NULL,            -- 1 github, 2 qq
+    provider_user_id  VARCHAR(100) NOT NULL,            -- 第三方平台返回的 OpenID / UserID
 
     -- 第三方返回的公开信息
-    provider_username VARCHAR(100),          -- 三方平台昵称
-    provider_email    VARCHAR(255),          -- 三方平台邮箱
+    provider_username VARCHAR(100),                     -- 三方平台昵称
+    provider_email    VARCHAR(255),                     -- 三方平台邮箱
 
     -- 登录
-    last_login_time   TIMESTAMPTZ,           -- 最后一次登录时间
-    login_count       BIGINT      DEFAULT 0,
+    last_login_time   TIMESTAMPTZ,                      -- 最后一次登录时间
+    login_count       BIGINT                DEFAULT 0,
 
-    role              SMALLINT     NOT NULL, -- 用户角色 1 普通 2 学生 3 教师
-    status            SMALLINT     NOT NULL, -- 用户状态 1 正常 2 暂停 20 封禁
+    role              SMALLINT     NOT NULL,            -- 用户角色 1 普通 2 学生 3 教师
+    status            SMALLINT     NOT NULL,            -- 用户状态 1 正常 2 暂停 20 封禁
 
-    created_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    remark            TEXT         NOT NULL DEFAULT '', -- 备注
+
+    created_at        TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
 
     -- 唯一约束：同一平台下的同一个用户ID只能绑定一次
     CONSTRAINT unique_provider_user UNIQUE (provider, provider_user_id)

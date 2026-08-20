@@ -1,6 +1,6 @@
+use crate::api::user::UserEditReq;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
-
 // 第三方用户登录信息
 
 #[derive(FromRow)]
@@ -15,6 +15,7 @@ pub struct UserIdentity {
     pub login_count: i64,
     pub role: i16,
     pub status: i16,
+    pub remark: String,
     // 创建更新时间
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -58,6 +59,15 @@ pub enum StatusType {
 }
 
 impl StatusType {
+    pub fn from_i16(value: i16) -> Option<Self> {
+        match value {
+            1 => Some(Self::Active),
+            2 => Some(Self::Paused),
+            3 => Some(Self::Forbidden),
+            _ => None,
+        }
+    }
+
     pub fn desc(value: i16) -> String {
         match value {
             1 => "激活".to_string(),
@@ -77,11 +87,11 @@ impl UserIdentity {
             r#"
         INSERT INTO user_identity (
             id, user_id, provider, provider_user_id, provider_username,
-            provider_email, last_login_time, login_count, role, status
+            provider_email, last_login_time, login_count, role, status, remark
         )
         VALUES (
             COALESCE($1, nextval('user_identity_id_seq')),
-            $2, $3, $4, $5, $6, $7, $8, $9, $10
+            $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
         )
         ON CONFLICT (id) DO UPDATE SET
             user_id = EXCLUDED.user_id,
@@ -93,6 +103,7 @@ impl UserIdentity {
             login_count = EXCLUDED.login_count,
             role = EXCLUDED.role,
             status = EXCLUDED.status,
+            remark = EXCLUDED.remark,
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
         "#,
@@ -107,6 +118,7 @@ impl UserIdentity {
         .bind(identity.login_count)
         .bind(identity.role)
         .bind(identity.status)
+        .bind(identity.remark.clone())
         .fetch_one(pool)
         .await
     }
@@ -177,5 +189,27 @@ impl UserIdentity {
         .bind(offset)
         .fetch_all(pool)
         .await
+    }
+
+    pub async fn update_by_id(pool: &PgPool, req: UserEditReq) -> Result<bool, sqlx::Error> {
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r#"
+        UPDATE user_identity
+        SET status = $2,
+            remark = $3,
+            updated_at = $4
+        WHERE id = $1
+        "#,
+        )
+        .bind(req.id)
+        .bind(req.status)
+        .bind(req.remark)
+        .bind(now)
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 }
