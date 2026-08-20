@@ -6,7 +6,7 @@ use crate::app::config::AppState;
 use crate::enums::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
-use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
+use crate::model::question_relation::{QuestionRelation, QuestionRelationType};
 use crate::service::user::{get_user_map, get_user_name};
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
@@ -37,34 +37,82 @@ pub async fn add(
     // 关于重复添加的问题应该要使用 redis 全局锁, 暂时没有 缓存服务
     let db = &app_state.db;
 
-    let source_id = req.source_id;
+    let source_id = req.source_id.unwrap_or_default();
+    let req_id = req.id.unwrap_or_default();
     let is_add = req.id.is_none();
 
     // 题目上传只能上传草稿中和待审核的题目
-    if !(req.status == QuestionStatus::Draft.as_i16()
-        || req.status == QuestionStatus::Pending.as_i16())
-    {
-        return Err(AppError::param_error("不被允许的题目上传操作"));
-    }
-
-    // 只允许编辑自己的题目, 实际上题目应该可以公开编辑, 但是这个要引入版本控制, 即记录谁做了什么
-    if let Some(id) = req.id {
-        let has_question = Question::find_by_id(db, id).await.map_err(|err| {
-            error!("Failed to find question: {}", err);
-            AppError::db_error("题目查询错误")
-        })?;
-        if has_question.author_id != user_info.user_id {
-            return Err(AppError::permission_denied("只允许编辑自己的题目"));
-        }
+    let is_valid_status = req.status == QuestionStatus::Draft.as_i16()
+        || req.status == QuestionStatus::Pending.as_i16();
+    if !is_valid_status {
+        return Err(AppError::param_error(
+            "题目状态错误: 仅支持上传草稿或待审核状态",
+        ));
     }
 
     // 从请求信息中解析出题目归属类型
-    let question_similar_type =
-        if let Some(question_similar_type) = req.question_similar_type.clone() {
-            question_similar_type
-        } else {
-            QuestionSimilarType::Similar.as_i16()
-        };
+    let relation_type = QuestionRelationType::from_i16(req.relation_type)
+        .ok_or_else(|| AppError::param_error("非法的题目类型"))?;
+
+    if relation_type == QuestionRelationType::Base && source_id > 0 {
+        return Err(AppError::param_error("参数冲突: 母题不支持设置来源标识"));
+    }
+
+    // 只允许编辑自己的题目, 实际上题目应该可以公开编辑, 但是这个要引入版本控制, 即记录谁做了什么
+    if req_id > 0 {
+        let has_question = Question::find_by_id(db, req_id).await.map_err(|err| {
+            error!("Failed to find question (id: {}): {}", req_id, err);
+            AppError::db_error("题目查询失败")
+        })?;
+
+        if has_question.author_id != user_info.user_id {
+            return Err(AppError::permission_denied(
+                "操作拒绝：只允许编辑自己创建的题目",
+            ));
+        }
+    }
+
+    // 如果是新增课本原题, 母题只能关联一个课本原题, 编辑它自己不需要处理
+    if is_add && relation_type == QuestionRelationType::Original {
+        // 来源题目必须是母题
+        if source_id == 0 {
+            return Err(AppError::param_error(
+                "缺失必要参数: 课本原题必须指定来源母题 ID",
+            ));
+        }
+
+        // 检查是否是变式题
+        let similar = QuestionRelation::find_base_by_similar_id(db, source_id)
+            .await
+            .map_err(|err| {
+                error!(
+                    "Failed to find similar by child_id ({}): {}",
+                    source_id, err
+                );
+                AppError::db_error("变式题关系查询失败")
+            })?;
+
+        if similar.is_some() {
+            return Err(AppError::business_error(
+                "关系冲突：只有母题可以关联课本原题",
+            ));
+        }
+
+        let child_ids = QuestionRelation::find_original_by_base_id(db, req_id)
+            .await
+            .map_err(|err| {
+                error!(
+                    "Failed to find original child ids (req_id: {}): {}",
+                    req_id, err
+                );
+                AppError::db_error("母题查找变式题失败")
+            })?;
+        if child_ids.len() > 1 {
+            return Err(AppError::business_error(
+                "重复关联, 母题只能关联一道课本原题",
+            ));
+        }
+    }
 
     // 从登录信息中解析出作者
     req.author_id = Some(user_info.user_id);
@@ -77,12 +125,12 @@ pub async fn add(
     })?;
 
     // 新增如果存在变式题则关联变式题
-    if is_add && source_id.is_some() {
-        let _ = QuestionSimilar::insert(db, source_id.unwrap(), id, question_similar_type)
+    if is_add && source_id > 0 {
+        let _ = QuestionRelation::insert(db, source_id, id, relation_type.as_i16())
             .await
             .map_err(|e| {
                 error!("question add err: {:?}", e);
-                AppError::db_error("变式题关联失败")
+                AppError::db_error("题目关联关系关联失败")
             })?;
     }
 
@@ -97,6 +145,7 @@ fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
         question_type_id: row.question_type_id,
         question_tag_ids: row.question_tag_ids.clone(),
         question_dimension_ids: row.question_dimension_ids.clone(),
+        relation_type: row.relation_type,
         author_id: row.author_id,
         author_name,
         source: row.source.clone(),
@@ -339,15 +388,53 @@ pub async fn similar(
 }
 
 // 课本原题
-pub async fn original(app_state: &AppState, req: OriginalReq) -> Result<Option<i64>, AppError> {
-    let id = Question::original(&app_state.db, req.id)
-        .await
-        .map_err(|e| {
-            error!("original request by id err: {:?}", e);
-            AppError::db_error("题目查询错误")
-        })?;
+pub async fn original(
+    app_state: &AppState,
+    req: OriginalReq,
+) -> Result<QuestionInfoResp, AppError> {
+    let relation_type = QuestionRelationType::from_i16(req.relation_type)
+        .ok_or_else(|| AppError::param_error("不受支持的类型查询"))?;
 
-    Ok(id)
+    let db = &app_state.db;
+    let base_id: i64;
+
+    // 查找母题标识
+    match relation_type {
+        QuestionRelationType::Similar => {
+            base_id = QuestionRelation::find_base_by_similar_id(db, req.id)
+                .await
+                .map_err(|err| {
+                    error!("question similar child id err: {:?}", err);
+                    AppError::db_error("查询变式题关联的母题失败")
+                })?
+                .ok_or_else(|| AppError::business_error("该变式题没有关联母题"))?;
+        }
+        QuestionRelationType::Original => {
+            return Err(AppError::param_error("该题目本身已是课本原题"));
+        }
+        QuestionRelationType::Base => base_id = req.id,
+    }
+
+    // 通过母题查找课本原题
+    let origin_ids = QuestionRelation::find_original_by_base_id(db, base_id)
+        .await
+        .map_err(|err| {
+            error!("question original child id err: {:?}", err);
+            AppError::db_error("通过母题查找课本原题失败")
+        })?;
+    if origin_ids.is_empty() {
+        return Err(AppError::business_error(
+            "当前题目关联的母题没有维护课本原题",
+        ));
+    }
+    if origin_ids.len() > 1 {
+        return Err(AppError::business_error(
+            "当前题目关联的母题维护了多个课本原题",
+        ));
+    }
+
+    // 返回课本原题明细
+    info(app_state, origin_ids[0]).await
 }
 
 // 删除题目

@@ -4,7 +4,7 @@ use crate::app::config::AppState;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};
-use crate::model::question_similar::{QuestionSimilar, QuestionSimilarType};
+use crate::model::question_relation::{QuestionRelation, QuestionRelationType};
 use crate::model::task::{Task, TaskStatus, TaskType};
 use crate::service::question;
 use crate::util::error::AppError;
@@ -167,6 +167,7 @@ async fn single(
         let parent_req = to_req(
             question_info.parent,
             None,
+            QuestionRelationType::Base,
             &task_info,
             &question_type_list,
             &question_tag_list,
@@ -191,6 +192,7 @@ async fn single(
             let child_req = to_req(
                 child,
                 Some(parent.id),
+                QuestionRelationType::Similar,
                 &task_info,
                 &question_type_list,
                 &question_tag_list,
@@ -213,11 +215,11 @@ async fn single(
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64, i16)> = children_ids
             .into_iter()
-            .map(|child| (parent.id, child, QuestionSimilarType::Similar.as_i16()))
+            .map(|child| (parent.id, child, QuestionRelationType::Similar.as_i16()))
             .collect();
 
         // 关联母题和变式题对应关系
-        QuestionSimilar::batch_insert(&mut tx, similar_pairs)
+        QuestionRelation::batch_insert(&mut tx, similar_pairs)
             .await
             .map_err(|e| {
                 error!("Batch insert child of question similar relation err: {}", e);
@@ -299,6 +301,7 @@ fn get_question_type_and_options(
 fn to_req(
     raw: RawQuestion,
     parent_id: Option<i64>,
+    relation_type: QuestionRelationType,
     task_info: &Task,
     question_type_list: &[TextbookDict],
     question_tag_list: &[TextbookDict],
@@ -319,7 +322,7 @@ fn to_req(
         id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
-        question_similar_type: None,
+        relation_type: relation_type.as_i16(),
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,
@@ -398,7 +401,7 @@ pub async fn parse_question_snippet(
         id: None,
         question_cate_id: 0,
         source_id: None,
-        question_similar_type: None,
+        relation_type: QuestionRelationType::Base.as_i16(),
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,

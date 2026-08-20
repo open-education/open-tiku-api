@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS question
     question_type_id       INTEGER      NOT NULL,                                                     -- 题目类型ID (1:单选, 2:多选, 3:填空, 4:解答等)
     question_tag_ids       JSONB,                                                                     -- 题目标签IDs
     question_dimension_ids JSONB                 DEFAULT '[]'::jsonb,                                 -- 核心素养IDs
+    relation_type          SMALLINT     NOT NULL DEFAULT 3,                                           -- 题目类型 1 变式题 2 课本原题 3 母题
     author_id              BIGINT       NOT NULL,                                                     -- 创作者标识
     source                 VARCHAR(500) NOT NULL DEFAULT '',                                          -- 题目来源
     original_name          VARCHAR(500) NOT NULL DEFAULT '',                                          -- 原创者昵称
@@ -113,8 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_i
 -- 查看作者自己的题
 CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
 
--- 2.1. 变式题
-CREATE TABLE IF NOT EXISTS question_similar
+-- 2.1. 题目关联关系
+CREATE TABLE IF NOT EXISTS question_relation
 (
     id            BIGSERIAL PRIMARY KEY,
     question_type SMALLINT NOT NULL DEFAULT 1, -- 题目类型 1 变式题, 2 课本原题

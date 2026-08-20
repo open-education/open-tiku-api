@@ -1,5 +1,4 @@
 use crate::api::question::CreateQuestionReq;
-use crate::model::question_similar::QuestionSimilarType;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -52,6 +51,7 @@ pub struct Question {
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养标识
+    pub relation_type: i16,                             // 题目类型
     pub author_id: i64,                                 // 作者
     pub source: String,                                 // 来源
     pub original_name: String,                          // 原创者昵称
@@ -98,12 +98,12 @@ impl Question {
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids
+            steps, question_dimension_ids, relation_type
         )
         VALUES (
             COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
             $6, $7, $8, $9, $10, $11,
-            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
+            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
         )
         ON CONFLICT (id) DO UPDATE SET
             question_cate_id = EXCLUDED.question_cate_id,
@@ -128,6 +128,7 @@ impl Question {
             remark_ext = EXCLUDED.remark_ext,
             steps = EXCLUDED.steps,
             question_dimension_ids = EXCLUDED.question_dimension_ids,
+            relation_type = EXCLUDED.relation_type,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
         "#,
@@ -155,6 +156,7 @@ impl Question {
         .bind(req.remark_ext)
         .bind(Json(req.steps.unwrap_or_default()))
         .bind(Json(req.question_dimension_ids.unwrap_or_default()))
+        .bind(req.relation_type)
         .fetch_one(pool)
         .await?;
 
@@ -175,10 +177,10 @@ impl Question {
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids
+            steps, question_dimension_ids, relation_type
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *
         "#,
         )
@@ -204,6 +206,7 @@ impl Question {
         .bind(req.remark_ext)
         .bind(Json(req.steps.unwrap_or_default()))
         .bind(Json(req.question_dimension_ids.unwrap_or_default()))
+        .bind(req.relation_type)
         .fetch_one(&mut **tx)
         .await
     }
@@ -232,7 +235,7 @@ impl Question {
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark,remark_ext,
-                steps, question_dimension_ids
+                steps, question_dimension_ids, relation_type
             )
             "#,
             );
@@ -258,7 +261,8 @@ impl Question {
                     .push_bind(&req.remark)
                     .push_bind(&req.remark_ext)
                     .push_bind(Json(req.steps.clone().unwrap_or_default()))
-                    .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()));
+                    .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()))
+                    .push_bind(req.relation_type);
             });
 
             // 添加 RETURNING id 子句
@@ -438,7 +442,7 @@ impl Question {
             r#"
             SELECT COUNT(q.id)
             FROM question q
-            INNER JOIN question_similar qs ON q.id = qs.child_id
+            INNER JOIN question_relation qs ON q.id = qs.child_id
             WHERE qs.question_id = $1
               AND q.status = $2
               AND q.question_cate_id = $3
@@ -476,7 +480,7 @@ impl Question {
             r#"
             SELECT q.*
             FROM question q
-            INNER JOIN question_similar qs ON q.id = qs.child_id
+            INNER JOIN question_relation qs ON q.id = qs.child_id
             WHERE qs.question_id = $1
               AND q.status = $2
               AND q.question_cate_id = $3
@@ -499,23 +503,6 @@ impl Question {
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
-        .await
-    }
-
-    // 课本原题, 暂定只查询一个
-    pub async fn original(pool: &PgPool, id: i64) -> Result<Option<i64>, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(
-            r#"
-            SELECT child_id
-            FROM question_similar
-            WHERE question_id = $1
-              AND question_type = $2
-              LIMIT 1
-            "#,
-        )
-        .bind(id)
-        .bind(QuestionSimilarType::OriginalTextbookQuestion.as_i16())
-        .fetch_optional(pool)
         .await
     }
 
