@@ -9,7 +9,7 @@ pub mod paper_group;
 pub mod paper_question;
 pub mod question;
 pub mod question_cate;
-pub mod question_similar;
+pub mod question_relation;
 pub mod task;
 pub mod textbook;
 pub mod user_identity;

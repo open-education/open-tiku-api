@@ -17,8 +17,8 @@ pub struct CreateQuestionReq {
     #[serde(rename(deserialize = "sourceId", serialize = "sourceId"))]
     pub source_id: Option<i64>, // 变式题父主键
     // 题目归属类型
-    #[serde(rename(deserialize = "questionSimilarType", serialize = "questionSimilarType"))]
-    pub question_similar_type: Option<i16>,
+    #[serde(rename(deserialize = "relationType", serialize = "relationType"))]
+    pub relation_type: i16,
     #[serde(rename(deserialize = "questionTypeId", serialize = "questionTypeId"))]
     pub question_type_id: i32, // 题型类型主键
     #[serde(rename(deserialize = "questionTagIds", serialize = "questionTagIds"))]
@@ -81,6 +81,8 @@ pub struct QuestionBaseResp {
     pub question_tag_ids: Option<Json<Vec<i32>>>, // 题型标签主键
     #[serde(rename(serialize = "questionDimensionIds"))]
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
+    #[serde(rename(serialize = "relationType"))]
+    pub relation_type: i16, // 题目类型
     #[serde(rename(serialize = "authorId"))]
     pub author_id: i64, // 作者, 内部逻辑生成
     #[serde(rename(serialize = "authorName"))]
@@ -222,6 +224,8 @@ pub async fn similar(
 #[derive(Deserialize)]
 pub struct OriginalReq {
     pub id: i64,
+    #[serde(rename(deserialize = "relationType"))]
+    pub relation_type: i16,
 }
 
 // 课本原题标识
@@ -229,7 +233,7 @@ pub struct OriginalReq {
 pub async fn original(
     app_state: web::Data<AppState>,
     req: web::Json<OriginalReq>,
-) -> ApiResponse<Option<i64>> {
+) -> ApiResponse<QuestionInfoResp> {
     ApiResponse::response(question::original(&app_state, req.into_inner()).await)
 }
 

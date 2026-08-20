@@ -11,8 +11,6 @@ use tracing::error;
 pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
     let mut items = String::new();
     for (name, password) in accounts {
-        // 简单转义，防止用户名或密码包含 < > & 等（如有需要）
-        // 这里假设数据安全，直接拼接
         items.push_str(&format!("<li>{}: {}</li>", name, password));
     }
 
