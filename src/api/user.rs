@@ -91,6 +91,7 @@ pub struct UserIdentityInfoResp {
     pub status: i16,
     #[serde(rename(serialize = "statusDesc"))]
     pub status_desc: String,
+    pub remark: String,
     #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
     #[serde(rename(serialize = "updatedAt"))]
@@ -166,4 +167,20 @@ pub async fn session_list(
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<UserSessionListResp> {
     ApiResponse::response(user::session_list(&app_state, req.into_inner()).await)
+}
+
+#[derive(Deserialize)]
+pub struct UserEditReq {
+    pub id: i64,
+    pub status: i16,
+    pub remark: String,
+}
+
+#[post("account/edit")]
+pub async fn edit(
+    app_state: web::Data<AppState>,
+    req: web::Json<UserEditReq>,
+    _user_info: TeacherUserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(user::edit(&app_state, req.into_inner()).await)
 }

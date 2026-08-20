@@ -1,5 +1,5 @@
 use crate::api::user::{
-    ExchangeTokenReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
+    ExchangeTokenReq, UserEditReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
     UserSessionInfoResp, UserSessionListReq, UserSessionListResp,
 };
 use crate::app::config::AppState;
@@ -336,6 +336,7 @@ fn to_user_identity_info_resp(raw: UserIdentity) -> UserIdentityInfoResp {
         role_desc: RoleType::desc(raw.role),
         status: raw.status,
         status_desc: StatusType::desc(raw.status),
+        remark: raw.remark,
         created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
         updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
     }
@@ -458,4 +459,19 @@ fn to_session_info_resp(
     }
 
     resp_list
+}
+
+pub async fn edit(app_state: &AppState, req: UserEditReq) -> Result<bool, AppError> {
+    StatusType::from_i16(req.status).ok_or_else(|| AppError::param_error("用户状态错误"))?;
+
+    let rows = UserIdentity::update_by_id(&app_state.db, req)
+        .await
+        .map_err(|e| {
+            error!("edit user identity err: {}", e);
+            AppError::db_error("用户状态更新失败")
+        })?;
+
+    // 清除该用户的登录信息, 访问中间件获取用户 session 和 info 时会验证, 该处不需要重复该逻辑
+
+    Ok(rows)
 }
