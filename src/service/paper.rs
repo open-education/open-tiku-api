@@ -13,13 +13,14 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
-use crate::service::{question, user};
+use crate::service::question;
+use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use chrono::Utc;
 use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, Transaction};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::{error, info};
 
 // 添加精选试卷
@@ -585,15 +586,28 @@ pub async fn preview(
         })?;
 
         // 批量获取作者名称
-        let author_ids: Vec<i64> = rows.iter().map(|q| q.author_id).collect();
-        let user_map: HashMap<i64, String> = user::get_user_map(db, author_ids).await?;
+        let mut user_ids_set = HashSet::with_capacity(rows.len() * 2);
+
+        for q in &rows {
+            user_ids_set.insert(q.author_id);
+            if q.approve_id > 0 {
+                user_ids_set.insert(q.approve_id);
+            }
+        }
+
+        let user_ids: Vec<i64> = user_ids_set.into_iter().collect();
+        let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
 
         let mut questions: Vec<GenPaperQuestionResp> = vec![];
         for (index, row) in rows.into_iter().enumerate() {
             let author_name = user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "未知".to_string());
+                .unwrap_or_else(|| "".to_string());
+            let approve_name = user_map
+                .get(&row.approve_id)
+                .cloned()
+                .unwrap_or_else(|| "".to_string());
 
             questions.push(GenPaperQuestionResp {
                 common: CommonPaperGenQuestionResp {
@@ -605,7 +619,7 @@ pub async fn preview(
                     question_id: row.id,
                     score: question_type.score as i32,
                 },
-                info: question::to_info_resp(&row, author_name),
+                info: question::to_info_resp(&row, author_name, approve_name),
             });
         }
 
@@ -977,10 +991,13 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
             .into_iter()
             .fold((HashMap::new(), Vec::new()), |(mut map, mut ids), q| {
                 ids.push(q.author_id);
+                if q.approve_id > 0 {
+                    ids.push(q.approve_id);
+                }
                 map.insert(q.id, q);
                 (map, ids)
             });
-    let user_map: HashMap<i64, String> = user::get_user_map(db, author_ids).await?;
+    let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
 
     to_gen_resp(
         paper,
@@ -1068,7 +1085,11 @@ fn to_gen_paper_question_resp(
             user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "未知".to_string()),
+                .unwrap_or_else(|| "".to_string()),
+            user_map
+                .get(&row.approve_id)
+                .cloned()
+                .unwrap_or_else(|| "".to_string()),
         ),
     }
 }

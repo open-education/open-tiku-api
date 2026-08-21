@@ -251,18 +251,6 @@ pub async fn logout(app_state: &AppState, user_info: UserInfo) -> Result<bool, A
     Ok(true)
 }
 
-// 获取用户名, 获取不到返回 未知
-pub async fn get_user_name(db: &PgPool, user_id: i64) -> String {
-    match UserIdentity::find_by_user_id(db, user_id).await {
-        Ok(Some(user)) => user.provider_username.unwrap_or_default(),
-        Ok(None) => "未知".to_string(),
-        Err(err) => {
-            error!("get user name user id err: {}", err);
-            "未知".to_string()
-        }
-    }
-}
-
 pub async fn get_user_map(
     db: &PgPool,
     author_ids: Vec<i64>,
