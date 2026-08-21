@@ -7,11 +7,11 @@ use crate::enums::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};
 use crate::model::question_relation::{QuestionRelation, QuestionRelationType};
-use crate::service::user::{get_user_map, get_user_name};
+use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::error;
 
 /// 将包含 LaTeX 的富文本标题转换为纯文本
@@ -138,7 +138,7 @@ pub async fn add(
 }
 
 // 题目基本信息, 基本够列表使用
-fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
+fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> QuestionBaseResp {
     QuestionBaseResp {
         id: row.id,
         question_cate_id: row.question_cate_id,
@@ -159,6 +159,7 @@ fn to_base_resp(row: &Question, author_name: String) -> QuestionBaseResp {
         options_layout: row.options_layout,
         status: row.status,
         approve_id: row.approve_id,
+        approve_name,
         reject_reason: row.reject_reason.clone(),
         approve_at: if let Some(at) = row.approve_at {
             Some(to_local_datetime(at))
@@ -183,9 +184,9 @@ fn to_extra_resp(row: &Question) -> QuestionExtraInfo {
 }
 
 // 完整的题目信息
-pub fn to_info_resp(row: &Question, author_name: String) -> QuestionInfoResp {
+pub fn to_info_resp(row: &Question, author_name: String, approve_name: String) -> QuestionInfoResp {
     QuestionInfoResp {
-        base_info: to_base_resp(row, author_name),
+        base_info: to_base_resp(row, author_name, approve_name),
         extra_info: to_extra_resp(row),
     }
 }
@@ -198,9 +199,29 @@ pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, App
         AppError::db_error("查询失败")
     })?;
 
-    let author_name = get_user_name(db, row.author_id).await;
+    let user_name_map: HashMap<i64, String> = {
+        let mut user_ids = Vec::with_capacity(2);
+        user_ids.push(row.author_id);
+        if row.approve_id > 0 && row.approve_id != row.author_id {
+            user_ids.push(row.approve_id);
+        }
+        get_user_map(db, user_ids).await?
+    };
 
-    Ok(to_info_resp(&row, author_name))
+    let author_name = user_name_map
+        .get(&row.author_id)
+        .cloned()
+        .unwrap_or_default();
+    let approve_name = user_name_map
+        .get(&row.approve_id)
+        .cloned()
+        .unwrap_or_default();
+
+    Ok(to_info_resp(
+        &row,
+        author_name.to_string(),
+        approve_name.to_string(),
+    ))
 }
 
 // 题目列表
@@ -279,11 +300,18 @@ pub async fn list(
         AppError::db_error("题目列表查询失败")
     })?;
 
-    // 批量获取作者名称
-    let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
-    let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
+    let mut user_ids_set = HashSet::with_capacity(list_data.len() * 2);
 
-    // 转换并返回
+    for q in &list_data {
+        user_ids_set.insert(q.author_id);
+        if q.approve_id > 0 {
+            user_ids_set.insert(q.approve_id);
+        }
+    }
+
+    let user_ids: Vec<i64> = user_ids_set.into_iter().collect();
+    let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
+
     Ok(to_list_resp(
         list_data,
         user_map,
@@ -309,7 +337,11 @@ fn to_list_resp(
                     user_map
                         .get(&row.author_id)
                         .cloned()
-                        .unwrap_or_else(|| "未知".to_string()),
+                        .unwrap_or_else(|| "".to_string()),
+                    user_map
+                        .get(&row.approve_id)
+                        .cloned()
+                        .unwrap_or_else(|| "".to_string()),
                 )
             })
             .collect(),

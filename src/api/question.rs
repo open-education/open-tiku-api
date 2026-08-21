@@ -112,6 +112,8 @@ pub struct QuestionBaseResp {
     pub status: i16, // 审核状态
     #[serde(rename(serialize = "approveId"))]
     pub approve_id: i64, // 审核人
+    #[serde(rename(serialize = "approveName"))]
+    pub approve_name: String,
     #[serde(rename(serialize = "rejectReason"))]
     pub reject_reason: Option<String>, // 拒绝原因
     #[serde(rename(serialize = "approveAt"))]
