@@ -2,7 +2,7 @@ use crate::api::user::{
     ExchangeTokenReq, UserEditReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
     UserSessionInfoResp, UserSessionListReq, UserSessionListResp,
 };
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::constant::meta;
 use crate::enums::user::RoleType;
 use crate::middleware::user::{ClientInfo, UserInfo};
@@ -17,10 +17,9 @@ use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use crate::util::pwd::get_pwd;
 use chrono::{Duration, Utc};
-use reqwest::get;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use tracing::{error, info};
+use tracing::error;
 use uuid::Uuid;
 
 // 换取登录 token

@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::model::user_session::UserSession;
 use tracing::{error, info};
 

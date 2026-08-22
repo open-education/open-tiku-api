@@ -1,5 +1,5 @@
 use crate::api::file::DeleteFileReq;
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::util::error::AppError;
 use crate::util::{file, upload};
 use actix_multipart::Multipart;

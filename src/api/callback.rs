@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::service::callback;
 use crate::util::response::ApiResponse;
 use actix_web::{HttpResponse, Result, get, web};

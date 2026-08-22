@@ -1,5 +1,5 @@
 use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::model::other_dict::TextbookDict;
 use crate::util::error::AppError;
 use tracing::error;

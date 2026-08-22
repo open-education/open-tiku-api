@@ -8,7 +8,7 @@
 
 ### 启动
 
-阅读 [config.rs](src/app/config.rs) 方法中的服务相关环境变量配置部分:
+阅读 [conf.rs](src/app/conf.rs) 方法中的服务相关环境变量配置部分:
 
 ```rust
 // 服务相关环境变量配置

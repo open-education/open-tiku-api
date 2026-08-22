@@ -1,6 +1,8 @@
 pub mod chapter_knowledge;
 pub mod class;
 pub mod class_student;
+pub mod homework_class;
+pub mod homework_class_student;
 pub mod other_dict;
 pub mod paper;
 pub mod paper_gen_config;

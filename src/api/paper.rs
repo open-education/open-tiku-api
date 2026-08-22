@@ -1,5 +1,5 @@
 use crate::api::question::QuestionInfoResp;
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::paper_gen_config::{DifficultyLevelInfo, QuestionTypeInfo};
 use crate::model::question::{Content, QuestionOption};

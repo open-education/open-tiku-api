@@ -4,7 +4,7 @@ use crate::api::paper::{
     PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
     TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
 };
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::enums::paper::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::{Paper, PaperStatus, PaperType};

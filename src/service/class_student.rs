@@ -1,7 +1,7 @@
 use crate::api::class_student::{
     ClassStudentEditReq, ClassStudentListReq, ClassStudentReq, ClassStudentResp,
 };
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::model::class_student::{ClassStudent, StudentStatus};
@@ -120,7 +120,7 @@ async fn check_class_info(
 }
 
 // 检查班级列表信息
-async fn check_class_list_info(
+pub async fn check_class_list_info(
     db: &PgPool,
     class_ids: Vec<i64>,
     user_id: i64,
