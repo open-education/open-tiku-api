@@ -167,6 +167,7 @@ mod tests {
     }
 
     // 容量限制 15000 emails/month 500 emails/day 1 email/2 secs
+    // 本地使用 proxy 可能发送失败, 恢复正常网络即可
     #[actix_web::test]
     async fn test_oniqi_send_email() {
         let config = SmtpEmailConfig {

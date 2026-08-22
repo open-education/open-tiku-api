@@ -15,10 +15,12 @@ use crate::service::user_session::get_user_session_by_token;
 use crate::util::argon2::verify_password;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
+use crate::util::pwd::get_pwd;
 use chrono::{Duration, Utc};
+use reqwest::get;
 use sqlx::PgPool;
 use std::collections::HashMap;
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 
 // 换取登录 token
@@ -71,6 +73,7 @@ pub async fn login(
                 &req,
                 &client_info,
                 app_state.config.login.student_pepper.as_str(),
+                app_state.config.login.student_private_key_pem.as_str(),
             )
             .await
         }
@@ -132,12 +135,16 @@ async fn handle_student_login(
     req: &UserLoginReq,
     client_info: &ClientInfo,
     pepper: &str,
+    private_key_pem: &str,
 ) -> Result<UserInfo, AppError> {
     let account: String = req.account.clone().unwrap_or_default();
     let password: String = req.password.clone().unwrap_or_default();
     if account.is_empty() || password.is_empty() {
         return Err(AppError::param_error("登录信息不存在"));
     }
+
+    // 用私钥解密密码
+    let get_d_pwd = get_pwd(&password, private_key_pem)?;
 
     // 查询学生账户信息
     let mut student = ClassStudent::find_by_account(db, account.as_str())
@@ -149,7 +156,7 @@ async fn handle_student_login(
         .ok_or_else(|| AppError::not_found("学生账户不存在"))?;
 
     // 进行密码比对
-    match verify_password(pepper, password.as_str(), student.password.as_str()) {
+    match verify_password(pepper, get_d_pwd.as_str(), student.password.as_str()) {
         Ok(_) => {}
         Err(_) => {
             return Err(AppError::business_error("用户名密码不匹配"));

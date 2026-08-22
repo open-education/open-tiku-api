@@ -109,7 +109,10 @@ impl ClassStudent {
         Ok(result.rows_affected())
     }
 
-    pub async fn find_by_class_id(pool: &PgPool, class_id: i64) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn find_by_class_ids(
+        pool: &PgPool,
+        class_ids: Vec<i64>,
+    ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
         SELECT
@@ -117,11 +120,11 @@ impl ClassStudent {
             status, remark, last_login_time, login_count,
             created_at, updated_at
         FROM class_student
-        WHERE class_id = $1
+        WHERE class_id = ANY($1)
         ORDER BY id DESC
         "#,
         )
-        .bind(class_id)
+        .bind(class_ids)
         .fetch_all(pool)
         .await
     }

@@ -27,6 +27,8 @@ website_home_url = "http://tiku.test"
 oauth_state_secret = ""
 # 生成学生账户密码的 胡椒 值
 student_pepper = ""
+# 学生登录密码解密私钥文件绝对路径
+student_private_key_pem=""
 
 # GitHub 登录认证配置, 固定配置的, 需要登录 GitHub 去获取
 [login.github]

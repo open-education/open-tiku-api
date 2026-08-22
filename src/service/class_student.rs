@@ -1,4 +1,6 @@
-use crate::api::class_student::{ClassStudentEditReq, ClassStudentReq, ClassStudentResp};
+use crate::api::class_student::{
+    ClassStudentEditReq, ClassStudentListReq, ClassStudentReq, ClassStudentResp,
+};
 use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
@@ -107,23 +109,43 @@ async fn check_class_info(
     user_id: i64,
     check_email: bool,
 ) -> Result<Class, AppError> {
-    let class_row = Class::find_by_id(db, class_id)
-        .await
-        .map_err(|err| {
-            error!("Select class err: {}", err);
-            AppError::db_error("班级查询错误")
-        })?
-        .ok_or_else(|| AppError::not_found("班级不存在"))?;
-    if class_row.author_id != user_id {
-        return Err(AppError::permission_denied("你只能管理自己的班级"));
-    }
-    if check_email && class_row.email.is_empty() {
-        return Err(AppError::business_error(
-            "没有配置个人邮箱, 无法接收账户登录密码",
-        ));
+    let class_list = check_class_list_info(db, vec![class_id], user_id, check_email).await?;
+
+    let class = class_list
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::not_found("班级信息不存在"))?;
+
+    Ok(class)
+}
+
+// 检查班级列表信息
+async fn check_class_list_info(
+    db: &PgPool,
+    class_ids: Vec<i64>,
+    user_id: i64,
+    check_email: bool,
+) -> Result<Vec<Class>, AppError> {
+    let class_row_list = Class::find_by_ids(db, class_ids).await.map_err(|err| {
+        error!("Select class err: {}", err);
+        AppError::db_error("班级查询错误")
+    })?;
+    if class_row_list.is_empty() {
+        return Err(AppError::param_error("班级为空"));
     }
 
-    Ok(class_row)
+    for class_row in class_row_list.iter() {
+        if class_row.author_id != user_id {
+            return Err(AppError::permission_denied("你只能管理自己的班级"));
+        }
+        if check_email && class_row.email.is_empty() {
+            return Err(AppError::business_error(
+                "没有配置个人邮箱, 无法接收账户登录密码",
+            ));
+        }
+    }
+
+    Ok(class_row_list)
 }
 
 // 验证学生账户是否存在
@@ -245,21 +267,40 @@ async fn send_account_email(
 // 班级内学生账户列表
 pub async fn list(
     app_state: &AppState,
-    class_id: i64,
+    req: ClassStudentListReq,
     user_info: TeacherUserInfo,
-) -> Result<Vec<ClassStudentResp>, AppError> {
+) -> Result<HashMap<i64, Vec<ClassStudentResp>>, AppError> {
+    if req.class_ids.is_empty() {
+        return Err(AppError::param_error("班级请求信息为空"));
+    }
+
     let db = &app_state.db;
 
-    check_class_info(db, class_id, user_info.0.user_id, false).await?;
+    check_class_list_info(db, req.class_ids.clone(), user_info.0.user_id, false).await?;
 
-    let rows = ClassStudent::find_by_class_id(db, class_id)
+    let rows = ClassStudent::find_by_class_ids(db, req.class_ids)
         .await
         .map_err(|err| {
             error!("Select class err: {}", err);
             AppError::db_error("班级账号查询错误")
         })?;
 
-    Ok(rows.into_iter().map(to_info_resp).collect())
+    let mut map: HashMap<i64, Vec<ClassStudent>> = HashMap::new();
+    for student in rows {
+        map.entry(student.class_id)
+            .or_insert_with(Vec::new)
+            .push(student);
+    }
+
+    let resp_map: HashMap<_, _> = map
+        .into_iter()
+        .map(|(class_id, students)| {
+            let converted = students.into_iter().map(to_info_resp).collect();
+            (class_id, converted)
+        })
+        .collect();
+
+    Ok(resp_map)
 }
 
 fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {

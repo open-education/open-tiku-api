@@ -2,8 +2,9 @@ use crate::app::config::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::class_student;
 use crate::util::response::ApiResponse;
-use actix_web::{get, post, web};
+use actix_web::{post, web};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 pub struct ClassStudentReq {
@@ -30,6 +31,7 @@ pub struct ClassStudentResp {
     pub id: i64,
     #[serde(rename(serialize = "classId"))]
     pub class_id: i64,
+    #[serde(rename(serialize = "userId"))]
     pub user_id: i64,
     pub account: String,
     pub status: i16, // 1 正常 2 暂停 3 停用
@@ -47,13 +49,19 @@ pub struct ClassStudentResp {
 }
 
 // 获取班级的学生账户-不分页直接展示全部
-#[get("/{class_id}/list")]
+#[derive(Deserialize)]
+pub struct ClassStudentListReq {
+    #[serde(rename(deserialize = "classIds"))]
+    pub class_ids: Vec<i64>,
+}
+
+#[post("list")]
 pub async fn list(
     app_state: web::Data<AppState>,
-    path: web::Path<(i64,)>,
+    req: web::Json<ClassStudentListReq>,
     user_info: TeacherUserInfo,
-) -> ApiResponse<Vec<ClassStudentResp>> {
-    ApiResponse::response(class_student::list(&app_state, path.into_inner().0, user_info).await)
+) -> ApiResponse<HashMap<i64, Vec<ClassStudentResp>>> {
+    ApiResponse::response(class_student::list(&app_state, req.into_inner(), user_info).await)
 }
 
 // 修改学生账户信息
