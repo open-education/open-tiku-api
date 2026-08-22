@@ -51,6 +51,7 @@ pub struct LoginConfig {
     pub website_home_url: String,
     pub oauth_state_secret: String,
     pub student_pepper: String,
+    pub student_private_key_pem: String,
     pub github: GitHubConfig,
     pub qq: QqConfig,
 }

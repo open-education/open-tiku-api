@@ -21,3 +21,6 @@ config.toml
 
 # 日志目录
 log
+
+# 私钥文件不提交到代码库, 请从其它环境拷贝
+private_key.pem

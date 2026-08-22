@@ -16,8 +16,8 @@ pub fn generate_random_password() -> String {
         'U', 'V', 'W', 'X', 'Y', 'Z',
     ];
     const LOWERCASE: &[char] = &[
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't',
-        'u', 'v', 'w', 'x', 'y', 'z',
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u',
+        'v', 'w', 'x', 'y', 'z',
     ];
     const SPECIAL: &[char] = &[
         '!', '@', '#', '$', '%', '^', '*', '(', ')', '_', '+', '-', '=', '[', ']', '{', '}', '|',

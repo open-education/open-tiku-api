@@ -31,6 +31,7 @@ pub struct ClassStudentResp {
     pub id: i64,
     #[serde(rename(serialize = "classId"))]
     pub class_id: i64,
+    #[serde(rename(serialize = "userId"))]
     pub user_id: i64,
     pub account: String,
     pub status: i16, // 1 正常 2 暂停 3 停用

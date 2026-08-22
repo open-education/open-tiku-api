@@ -16,3 +16,5 @@ pub const TEMP_TOKEN_EXPIRED_MINUTE: i64 = 5;
 pub const LOGIN_TOKEN_EXPIRED_HOUR: i64 = 8;
 /// 续期 token 有效过期小时数
 pub const RENEW_TOKEN_EXPIRED_HOUR: i64 = 4;
+// 允许的客户端学生账户登录时间误差/窗口期：60秒
+pub const STUDENT_LOGIN_TIME_WINDOW_MS: u64 = 60 * 1000;

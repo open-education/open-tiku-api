@@ -5,6 +5,7 @@ pub mod file;
 pub mod github;
 pub mod local;
 pub mod markdown;
+pub mod pwd;
 pub mod qq;
 pub mod response;
 pub mod snowflake;

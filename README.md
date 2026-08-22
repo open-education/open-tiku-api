@@ -96,3 +96,17 @@ zhangguangxun@VM-0-4-debian:~/open-tiku-api$
 ```bash
 sh deploy.sh start -v v0.0.1-beta
 ```
+
+### 公私钥生成
+
+学生账户登录密码加密方式公私钥生成, 首次部署时需要, 其它场景去环境中拷贝即可
+
+```bash
+# 生成私钥 PKCS#8 格式
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private_key.pem
+```
+
+```bash
+# 从私钥中提取公钥 PKCS#8 / DER 格式
+openssl rsa -pubout -in private_key.pem -out public_key.pem
+```
