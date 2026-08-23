@@ -22,7 +22,7 @@ pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppErr
             error!("Get paper_id: {} batch no err: {}", paper_id, err);
             AppError::db_error("获取试卷批次号错误")
         })?
-        .unwrap_or(1);
+        .unwrap_or(0);
 
     Ok(max_batch_no + 1)
 }
