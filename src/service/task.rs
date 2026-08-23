@@ -1,5 +1,5 @@
 use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::task::{Task, TaskStatus};
 use crate::util::error::AppError;

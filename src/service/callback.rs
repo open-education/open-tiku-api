@@ -12,7 +12,7 @@ use tracing::error;
 use url::Url;
 use uuid::Uuid;
 
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::constant::meta;
 use crate::enums::user::RoleType;
 use crate::util::error::AppError;

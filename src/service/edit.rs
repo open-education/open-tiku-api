@@ -1,5 +1,5 @@
 use crate::api::edit::CommonEditStatusReq;
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::{Paper, PaperStatus};
 use crate::model::question::{Question, QuestionStatus};

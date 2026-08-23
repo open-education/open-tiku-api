@@ -1,6 +1,6 @@
 use crate::api::question::CreateQuestionReq;
 use crate::api::text::QuestionSnippetReq;
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{Content, Question, QuestionOption, QuestionStatus};

@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Content, QuestionOption, Step};
 use crate::service::question;

@@ -2,7 +2,7 @@ use crate::api::question::{
     CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
     QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
 };
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::enums::question::QuestionPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::question::{Question, QuestionStatus};

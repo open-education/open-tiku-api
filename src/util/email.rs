@@ -1,4 +1,4 @@
-use crate::app::config::SmtpEmailConfig;
+use crate::app::conf::SmtpEmailConfig;
 use crate::util::error::AppError;
 use lettre::message::Mailbox;
 use lettre::message::header::ContentType;
@@ -94,7 +94,7 @@ pub async fn send_html_email(
 
 #[cfg(test)]
 mod tests {
-    use crate::app::config::SmtpEmailConfig;
+    use crate::app::conf::SmtpEmailConfig;
     use crate::util::email::{get_student_account_html, send_html_email};
     use std::collections::HashMap;
 

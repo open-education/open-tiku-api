@@ -1,4 +1,4 @@
-use crate::app::config;
+use crate::app::conf;
 use crate::app::log::init_logger;
 use crate::app::route;
 use crate::middleware::user::auth;
@@ -12,7 +12,7 @@ pub async fn run_web() -> std::io::Result<()> {
     let guard = init_logger("app.log");
     Box::leak(Box::new(guard));
 
-    let app_state = config::init(false).await;
+    let app_state = conf::init(false).await;
 
     let addr = format!(
         "{}:{}",
@@ -39,6 +39,7 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/user").configure(route::user))
             .service(web::scope("/class/student").configure(route::class_student))
             .service(web::scope("/class").configure(route::class))
+            .service(web::scope("/homework").configure(route::homework))
     })
     .bind(&addr)?
     .run()

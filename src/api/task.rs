@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
 use crate::service::task;
 use crate::util::response::ApiResponse;

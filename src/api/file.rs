@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::service;
 use crate::util::response::ApiResponse;
 use crate::util::upload::UploadFileResp;

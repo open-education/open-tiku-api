@@ -318,3 +318,35 @@ CREATE TABLE class_student
     CONSTRAINT unique_account UNIQUE (account)
 );
 CREATE INDEX idx_class_id ON class_student (class_id);
+
+-- 7 班级作业
+CREATE TABLE homework_class
+(
+    id          BIGSERIAL PRIMARY KEY,
+    batch_no    INTEGER        NOT NULL,            -- 批次号
+    homework_id BIGINT         NOT NULL,            -- 作业标识, 一次多个班级
+    paper_id    BIGINT         NOT NULL,            -- 试卷标识
+    class_id    BIGINT         NOT NULL,            -- 班级标识
+    author_id   BIGINT         NOT NULL,            -- 作者标识
+    title       CHARACTER(500) NOT NULL DEFAULT '', -- 作业名称
+    remark      TEXT           NOT NULL DEFAULT '', -- 备注
+
+    -- 审计字段
+    created_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_paper_batch_no ON homework_class (paper_id, batch_no);
+CREATE INDEX ids_paper_author_id ON homework_class (paper_id, author_id);
+
+-- 7.1 班级作业学生列表
+CREATE TABLE homework_class_student
+(
+    id          BIGSERIAL PRIMARY KEY,
+    homework_id BIGINT NOT NULL, -- 班级作业主表标识
+    student_id  BIGINT NOT NULL, -- 学生账户标识
+
+    -- 审计字段
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX ids_homework_id ON homework_class_student (homework_id);

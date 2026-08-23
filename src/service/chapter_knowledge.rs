@@ -8,7 +8,7 @@ use crate::model::question_cate::QuestionCate;
 use sqlx::PgPool;
 use tracing::error;
 
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::util::error::AppError;
 
 // 查询唯一绑定关系是否一存在

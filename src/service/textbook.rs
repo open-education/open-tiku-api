@@ -1,5 +1,5 @@
 use crate::api::textbook::{CreateTextbookReq, TextbookResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::constant;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;

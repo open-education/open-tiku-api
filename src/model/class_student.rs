@@ -81,6 +81,18 @@ impl ClassStudent {
         .await
     }
 
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"SELECT id, class_id, user_id, account, password, status, remark,
+         last_login_time, login_count, created_at, updated_at
+         FROM class_student
+         WHERE id = ANY($1)"#,
+        )
+        .bind(ids)
+        .fetch_all(pool)
+        .await
+    }
+
     pub async fn update_by_id(pool: &PgPool, req: &Self) -> Result<u64, sqlx::Error> {
         let result = sqlx::query::<_>(
             r#"

@@ -1,5 +1,5 @@
 use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use crate::util::error::AppError;

@@ -4,6 +4,7 @@ pub mod class;
 pub mod class_student;
 pub mod edit;
 pub mod file;
+pub mod homework;
 pub mod other_dict;
 pub mod paper;
 pub mod question;

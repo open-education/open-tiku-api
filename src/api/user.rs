@@ -1,4 +1,4 @@
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::{ClientInfo, TeacherUserInfo, UserInfo};
 use crate::service::user;
 use crate::util::response::ApiResponse;

@@ -1,5 +1,5 @@
 use crate::api::textbook::{CreateTextbookReq, TextbookResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::constant;
 use crate::model::textbook::Textbook;
 use crate::service::textbook::{get_levels_by_parent_id, to_level_map};

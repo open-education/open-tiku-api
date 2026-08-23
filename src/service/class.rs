@@ -1,5 +1,5 @@
 use crate::api::class::{ClassInfoReq, ClassInfoResp, ClassListReq, ClassListResp};
-use crate::app::config::AppState;
+use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::error::AppError;

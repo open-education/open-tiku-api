@@ -1,4 +1,4 @@
-use crate::app::config;
+use crate::app::conf;
 use crate::app::log::init_logger;
 use crate::task;
 
@@ -10,7 +10,7 @@ pub async fn run_cron(args: Vec<String>) {
 
     let _logger_guard = init_logger("task.log");
 
-    let app_state = config::init(true).await;
+    let app_state = conf::init(true).await;
 
     // 将任务名称注册到匹配条件中
     match task_name.as_str() {
