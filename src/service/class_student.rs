@@ -303,7 +303,7 @@ pub async fn list(
     Ok(resp_map)
 }
 
-fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
+pub fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
     ClassStudentResp {
         id: raw.id,
         class_id: raw.class_id,

@@ -1,9 +1,11 @@
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 // 作业班级
 
 #[derive(FromRow)]
 pub struct HomeworkClass {
+    pub id: Option<i64>,
     pub batch_no: i32,
     pub homework_id: i64,
     pub paper_id: i64,
@@ -11,6 +13,7 @@ pub struct HomeworkClass {
     pub author_id: i64,
     pub title: String,
     pub remark: String,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 impl HomeworkClass {
@@ -47,6 +50,61 @@ impl HomeworkClass {
         .bind(paper_id)
         .fetch_one(pool)
         .await?;
+
         Ok(max)
+    }
+
+    pub async fn count(
+        pool: &PgPool,
+        author_id: i64,
+        paper_id: i64,
+        batch_no: Option<i32>,
+    ) -> sqlx::Result<i64> {
+        let row = sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT COUNT(*)
+            FROM homework_class
+            WHERE author_id = $1
+              AND paper_id = $2
+              AND ($3 IS NULL OR batch_no = $3)
+            "#,
+        )
+        .bind(author_id)
+        .bind(paper_id)
+        .bind(batch_no)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn list(
+        pool: &PgPool,
+        author_id: i64,
+        paper_id: i64,
+        batch_no: Option<i32>,
+        limit: i32,
+        offset: i32,
+    ) -> sqlx::Result<Vec<Self>> {
+        let rows = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class
+            WHERE author_id = $1
+              AND paper_id = $2
+              AND ($3 IS NULL OR batch_no = $3)
+            ORDER BY id DESC
+            LIMIT $4 OFFSET $5
+            "#,
+        )
+        .bind(author_id)
+        .bind(paper_id)
+        .bind(batch_no)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
     }
 }

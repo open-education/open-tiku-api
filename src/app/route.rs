@@ -108,5 +108,7 @@ pub fn class_student(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn homework(cfg: &mut web::ServiceConfig) {
-    cfg.service(homework::add).service(homework::batch_no);
+    cfg.service(homework::add)
+        .service(homework::batch_no)
+        .service(homework::list);
 }

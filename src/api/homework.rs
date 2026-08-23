@@ -1,9 +1,10 @@
+use crate::api::class_student::ClassStudentResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::homework;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // 布置作业相关
@@ -34,4 +35,56 @@ pub async fn add(
     teacher_user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {
     ApiResponse::response(homework::add(&app_state, req.into_inner(), teacher_user_info).await)
+}
+
+// 查看作业布置详情列表
+#[derive(Deserialize)]
+pub struct HomeworkListReq {
+    #[serde(rename(deserialize = "paperId"))]
+    pub paper_id: i64,
+    #[serde(rename(deserialize = "batchNo"))]
+    pub batch_no: Option<i32>,
+    #[serde(rename(deserialize = "pageNo"))]
+    pub page_no: i32,
+    #[serde(rename(deserialize = "pageSize"))]
+    pub page_size: i32,
+}
+
+#[derive(Serialize)]
+pub struct HomeworkInfoResp {
+    pub id: i64,
+    #[serde(rename(serialize = "batchNo"))]
+    pub batch_no: i32,
+    #[serde(rename(serialize = "homeworkId"))]
+    pub homework_id: i64,
+    #[serde(rename(serialize = "paperId"))]
+    pub paper_id: i64,
+    #[serde(rename(serialize = "classId"))]
+    pub class_id: i64,
+    #[serde(rename(serialize = "authorId"))]
+    pub author_id: i64,
+    pub title: String,
+    pub remark: String,
+    pub students: Vec<ClassStudentResp>,
+    #[serde(rename(serialize = "createdAt"))]
+    pub created_at: String,
+}
+
+#[derive(Serialize)]
+pub struct HomeworkListResp {
+    pub list: Vec<HomeworkInfoResp>,
+    #[serde(rename(serialize = "pageNo"))]
+    pub page_no: i32,
+    #[serde(rename(serialize = "pageSize"))]
+    pub page_size: i32,
+    pub total: i64,
+}
+
+#[post("list")]
+pub async fn list(
+    app_state: web::Data<AppState>,
+    req: web::Json<HomeworkListReq>,
+    teacher_user_info: TeacherUserInfo,
+) -> ApiResponse<HomeworkListResp> {
+    ApiResponse::response(homework::list(&app_state, req.into_inner(), teacher_user_info).await)
 }

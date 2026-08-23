@@ -1,4 +1,4 @@
-use sqlx::{FromRow, Postgres, QueryBuilder, Transaction};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 #[derive(FromRow)]
 pub struct HomeworkClassStudent {
@@ -21,5 +21,20 @@ impl HomeworkClassStudent {
             b.push_bind(r.homework_id).push_bind(r.student_id);
         });
         Ok(qb.build().execute(&mut **tx).await?.rows_affected())
+    }
+
+    pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
+        let row = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class_student
+            WHERE homework_id = ANY($1)
+            "#,
+        )
+        .bind(ids)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(row)
     }
 }

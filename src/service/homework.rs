@@ -1,11 +1,15 @@
-use crate::api::homework::HomeworkAddReq;
+use crate::api::class_student::ClassStudentResp;
+use crate::api::homework::{HomeworkAddReq, HomeworkInfoResp, HomeworkListReq, HomeworkListResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
+use crate::model::class_student::ClassStudent;
 use crate::model::homework_class::HomeworkClass;
 use crate::model::homework_class_student::HomeworkClassStudent;
-use crate::service::class_student::check_class_list_info;
+use crate::service::class_student::{check_class_list_info, to_info_resp};
 use crate::util::error::AppError;
+use crate::util::local::to_local_datetime;
 use crate::util::snowflake::generate_id;
+use std::collections::HashMap;
 use tracing::{error, info};
 
 // 布置作业
@@ -20,7 +24,7 @@ pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppErr
         })?
         .unwrap_or(1);
 
-    Ok(max_batch_no)
+    Ok(max_batch_no + 1)
 }
 
 pub async fn add(
@@ -111,6 +115,7 @@ fn build_homework_add_req(
         }
 
         class_list.push(HomeworkClass {
+            id: None,
             batch_no: req.batch_no,
             homework_id,
             paper_id: req.paper_id,
@@ -118,8 +123,146 @@ fn build_homework_add_req(
             author_id,
             title: req.title.clone(),
             remark: req.remark.clone().unwrap_or_default(),
+            created_at: None,
         })
     }
 
     Ok((class_list, class_students))
+}
+
+pub async fn list(
+    app_state: &AppState,
+    req: HomeworkListReq,
+    teacher_user_info: TeacherUserInfo,
+) -> Result<HomeworkListResp, AppError> {
+    let db = &app_state.db;
+    let user_id = teacher_user_info.0.user_id;
+
+    // 获取总数
+    let total = HomeworkClass::count(db, user_id, req.paper_id, req.batch_no)
+        .await
+        .map_err(|e| {
+            error!("Count homework class error: {}", e);
+            AppError::db_error("班级作业布置计数查询错误")
+        })?;
+
+    // 分页边界检查
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 || total == 0 {
+        return Ok(HomeworkListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total,
+        });
+    }
+
+    // 查询作业列表
+    let rows = HomeworkClass::list(
+        db,
+        user_id,
+        req.paper_id,
+        req.batch_no,
+        req.page_size,
+        offset,
+    )
+    .await
+    .map_err(|e| {
+        error!("List homework class error: {}", e);
+        AppError::db_error("班级作业布置列表查询失败")
+    })?;
+
+    if rows.is_empty() {
+        return Ok(HomeworkListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total,
+        });
+    }
+
+    // 获取作业关联的学生映射
+    let mut homework_ids: Vec<i64> = rows.iter().map(|row| row.homework_id).collect();
+    homework_ids.sort_unstable();
+    homework_ids.dedup();
+
+    // 获取作业关联的学生列表
+    let students = HomeworkClassStudent::find_by_homework_ids(db, homework_ids)
+        .await
+        .map_err(|e| {
+            error!("List homework class students error: {}", e);
+            AppError::db_error("班级作业布置学生列表查询错误")
+        })?;
+
+    let mut student_map: HashMap<i64, Vec<&HomeworkClassStudent>> =
+        HashMap::with_capacity(rows.len());
+    for student in &students {
+        student_map
+            .entry(student.homework_id)
+            .or_default()
+            .push(student);
+    }
+
+    // 获取学生账户映射
+    let mut student_ids: Vec<i64> = students.iter().map(|student| student.student_id).collect();
+    student_ids.sort_unstable();
+    student_ids.dedup();
+
+    // 获取学生账户信息
+    let accounts = ClassStudent::find_by_ids(db, student_ids)
+        .await
+        .map_err(|e| {
+            error!("List class student error: {}", e);
+            AppError::db_error("学生账户信息列表查询失败")
+        })?;
+
+    let account_map: HashMap<i64, &ClassStudent> = accounts
+        .iter()
+        .map(|account| (account.id, account))
+        .collect();
+
+    // 组装返回结果
+    let mut resp: Vec<HomeworkInfoResp> = Vec::with_capacity(rows.len());
+    for item in rows {
+        let mut account_list: Vec<ClassStudentResp> = vec![];
+
+        if let Some(student_list) = student_map.remove(&item.homework_id) {
+            for info in student_list {
+                if let Some(account_info) = account_map.get(&info.student_id) {
+                    account_list.push(to_info_resp((*account_info).clone()));
+                } else {
+                    error!("Homework class student_id not found: {}", info.student_id);
+                }
+            }
+        } else {
+            error!(
+                "Homework class student homework_id not found: {}",
+                item.homework_id
+            );
+        }
+
+        resp.push(HomeworkInfoResp {
+            id: item.id.unwrap_or_default(),
+            batch_no: item.batch_no,
+            homework_id: item.homework_id,
+            paper_id: item.paper_id,
+            class_id: item.class_id,
+            author_id: item.author_id,
+            title: item.title,
+            remark: item.remark,
+            students: account_list,
+            created_at: if let Some(created_at) = item.created_at {
+                to_local_datetime(created_at)
+            } else {
+                "".to_string()
+            },
+        });
+    }
+
+    Ok(HomeworkListResp {
+        list: resp,
+        page_no: req.page_no,
+        page_size: req.page_size,
+        total,
+    })
 }
