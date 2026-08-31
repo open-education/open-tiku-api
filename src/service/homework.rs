@@ -1,11 +1,15 @@
-use crate::api::class_student::ClassStudentResp;
-use crate::api::homework::{HomeworkAddReq, HomeworkInfoResp, HomeworkListReq, HomeworkListResp};
+use crate::api::resp::class::ClassInfoResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
+use crate::model::class::Class;
 use crate::model::class_student::ClassStudent;
 use crate::model::homework_class::HomeworkClass;
 use crate::model::homework_class_student::HomeworkClassStudent;
-use crate::service::class_student::{check_class_list_info, to_info_resp};
+
+use crate::api::req::homework::{HomeworkAddReq, HomeworkListReq};
+use crate::api::resp::class_student::ClassStudentResp;
+use crate::api::resp::homework::{HomeworkInfoResp, HomeworkListResp};
+use crate::service::class_student::check_class_list_info;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
 use crate::util::snowflake::generate_id;
@@ -181,6 +185,19 @@ pub async fn list(
         });
     }
 
+    // 获取班级信息
+    let mut class_ids: Vec<i64> = rows.iter().map(|row| row.class_id).collect();
+    class_ids.sort_unstable();
+    class_ids.dedup();
+    let classes = Class::find_by_ids(db, class_ids).await.map_err(|e| {
+        error!("List homework class error: {}", e);
+        AppError::db_error("获取班级信息失败")
+    })?;
+    let class_map: HashMap<i64, &Class> = classes
+        .iter()
+        .map(|item| (item.id.unwrap_or_default(), item))
+        .collect();
+
     // 获取作业关联的学生映射
     let mut homework_ids: Vec<i64> = rows.iter().map(|row| row.homework_id).collect();
     homework_ids.sort_unstable();
@@ -224,12 +241,21 @@ pub async fn list(
     // 组装返回结果
     let mut resp: Vec<HomeworkInfoResp> = Vec::with_capacity(rows.len());
     for item in rows {
+        // 班级信息
+        let class_info = if let Some(class_row) = class_map.get(&item.class_id) {
+            (**class_row).clone().into()
+        } else {
+            error!("Homework class id not found: {}", item.class_id);
+            ClassInfoResp::default()
+        };
+
+        // 学生账户信息
         let mut account_list: Vec<ClassStudentResp> = vec![];
 
         if let Some(student_list) = student_map.remove(&item.homework_id) {
             for info in student_list {
                 if let Some(account_info) = account_map.get(&info.student_id) {
-                    account_list.push(to_info_resp((*account_info).clone()));
+                    account_list.push((*account_info).clone().into());
                 } else {
                     error!("Homework class student_id not found: {}", info.student_id);
                 }
@@ -247,6 +273,7 @@ pub async fn list(
             homework_id: item.homework_id,
             paper_id: item.paper_id,
             class_id: item.class_id,
+            class_info,
             author_id: item.author_id,
             title: item.title,
             remark: item.remark,

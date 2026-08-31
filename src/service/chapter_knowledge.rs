@@ -1,15 +1,12 @@
-use crate::api::chapter_knowledge::{
-    ChapterKnowledgeResp, CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq,
-};
-
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 
-use sqlx::PgPool;
-use tracing::error;
-
+use crate::api::req::chapter_knowledge::{CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq};
+use crate::api::resp::chapter_knowledge::ChapterKnowledgeResp;
 use crate::app::conf::AppState;
 use crate::util::error::AppError;
+use sqlx::PgPool;
+use tracing::error;
 
 // 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
@@ -29,14 +26,6 @@ async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<
     }
 }
 
-fn to_resp(row: ChapterKnowledge) -> ChapterKnowledgeResp {
-    ChapterKnowledgeResp {
-        id: Some(row.id),
-        chapter_id: row.chapter_id,
-        knowledge_id: row.knowledge_id,
-    }
-}
-
 // 通过章节或者知识点获取关联信息
 pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeResp>, AppError> {
     let rows = ChapterKnowledge::find_by_ids(&app_state.db, vec![id])
@@ -47,7 +36,7 @@ pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeR
         })?;
 
     if !rows.is_empty() {
-        Ok(rows.into_iter().map(to_resp).collect())
+        Ok(rows.into_iter().map(Into::into).collect())
     } else {
         Ok(Vec::new())
     }

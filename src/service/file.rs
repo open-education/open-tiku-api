@@ -1,4 +1,4 @@
-use crate::api::file::DeleteFileReq;
+use crate::api::req::file::DeleteFileReq;
 use crate::app::conf::AppState;
 use crate::util::error::AppError;
 use crate::util::{file, upload};

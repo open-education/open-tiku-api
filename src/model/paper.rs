@@ -1,9 +1,9 @@
-use crate::api::paper::PaperListReq;
+use crate::api::req::paper::PaperListReq;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction, Type, query_as, query_scalar};
 
-/// 试卷相关
+// 试卷相关
 
 #[derive(FromRow)]
 pub struct Paper {

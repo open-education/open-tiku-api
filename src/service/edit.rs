@@ -1,4 +1,4 @@
-use crate::api::edit::CommonEditStatusReq;
+use crate::api::req::edit::CommonEditStatusReq;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::{Paper, PaperStatus};

@@ -9,6 +9,8 @@ pub mod other_dict;
 pub mod paper;
 pub mod question;
 pub mod question_cate;
+pub mod req;
+pub mod resp;
 pub mod task;
 pub mod text;
 pub mod textbook;

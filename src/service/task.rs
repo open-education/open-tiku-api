@@ -1,9 +1,9 @@
-use crate::api::task::{TaskAddReq, TaskInfoResp, TaskListReq, TaskListResp};
+use crate::api::req::task::{TaskAddReq, TaskListReq};
+use crate::api::resp::task::TaskListResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
-use crate::model::task::{Task, TaskStatus};
+use crate::model::task::Task;
 use crate::util::error::AppError;
-use crate::util::local::to_local_datetime;
 use tracing::error;
 
 // 添加任务
@@ -31,22 +31,6 @@ pub async fn add(
     })?;
 
     Ok(row_id)
-}
-
-fn to_base_resp(row: &Task) -> TaskInfoResp {
-    TaskInfoResp {
-        id: row.id,
-        question_cate_id: row.question_cate_id,
-        task_type: 0,
-        name: row.name.clone(),
-        author: "admin".to_string(),
-        status: row.status,
-        status_desc: TaskStatus::desc(row.status).to_string(),
-        email: row.email.clone(),
-        result: row.result.clone(),
-        created_at: to_local_datetime(row.created_at),
-        updated_at: to_local_datetime(row.updated_at),
-    }
 }
 
 pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
@@ -88,10 +72,7 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
 
     // 4. 转换并返回
     Ok(TaskListResp {
-        list: list_data
-            .into_iter()
-            .map(|row| to_base_resp(&row))
-            .collect(),
+        list: list_data.into_iter().map(Into::into).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total,

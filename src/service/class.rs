@@ -1,9 +1,9 @@
-use crate::api::class::{ClassInfoReq, ClassInfoResp, ClassListReq, ClassListResp};
+use crate::api::req::class::ClassInfoReq;
+use crate::api::resp::class::{ClassListReq, ClassListResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::error::AppError;
-use crate::util::local::to_local_datetime;
 use tracing::error;
 
 // 添加班级
@@ -100,24 +100,9 @@ pub async fn list(
         })?;
 
     Ok(ClassListResp {
-        list: rows.into_iter().map(to_info_resp).collect(),
+        list: rows.into_iter().map(Into::into).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total: count,
     })
-}
-
-fn to_info_resp(row: Class) -> ClassInfoResp {
-    ClassInfoResp {
-        id: row.id.unwrap_or_default(),
-        year: row.year,
-        grade: row.grade,
-        semester: row.semester,
-        label: row.label,
-        email: row.email,
-        sort_order: row.sort_order,
-        remark: row.remark,
-        created_at: to_local_datetime(row.created_at),
-        updated_at: to_local_datetime(row.updated_at),
-    }
 }

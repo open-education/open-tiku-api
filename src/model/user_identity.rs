@@ -1,6 +1,7 @@
-use crate::api::user::UserEditReq;
+use crate::api::req::user::UserEditReq;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
+
 // 第三方用户登录信息
 
 #[derive(FromRow)]

@@ -1,6 +1,8 @@
-use crate::api::question::{
-    CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
-    QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
+use crate::api::req::question::{
+    CreateQuestionReq, DeleteReq, OriginalReq, QuestionListReq, QuestionSimilarListReq,
+};
+use crate::api::resp::question::{
+    QuestionBaseResp, QuestionExtraInfoResp, QuestionInfoResp, QuestionListResp,
 };
 use crate::app::conf::AppState;
 use crate::enums::question::QuestionPageSource;
@@ -14,7 +16,7 @@ use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use tracing::error;
 
-/// 将包含 LaTeX 的富文本标题转换为纯文本
+// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {
     // 1. 移除 LaTeX 符号 (例如 $...$ 或 $$...$$)
     let re_latex = Regex::new(r"\$[^$]+\$").unwrap();
@@ -173,8 +175,8 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
 }
 
 // 额外扩展信息
-fn to_extra_resp(row: &Question) -> QuestionExtraInfo {
-    QuestionExtraInfo {
+fn to_extra_resp(row: &Question) -> QuestionExtraInfoResp {
+    QuestionExtraInfoResp {
         answer: row.answer.clone(),
         knowledge: row.knowledge.clone(),
         analysis: row.analysis.clone(),

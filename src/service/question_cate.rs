@@ -1,19 +1,10 @@
-use crate::api::question_cate::{CreateQuestionCateReq, QuestionCateResp};
+use crate::api::req::question_cate::CreateQuestionCateReq;
+use crate::api::resp::question_cate::QuestionCateResp;
 use crate::app::conf::AppState;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use crate::util::error::AppError;
 use tracing::error;
-
-fn to_resp(row: QuestionCate) -> QuestionCateResp {
-    QuestionCateResp {
-        id: row.id,
-        related_id: row.related_id,
-        label: row.label,
-        key: row.key,
-        sort_order: row.sort_order,
-    }
-}
 
 // 题型列表
 pub async fn list(
@@ -29,7 +20,7 @@ pub async fn list(
             AppError::db_error("题型查询失败")
         })?;
 
-    let res: Vec<QuestionCateResp> = rows.into_iter().map(to_resp).collect();
+    let res: Vec<QuestionCateResp> = rows.into_iter().map(Into::into).collect();
 
     Ok(res)
 }

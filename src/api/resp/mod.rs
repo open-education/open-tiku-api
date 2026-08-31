@@ -1,0 +1,11 @@
+pub mod chapter_knowledge;
+pub mod class;
+pub mod class_student;
+pub mod homework;
+pub mod other_dict;
+pub mod paper;
+pub mod question;
+pub mod question_cate;
+pub mod task;
+pub mod textbook;
+pub mod user;

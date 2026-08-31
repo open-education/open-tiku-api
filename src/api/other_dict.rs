@@ -1,39 +1,10 @@
+use crate::api::req::other_dict::CreateTextbookDictReq;
+use crate::api::resp::other_dict::TextbookDictResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::textbook_dict;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-pub struct CreateTextbookDictReq {
-    pub id: Option<i32>,
-    #[serde(rename(deserialize = "textbookId"))]
-    pub textbook_id: i32,
-    #[serde(rename(deserialize = "typeCode"))]
-    pub type_code: String,
-    #[serde(rename(deserialize = "itemValue"))]
-    pub item_value: String,
-    #[serde(rename(deserialize = "sortOrder"))]
-    pub sort_order: i32,
-    #[serde(rename(deserialize = "isSelect"))]
-    pub is_select: bool,
-}
-
-#[derive(Serialize)]
-pub struct TextbookDictResp {
-    pub id: i32,
-    #[serde(rename(serialize = "textbookId"))]
-    pub textbook_id: i32,
-    #[serde(rename(serialize = "typeCode",))]
-    pub type_code: String,
-    #[serde(rename(serialize = "itemValue"))]
-    pub item_value: String,
-    #[serde(rename(serialize = "sortOrder"))]
-    pub sort_order: i32,
-    #[serde(rename(serialize = "isSelect"))]
-    pub is_select: bool,
-}
 
 // 字典添加
 #[post("/add")]

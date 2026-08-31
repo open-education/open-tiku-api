@@ -1,30 +1,10 @@
+use crate::api::req::question_cate::CreateQuestionCateReq;
+use crate::api::resp::question_cate::QuestionCateResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::question_cate;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-pub struct CreateQuestionCateReq {
-    pub id: Option<i32>,
-    #[serde(rename(deserialize = "relatedId"))]
-    pub related_id: i32,
-    pub label: String,
-    #[serde(rename(deserialize = "sortOrder"))]
-    pub sort_order: i32,
-}
-
-#[derive(Serialize)]
-pub struct QuestionCateResp {
-    pub id: i32,
-    #[serde(rename(serialize = "relatedId"))]
-    pub related_id: i32,
-    pub label: String,
-    pub key: String,
-    #[serde(rename(serialize = "sortOrder"))]
-    pub sort_order: i32,
-}
 
 // 添加题型
 #[post("/add")]

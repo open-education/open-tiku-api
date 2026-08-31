@@ -1,7 +1,7 @@
-use crate::api::user::{
-    ExchangeTokenReq, UserEditReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
-    UserSessionInfoResp, UserSessionListReq, UserSessionListResp,
+use crate::api::req::user::{
+    ExchangeTokenReq, UserEditReq, UserListReq, UserLoginReq, UserSessionListReq,
 };
+use crate::api::resp::user::{UserListResp, UserSessionInfoResp, UserSessionListResp};
 use crate::app::conf::AppState;
 use crate::constant::meta;
 use crate::enums::user::RoleType;
@@ -305,35 +305,11 @@ pub async fn account_list(
         })?;
 
     Ok(UserListResp {
-        list: rows.into_iter().map(to_user_identity_info_resp).collect(),
+        list: rows.into_iter().map(Into::into).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total: count,
     })
-}
-
-fn to_user_identity_info_resp(raw: UserIdentity) -> UserIdentityInfoResp {
-    UserIdentityInfoResp {
-        id: raw.id.unwrap_or_default(),
-        user_id: raw.user_id,
-        provider: raw.provider,
-        provider_desc: ProviderType::desc(raw.provider),
-        provider_username: raw.provider_username.unwrap_or_default(),
-        provider_email: raw.provider_email.unwrap_or_default(),
-        last_login_time: if raw.last_login_time.is_some() {
-            to_local_datetime(raw.last_login_time.unwrap_or_default())
-        } else {
-            "".to_string()
-        },
-        login_count: raw.login_count,
-        role: raw.role,
-        role_desc: RoleType::desc(raw.role),
-        status: raw.status,
-        status_desc: StatusType::desc(raw.status),
-        remark: raw.remark,
-        created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-        updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
-    }
 }
 
 // session 列表

@@ -1,7 +1,7 @@
-use crate::api::other_dict::CreateTextbookDictReq;
+use crate::api::req::other_dict::CreateTextbookDictReq;
 use sqlx::{FromRow, PgPool};
 
-/// 教材其它字典
+// 教材其它字典
 
 #[derive(FromRow, Clone)]
 pub struct TextbookDict {

@@ -1,6 +1,5 @@
-use crate::api::class_student::{
-    ClassStudentEditReq, ClassStudentListReq, ClassStudentReq, ClassStudentResp,
-};
+use crate::api::req::class_student::{ClassStudentEditReq, ClassStudentListReq, ClassStudentReq};
+use crate::api::resp::class_student::ClassStudentResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
@@ -295,32 +294,12 @@ pub async fn list(
     let resp_map: HashMap<_, _> = map
         .into_iter()
         .map(|(class_id, students)| {
-            let converted = students.into_iter().map(to_info_resp).collect();
+            let converted = students.into_iter().map(Into::into).collect();
             (class_id, converted)
         })
         .collect();
 
     Ok(resp_map)
-}
-
-pub fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
-    ClassStudentResp {
-        id: raw.id,
-        class_id: raw.class_id,
-        user_id: raw.user_id,
-        account: raw.account,
-        status: raw.status,
-        status_desc: StudentStatus::desc(raw.status),
-        remark: raw.remark,
-        last_login_time: if raw.last_login_time.is_none() {
-            "".to_string()
-        } else {
-            to_local_datetime(raw.last_login_time.unwrap_or_default())
-        },
-        login_count: raw.login_count,
-        created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-        updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
-    }
 }
 
 // 编辑用户信息

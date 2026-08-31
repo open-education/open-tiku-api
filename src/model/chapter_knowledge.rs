@@ -1,7 +1,7 @@
-use crate::api::chapter_knowledge::CreateChapterKnowledgeReq;
+use crate::api::req::chapter_knowledge::CreateChapterKnowledgeReq;
 use sqlx::{FromRow, PgPool};
 
-/// 章节节点和知识点类名称关联关系-目前是一对一的关系
+// 章节节点和知识点类名称关联关系-目前是一对一的关系
 
 #[derive(FromRow)]
 pub struct ChapterKnowledge {

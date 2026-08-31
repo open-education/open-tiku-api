@@ -1,5 +1,5 @@
-use crate::api::question::CreateQuestionReq;
-use crate::api::text::QuestionSnippetReq;
+use crate::api::req::question::CreateQuestionReq;
+use crate::api::req::text::QuestionSnippetReq;
 use crate::app::conf::AppState;
 use crate::constant::meta;
 use crate::model::other_dict::TextbookDict;

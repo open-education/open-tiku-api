@@ -1,8 +1,8 @@
-use crate::api::class::ClassListReq;
+use crate::api::resp::class::ClassListReq;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Result};
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct Class {
     pub id: Option<i64>,
     pub year: String,

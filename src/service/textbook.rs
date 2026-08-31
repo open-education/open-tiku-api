@@ -1,4 +1,5 @@
-use crate::api::textbook::{CreateTextbookReq, TextbookResp};
+use crate::api::req::textbook::CreateTextbookReq;
+use crate::api::resp::textbook::TextbookResp;
 use crate::app::conf::AppState;
 use crate::constant;
 use crate::model::chapter_knowledge::ChapterKnowledge;
@@ -92,7 +93,7 @@ pub async fn list_level(
             AppError::db_error("导航菜单查询失败")
         })?;
 
-    Ok(rows.into_iter().map(|row| to_resp(row)).collect())
+    Ok(rows.into_iter().map(Into::into).collect())
 }
 
 // 根据父标识列出所有题型列表
@@ -248,22 +249,6 @@ pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, Ap
     Ok(row_id)
 }
 
-// 数据库结构映射返回, 不直接返回数据库结构对象
-fn to_resp(row: Textbook) -> TextbookResp {
-    TextbookResp {
-        id: row.id,
-        path_type: row.path_type,
-        parent_id: row.parent_id,
-        label: row.label,
-        key: row.key,
-        sort_order: row.sort_order,
-        path_depth: row.path_depth,
-        path: row.path,
-        table_name: Some("textbook".to_string()),
-        children: None,
-    }
-}
-
 // 详情
 pub async fn info(app_state: &AppState, id: i32) -> Result<TextbookResp, AppError> {
     let row = Textbook::find_by_id(&app_state.db, id).await.map_err(|e| {
@@ -271,7 +256,7 @@ pub async fn info(app_state: &AppState, id: i32) -> Result<TextbookResp, AppErro
         AppError::not_found("数据不存在")
     })?;
 
-    Ok(to_resp(row))
+    Ok(row.into())
 }
 
 // 删除菜单-没有子菜单的菜单可以被删除

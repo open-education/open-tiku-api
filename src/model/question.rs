@@ -1,11 +1,11 @@
-use crate::api::question::CreateQuestionReq;
+use crate::api::req::question::CreateQuestionReq;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
-/// 题目
+// 题目
 
 // 选项内容
 #[derive(Serialize, Deserialize, Clone)]

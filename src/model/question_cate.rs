@@ -1,7 +1,7 @@
-use crate::api::question_cate::CreateQuestionCateReq;
+use crate::api::req::question_cate::CreateQuestionCateReq;
 use sqlx::{FromRow, PgPool};
 
-/// 题型
+// 题型
 
 #[derive(FromRow)]
 pub struct QuestionCate {
