@@ -9,7 +9,7 @@ use crate::util::local::to_local_datetime;
 use serde::Serialize;
 use sqlx::types::Json;
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct CommonPaperResp {
     pub id: Option<i64>,
     #[serde(rename(serialize = "relatedId"))]

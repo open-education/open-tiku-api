@@ -5,7 +5,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction, Type, query_as, query_scalar}
 
 // 试卷相关
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct Paper {
     pub id: Option<i64>,
     pub related_id: i32,
@@ -157,7 +157,6 @@ impl Paper {
         Ok(row)
     }
 
-    // 通过主键 id 查询单个试卷（使用 &Pool）
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
         let paper = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = $1"#)
             .bind(paper_id)
@@ -165,6 +164,15 @@ impl Paper {
             .await?;
 
         Ok(paper)
+    }
+
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = ANY($1)"#)
+            .bind(ids)
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows)
     }
 
     /// 构建 WHERE 子句，返回 (where_clause, param_count)

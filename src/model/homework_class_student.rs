@@ -2,6 +2,7 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 #[derive(FromRow)]
 pub struct HomeworkClassStudent {
+    pub id: i64,
     pub homework_id: i64,
     pub student_id: i64,
 }
@@ -36,5 +37,59 @@ impl HomeworkClassStudent {
         .await?;
 
         Ok(row)
+    }
+
+    pub async fn count(
+        pool: &PgPool,
+        student_id: i64,
+        start_date: &str,
+        end_date: &str,
+    ) -> sqlx::Result<i64> {
+        let row = sqlx::query_scalar::<_, i64>(
+            r#"
+        SELECT COUNT(*)
+        FROM homework_class_student
+        WHERE student_id = $1
+          AND created_at >= $2::DATE
+          AND created_at < $3::DATE
+        "#,
+        )
+        .bind(student_id)
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn list(
+        pool: &PgPool,
+        student_id: i64,
+        start_date: &str,
+        end_date: &str,
+        limit: i32,
+        offset: i32,
+    ) -> sqlx::Result<Vec<Self>> {
+        let rows = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class_student
+            WHERE student_id = $1
+              AND created_at >= $2::DATE
+              AND created_at < $3::DATE
+              ORDER BY id DESC
+              LIMIT $4 OFFSET $5
+            "#,
+        )
+        .bind(student_id)
+        .bind(start_date)
+        .bind(end_date)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
     }
 }

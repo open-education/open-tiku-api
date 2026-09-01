@@ -107,4 +107,19 @@ impl HomeworkClass {
 
         Ok(rows)
     }
+
+    pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
+        let row = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class
+            WHERE homework_id = ANY($1)
+            "#,
+        )
+        .bind(ids)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(row)
+    }
 }

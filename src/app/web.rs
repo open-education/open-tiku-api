@@ -40,6 +40,7 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/class/student").configure(route::class_student))
             .service(web::scope("/class").configure(route::class))
             .service(web::scope("/homework").configure(route::homework))
+            .service(web::scope("/test").configure(route::test))
     })
     .bind(&addr)?
     .run()

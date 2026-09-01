@@ -19,7 +19,7 @@ pub async fn exchange(
     ApiResponse::response(user::exchange(&app_state, req.into_inner()).await)
 }
 
-// 第三方用户登录
+// 用户登录
 #[post("login")]
 pub async fn login(
     app_state: web::Data<AppState>,

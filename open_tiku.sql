@@ -318,6 +318,8 @@ CREATE TABLE class_student
     CONSTRAINT unique_account UNIQUE (account)
 );
 CREATE INDEX idx_class_id ON class_student (class_id);
+CREATE INDEX idx_user_id ON class_student (user_id);
+CREATE INDEX idx_account ON class_student (account);
 
 -- 7 班级作业
 CREATE TABLE homework_class
@@ -336,7 +338,7 @@ CREATE TABLE homework_class
     updated_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_paper_batch_no ON homework_class (paper_id, batch_no);
-CREATE INDEX ids_paper_author_id ON homework_class (paper_id, author_id);
+CREATE INDEX idx_paper_author_id ON homework_class (paper_id, author_id);
 
 -- 7.1 班级作业学生列表
 CREATE TABLE homework_class_student
@@ -349,4 +351,6 @@ CREATE TABLE homework_class_student
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX ids_homework_id ON homework_class_student (homework_id);
+CREATE INDEX idx_homework_id ON homework_class_student (homework_id);
+CREATE INDEX idx_homework_student_created
+    ON homework_class_student (student_id, created_at);

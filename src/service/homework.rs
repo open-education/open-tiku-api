@@ -113,6 +113,7 @@ fn build_homework_add_req(
         let homework_id = generate_id();
         for student_id in student_ids {
             class_students.push(HomeworkClassStudent {
+                id: 0,
                 homework_id,
                 student_id: *student_id,
             })

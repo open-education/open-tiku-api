@@ -57,3 +57,4 @@ tracing-actix-web = "0.7.22"
 tracing-appender = "0.2.5"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 rsa = { version = "0.9", features = ["sha2"] }
+log = "0.4.33"

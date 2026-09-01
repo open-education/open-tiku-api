@@ -10,6 +10,7 @@ pub mod paper;
 pub mod question;
 pub mod question_cate;
 pub mod task;
+pub mod test;
 pub mod text;
 pub mod textbook;
 pub mod user;

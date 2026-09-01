@@ -12,6 +12,7 @@ pub mod question_cate;
 pub mod req;
 pub mod resp;
 pub mod task;
+pub mod test;
 pub mod text;
 pub mod textbook;
 pub mod user;
