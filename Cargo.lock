@@ -2052,7 +2052,6 @@ dependencies = [
  "futures-util",
  "idgen_rs",
  "lettre",
- "log",
  "md5",
  "pulldown-cmark",
  "rand 0.10.2",
