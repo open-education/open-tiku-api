@@ -4,11 +4,11 @@ use crate::api::req::user::{
 use crate::api::resp::user::{UserListResp, UserSessionInfoResp, UserSessionListResp};
 use crate::app::conf::AppState;
 use crate::constant::meta;
-use crate::enums::user::RoleType;
+use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::middleware::user::{ClientInfo, UserInfo};
 use crate::model::class_student::ClassStudent;
-use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
-use crate::model::user_session::{UserSession, UserSource};
+use crate::model::user_identity::UserIdentity;
+use crate::model::user_session::UserSession;
 use crate::service::class_student::get_student_by_user_id;
 use crate::service::user_identity::get_user_identity_by_user_id;
 use crate::service::user_session::get_user_session_by_token;

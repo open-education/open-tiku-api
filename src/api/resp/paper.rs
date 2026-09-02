@@ -1,6 +1,7 @@
 use crate::api::req::paper::GenPaperGenConfig;
 use crate::api::resp::question::QuestionInfoResp;
-use crate::model::paper::{Paper, PaperStatus};
+use crate::enums::paper::PaperStatus;
+use crate::model::paper::Paper;
 use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;

@@ -8,9 +8,9 @@ use crate::api::resp::paper::{
     TopPaperResp,
 };
 use crate::app::conf::AppState;
-use crate::enums::paper::PaperPageSource;
+use crate::enums::paper::{PaperPageSource, PaperStatus, PaperType};
 use crate::middleware::user::UserInfo;
-use crate::model::paper::{Paper, PaperStatus, PaperType};
+use crate::model::paper::Paper;
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};
 use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;

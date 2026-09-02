@@ -1,8 +1,7 @@
 use crate::api::resp::paper::CommonPaperResp;
-use crate::model::homework_student_test_answer::{HomeworkStudentTestAnswer, TestResult};
-use crate::model::homework_student_test_attempt::{
-    HomeworkStudentTestAttempt, TestMethod, TestStatus,
-};
+use crate::enums::test::{TestMethod, TestResult, TestStatus};
+use crate::model::homework_student_test_answer::HomeworkStudentTestAnswer;
+use crate::model::homework_student_test_attempt::HomeworkStudentTestAttempt;
 use crate::util::local::to_local_datetime;
 use rust_decimal::Decimal;
 use serde::Serialize;

@@ -1,4 +1,5 @@
-use crate::model::task::{Task, TaskStatus};
+use crate::enums::task::TaskStatus;
+use crate::model::task::Task;
 use crate::util::local::to_local_datetime;
 use serde::Serialize;
 

@@ -1,8 +1,10 @@
 use crate::api::req::edit::CommonEditStatusReq;
 use crate::app::conf::AppState;
+use crate::enums::paper::PaperStatus;
+use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
-use crate::model::paper::{Paper, PaperStatus};
-use crate::model::question::{Question, QuestionStatus};
+use crate::model::paper::Paper;
+use crate::model::question::Question;
 use crate::util::error::AppError;
 use tracing::error;
 

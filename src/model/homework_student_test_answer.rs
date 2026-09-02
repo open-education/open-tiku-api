@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, Type};
+use sqlx::FromRow;
 
 // 作业学生测试答题详情表
 #[derive(Debug, Clone, FromRow)]
@@ -18,37 +18,6 @@ pub struct HomeworkStudentTestAnswer {
     pub remark: String,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Type, PartialEq, Clone)]
-#[repr(i16)]
-pub enum TestResult {
-    Unanswered = 0, // 未作答
-    Correct = 1,    // 正确
-    Incorrect = 2,  // 错误
-}
-
-impl TestResult {
-    pub fn desc(code: i16) -> String {
-        match code {
-            1 => "正确".to_string(),
-            2 => "错误".to_string(),
-            _ => "未作答".to_string(),
-        }
-    }
-
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            0 => Some(TestResult::Unanswered),
-            1 => Some(Self::Correct),
-            2 => Some(Self::Incorrect),
-            _ => None,
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
-    }
 }
 
 impl HomeworkStudentTestAnswer {

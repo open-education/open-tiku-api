@@ -2,12 +2,11 @@ use crate::api::req::test::{LatestAttemptReq, ListReq};
 use crate::api::resp::paper::CommonPaperResp;
 use crate::api::resp::test::{AttemptInfoResp, InfoResp, ListResp};
 use crate::app::conf::AppState;
+use crate::enums::test::{TestMethod, TestStatus};
 use crate::middleware::user::StudentUserInfo;
 use crate::model::homework_class::HomeworkClass;
 use crate::model::homework_class_student::HomeworkClassStudent;
-use crate::model::homework_student_test_attempt::{
-    HomeworkStudentTestAttempt, TestMethod, TestStatus,
-};
+use crate::model::homework_student_test_attempt::HomeworkStudentTestAttempt;
 use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;

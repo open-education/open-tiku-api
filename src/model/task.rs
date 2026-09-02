@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool, Type};
+use crate::enums::task::TaskStatus;
+use sqlx::{FromRow, PgPool};
 
-/// 任务管理
+// 任务管理
 
 #[derive(FromRow)]
 pub struct Task {
@@ -17,33 +17,6 @@ pub struct Task {
     // 创建更新时间
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Serialize, Deserialize, Type, PartialEq)]
-#[repr(i16)]
-pub enum TaskType {
-    UploadQuestion = 1, // 题目上传
-}
-
-#[derive(Serialize, Deserialize, Type, PartialEq)]
-#[repr(i16)]
-pub enum TaskStatus {
-    Waiting = 1, // 待处理
-    Running = 2, // 处理中
-    Success = 3, // 处理成功
-    Failed = 10, // 处理失败
-}
-
-impl TaskStatus {
-    pub fn desc(code: i16) -> &'static str {
-        match code {
-            1 => "待处理",
-            2 => "处理中",
-            3 => "处理成功",
-            10 => "处理失败",
-            _ => "未知状态",
-        }
-    }
 }
 
 impl Task {

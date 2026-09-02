@@ -3,34 +3,6 @@ use sqlx::{FromRow, PgPool};
 
 // 用户登录管理
 
-// 用户来源
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum UserSource {
-    User = 1,    // 普通第三方用户
-    Student = 2, // 学生账户
-}
-
-impl UserSource {
-    pub fn desc(value: i16) -> String {
-        match value {
-            1 => "普通第三方用户".to_string(),
-            2 => "学生账户".to_string(),
-            _ => "未知".to_string(),
-        }
-    }
-    pub fn from_i16(code: i16) -> Option<Self> {
-        match code {
-            1 => Some(Self::User),
-            2 => Some(Self::Student),
-            _ => None,
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
-    }
-}
-
 #[derive(FromRow)]
 pub struct UserSession {
     pub id: Option<i64>,

@@ -1,5 +1,5 @@
-use crate::enums::user::RoleType;
-use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
+use crate::enums::user::{ProviderType, RoleType, StatusType};
+use crate::model::user_identity::UserIdentity;
 use crate::util::local::to_local_datetime;
 use serde::Serialize;
 

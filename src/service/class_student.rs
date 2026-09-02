@@ -1,9 +1,10 @@
 use crate::api::req::class_student::{ClassStudentEditReq, ClassStudentListReq, ClassStudentReq};
 use crate::api::resp::class_student::ClassStudentResp;
 use crate::app::conf::AppState;
+use crate::enums::student::StudentStatus;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
-use crate::model::class_student::{ClassStudent, StudentStatus};
+use crate::model::class_student::ClassStudent;
 use crate::util::argon2::{generate_random_password, hash_password};
 use crate::util::email::{get_student_account_html, send_html_email};
 use crate::util::error::AppError;

@@ -5,10 +5,10 @@ use crate::api::resp::question::{
     QuestionBaseResp, QuestionExtraInfoResp, QuestionInfoResp, QuestionListResp,
 };
 use crate::app::conf::AppState;
-use crate::enums::question::QuestionPageSource;
+use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
-use crate::model::question::{Question, QuestionStatus};
-use crate::model::question_relation::{QuestionRelation, QuestionRelationType};
+use crate::model::question::Question;
+use crate::model::question_relation::QuestionRelation;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;

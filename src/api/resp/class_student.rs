@@ -1,4 +1,5 @@
-use crate::model::class_student::{ClassStudent, StudentStatus};
+use crate::enums::student::StudentStatus;
+use crate::model::class_student::ClassStudent;
 use crate::util::local::to_local_datetime;
 use serde::Serialize;
 

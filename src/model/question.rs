@@ -16,21 +16,6 @@ pub struct QuestionOption {
     pub order: i32,                  // 顺序
 }
 
-// 审核状态枚举
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum QuestionStatus {
-    Draft = 0,     // 0: 草稿
-    Pending = 1,   // 1: 待审核
-    Published = 2, // 2: 已发布
-    Rejected = 3,  // 3: 被拒绝
-}
-
-impl QuestionStatus {
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
-}
-
 // 解题分析
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Content {
