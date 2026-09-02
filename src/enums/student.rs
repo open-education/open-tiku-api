@@ -1,7 +1,4 @@
-use serde::{Deserialize, Serialize};
-use sqlx::Type;
-
-#[derive(Serialize, Deserialize, Type, PartialEq, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 #[repr(i16)]
 pub enum StudentStatus {
     Active = 1,   // 激活
@@ -27,6 +24,6 @@ impl StudentStatus {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }

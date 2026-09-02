@@ -1,6 +1,4 @@
-use sqlx::Type;
-
-#[derive(Type, PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i16)]
 pub enum TestMethod {
     Exercise = 1, // 练习模式
@@ -25,11 +23,11 @@ impl TestMethod {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }
 
-#[derive(Type, PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i16)]
 pub enum TestStatus {
     InProgress = 1, // 进行中
@@ -54,11 +52,11 @@ impl TestStatus {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }
 
-#[derive(Type, PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i16)]
 pub enum TestResult {
     Unanswered = 0, // 未作答
@@ -85,6 +83,6 @@ impl TestResult {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }

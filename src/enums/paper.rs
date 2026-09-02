@@ -1,6 +1,3 @@
-use serde::{Deserialize, Serialize};
-use sqlx::Type;
-
 // 试卷列表请求来源
 #[derive(PartialEq, Eq)]
 pub enum PaperPageSource {
@@ -20,8 +17,7 @@ impl PaperPageSource {
     }
 }
 
-#[derive(Serialize, Deserialize, Type, PartialEq, Clone)]
-#[repr(i16)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum PaperStatus {
     Draft = 1,     // 1: 草稿
     Pending = 2,   // 2: 待审核
@@ -54,13 +50,12 @@ impl PaperStatus {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }
 
 // 试卷类型
-#[derive(Serialize, Deserialize, Type, PartialEq, Clone)]
-#[repr(i16)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum PaperType {
     Top,
     Gen,
@@ -68,6 +63,6 @@ pub enum PaperType {
 
 impl PaperType {
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }

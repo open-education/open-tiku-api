@@ -104,6 +104,6 @@ impl UserSource {
     }
 
     pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
+        *self as i16
     }
 }
