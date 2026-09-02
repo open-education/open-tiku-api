@@ -24,6 +24,21 @@ impl HomeworkClassStudent {
         Ok(qb.build().execute(&mut **tx).await?.rows_affected())
     }
 
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> sqlx::Result<Option<Self>> {
+        let row = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class_student
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
+
     pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
         let row = sqlx::query_as::<_, Self>(
             r#"

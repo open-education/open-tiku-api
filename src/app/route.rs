@@ -114,5 +114,5 @@ pub fn homework(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn test(cfg: &mut web::ServiceConfig) {
-    cfg.service(test::list);
+    cfg.service(test::list).service(test::latest_attempt);
 }
