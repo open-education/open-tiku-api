@@ -51,7 +51,7 @@ pub async fn list(
         student.id,
         &req.start_date,
         &req.end_date,
-        req.page_no,
+        req.page_size,
         offset,
     )
     .await
