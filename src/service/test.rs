@@ -21,6 +21,10 @@ pub async fn list(
     req: ListReq,
     user_info: StudentUserInfo,
 ) -> Result<ListResp, AppError> {
+    if req.start_date.is_empty() || req.end_date.is_empty() {
+        return Err(AppError::param_error("起止日期不能为空"));
+    }
+
     let db = &app_state.db;
 
     let student = get_student_by_user_id(db, user_info.0.user_id).await?;
