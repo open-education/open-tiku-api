@@ -33,27 +33,27 @@ pub struct UserIdentityInfoResp {
 }
 
 impl From<UserIdentity> for UserIdentityInfoResp {
-    fn from(raw: UserIdentity) -> Self {
+    fn from(row: UserIdentity) -> Self {
         Self {
-            id: raw.id.unwrap_or_default(),
-            user_id: raw.user_id,
-            provider: raw.provider,
-            provider_desc: ProviderType::desc(raw.provider),
-            provider_username: raw.provider_username.unwrap_or_default(),
-            provider_email: raw.provider_email.unwrap_or_default(),
-            last_login_time: if raw.last_login_time.is_some() {
-                to_local_datetime(raw.last_login_time.unwrap_or_default())
+            id: row.id.unwrap_or_default(),
+            user_id: row.user_id,
+            provider: row.provider,
+            provider_desc: ProviderType::desc(row.provider),
+            provider_username: row.provider_username.unwrap_or_default(),
+            provider_email: row.provider_email.unwrap_or_default(),
+            last_login_time: if row.last_login_time.is_some() {
+                to_local_datetime(row.last_login_time.unwrap_or_default())
             } else {
                 "".to_string()
             },
-            login_count: raw.login_count,
-            role: raw.role,
-            role_desc: RoleType::desc(raw.role),
-            status: raw.status,
-            status_desc: StatusType::desc(raw.status),
-            remark: raw.remark,
-            created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
+            login_count: row.login_count,
+            role: row.role,
+            role_desc: RoleType::desc(row.role),
+            status: row.status,
+            status_desc: StatusType::desc(row.status),
+            remark: row.remark,
+            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
+            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
         }
     }
 }

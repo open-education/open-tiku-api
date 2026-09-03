@@ -200,19 +200,19 @@ impl Question {
     // 注意事务签名类型 tx: &mut Transaction<'_, Postgres>,
     pub async fn tx_batch_insert(
         tx: &mut Transaction<'_, Postgres>,
-        req_list: Vec<CreateQuestionReq>,
+        records: Vec<CreateQuestionReq>,
     ) -> Result<Vec<i64>, sqlx::Error> {
         // 请求参数为空则返回空即可
-        if req_list.is_empty() {
+        if records.is_empty() {
             return Ok(vec![]);
         }
 
         // 预分配容量
-        let mut all_ids = Vec::with_capacity(req_list.len());
+        let mut all_ids = Vec::with_capacity(records.len());
 
         // 避免 SQL 语句过大
         // 简单看了下一个中等规模的题直接存为 .md 是 1.6k 500*1.6=800k, 大部分题都是选择填空一次性写300条应该暂时没什么风险
-        for chunk in req_list.chunks(300) {
+        for chunk in records.chunks(300) {
             let mut query_builder = QueryBuilder::new(
                 r#"
             INSERT INTO question (
@@ -368,7 +368,6 @@ impl Question {
 
     // 题型下是否存在题目
     pub async fn exist_by_cate_id(pool: &PgPool, cate_id: i32) -> Result<bool, sqlx::Error> {
-        // EXISTS 返回布尔值
         let exists = sqlx::query_scalar::<_, bool>(
             r#"
         SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)
@@ -389,7 +388,6 @@ impl Question {
         approve_id: i64,
         reject_reason: Option<String>,
     ) -> Result<u64, sqlx::Error> {
-        // 1. 获取当前 UTC 时间用于更新 approve_at
         let now = Utc::now();
 
         let result = sqlx::query(
@@ -492,13 +490,13 @@ impl Question {
         .await
     }
 
-    /// 根据 ID 删除记录
+    // 根据 ID 删除记录
     pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM question WHERE id = $1")
+        let row = sqlx::query("DELETE FROM question WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     // 题型等条件下题目列表

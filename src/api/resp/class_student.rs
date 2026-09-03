@@ -26,23 +26,23 @@ pub struct ClassStudentResp {
 }
 
 impl From<ClassStudent> for ClassStudentResp {
-    fn from(raw: ClassStudent) -> Self {
+    fn from(row: ClassStudent) -> Self {
         Self {
-            id: raw.id,
-            class_id: raw.class_id,
-            user_id: raw.user_id,
-            account: raw.account,
-            status: raw.status,
-            status_desc: StudentStatus::desc(raw.status),
-            remark: raw.remark,
-            last_login_time: if raw.last_login_time.is_none() {
+            id: row.id,
+            class_id: row.class_id,
+            user_id: row.user_id,
+            account: row.account,
+            status: row.status,
+            status_desc: StudentStatus::desc(row.status),
+            remark: row.remark,
+            last_login_time: if row.last_login_time.is_none() {
                 "".to_string()
             } else {
-                to_local_datetime(raw.last_login_time.unwrap_or_default())
+                to_local_datetime(row.last_login_time.unwrap_or_default())
             },
-            login_count: raw.login_count,
-            created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
+            login_count: row.login_count,
+            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
+            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
         }
     }
 }

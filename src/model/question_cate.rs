@@ -13,11 +13,10 @@ pub struct QuestionCate {
 }
 
 impl QuestionCate {
-    /// 新增记录
     pub async fn save(pool: &PgPool, req: CreateQuestionCateReq) -> Result<i32, sqlx::Error> {
         let key = format!("{:x}", md5::compute(&req.label))[..10].to_string();
 
-        let row = sqlx::query(
+        let id = sqlx::query(
             r#"
         INSERT INTO question_cate (id, related_id, label, key, sort_order)
         VALUES (COALESCE($1, nextval('question_cate_id_seq')), $2, $3, $4, $5)
@@ -41,16 +40,16 @@ impl QuestionCate {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
-    /// 根据 ID 删除记录
+    // 根据 ID 删除记录
     pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM question_cate WHERE id = $1")
+        let row = sqlx::query("DELETE FROM question_cate WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     // 通过关联标识获取题型列表

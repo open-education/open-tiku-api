@@ -20,7 +20,7 @@ use tracing::{error, info};
 
 // 获取批次号
 pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppError> {
-    let max_batch_no = HomeworkClass::get_max_batch_no(&app_state.db, paper_id)
+    let max_batch_no = HomeworkClass::find_max_batch_no(&app_state.db, paper_id)
         .await
         .map_err(|err| {
             error!("Get paper_id: {} batch no err: {}", paper_id, err);

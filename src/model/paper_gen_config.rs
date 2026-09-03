@@ -79,7 +79,7 @@ impl PaperGenConfig {
         tx: &mut Transaction<'_, Postgres>,
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(
+        let row = sqlx::query(
             r#"
         DELETE FROM paper_gen_config
         WHERE paper_id = $1
@@ -89,6 +89,6 @@ impl PaperGenConfig {
         .execute(&mut **tx)
         .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 }

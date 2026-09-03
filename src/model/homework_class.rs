@@ -40,18 +40,18 @@ impl HomeworkClass {
         Ok(qb.build().execute(&mut **tx).await?.rows_affected())
     }
 
-    pub async fn get_max_batch_no(
+    pub async fn find_max_batch_no(
         pool: &PgPool,
         paper_id: i64,
     ) -> Result<Option<i32>, sqlx::Error> {
-        let max = sqlx::query_scalar::<_, Option<i32>>(
+        let max_batch_no = sqlx::query_scalar::<_, Option<i32>>(
             "SELECT MAX(batch_no) FROM homework_class WHERE paper_id = $1",
         )
         .bind(paper_id)
         .fetch_one(pool)
         .await?;
 
-        Ok(max)
+        Ok(max_batch_no)
     }
 
     pub async fn count(
@@ -109,7 +109,7 @@ impl HomeworkClass {
     }
 
     pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
-        let row = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM homework_class
@@ -120,6 +120,6 @@ impl HomeworkClass {
         .fetch_all(pool)
         .await?;
 
-        Ok(row)
+        Ok(rows)
     }
 }

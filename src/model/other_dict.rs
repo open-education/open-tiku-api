@@ -82,11 +82,11 @@ impl TextbookDict {
 
     // 删除特定字典项
     pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM textbook_dict WHERE id = $1")
+        let row = sqlx::query("DELETE FROM textbook_dict WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 }

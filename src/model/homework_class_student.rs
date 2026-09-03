@@ -40,7 +40,7 @@ impl HomeworkClassStudent {
     }
 
     pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
-        let row = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM homework_class_student
@@ -51,7 +51,7 @@ impl HomeworkClassStudent {
         .fetch_all(pool)
         .await?;
 
-        Ok(row)
+        Ok(rows)
     }
 
     pub async fn count(

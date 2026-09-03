@@ -33,10 +33,8 @@ impl Textbook {
         }
     }
 
-    /// 新增记录
-    /// 使用 RETURNING * 可以直接返回数据库生成后的完整对象（包含 id 和 created_at）
     pub async fn save(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
-        let row = sqlx::query(
+        let id = sqlx::query(
             r#"
         INSERT INTO textbook (
             id, parent_id, label, key, path_depth, sort_order, path_type, path
@@ -69,20 +67,20 @@ impl Textbook {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
-    /// 删除记录
-    pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM textbook WHERE id = $1")
+    // 删除记录
+    pub async fn delete_by_id(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
+        let row = sqlx::query("DELETE FROM textbook WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
-    /// 场景：在指定目录下根据 id 查找
+    // 在指定目录下根据 id 查找
     pub async fn find_by_id(pool: &PgPool, id: i32) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>("SELECT * FROM textbook WHERE id = $1")
             .bind(id)
@@ -90,7 +88,7 @@ impl Textbook {
             .await
     }
 
-    /// 场景：在指定目录下根据 parent_id 查找一条数据
+    // 在指定目录下根据 parent_id 查找一条数据
     pub async fn find_one_by_parent_id(
         pool: &PgPool,
         parent_id: i32,
@@ -101,7 +99,7 @@ impl Textbook {
             .await
     }
 
-    /// 场景：在指定目录下根据 parent_id 查找子层级列表
+    // 在指定目录下根据 parent_id 查找子层级列表
     pub async fn find_list_by_parent_id(
         pool: &PgPool,
         parent_id: i32,
@@ -112,7 +110,7 @@ impl Textbook {
             .await
     }
 
-    /// 场景：在指定目录下根据名称查找
+    // 在指定目录下根据名称查找
     pub async fn find_one_by_parent_and_label(
         pool: &PgPool,
         parent_id: Option<i32>,
@@ -136,7 +134,7 @@ impl Textbook {
         .await
     }
 
-    /// 根据深度限制获取教材层级关系列表 - all
+    // 根据深度限制获取教材层级关系列表 - all
     pub async fn find_all_by_depth(pool: &PgPool, depth: u32) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             "SELECT * FROM textbook WHERE path_depth <= $1 ORDER BY path_depth, sort_order",

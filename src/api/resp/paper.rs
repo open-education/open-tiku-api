@@ -199,15 +199,15 @@ pub struct CommonPaperGenQuestionResp {
 }
 
 impl From<PaperGenQuestion> for CommonPaperGenQuestionResp {
-    fn from(raw: PaperGenQuestion) -> Self {
+    fn from(row: PaperGenQuestion) -> Self {
         Self {
-            id: raw.id,
-            paper_id: raw.paper_id,
-            group_id: raw.group_id,
-            gen_id: raw.gen_id,
-            order_num: raw.order_num,
-            question_id: raw.question_id,
-            score: raw.score,
+            id: row.id,
+            paper_id: row.paper_id,
+            group_id: row.group_id,
+            gen_id: row.gen_id,
+            order_num: row.order_num,
+            question_id: row.question_id,
+            score: row.score,
         }
     }
 }

@@ -74,7 +74,7 @@ impl Class {
     }
 
     pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>> {
-        let row = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
@@ -85,11 +85,11 @@ impl Class {
             .fetch_all(pool)
             .await?;
 
-        Ok(row)
+        Ok(rows)
     }
 
     pub async fn count(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<i64> {
-        let row = sqlx::query_scalar::<_, i64>(
+        let id = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) 
             FROM class
@@ -106,7 +106,7 @@ impl Class {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
     pub async fn list(

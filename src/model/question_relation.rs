@@ -21,7 +21,7 @@ impl QuestionRelation {
         child_id: i64,
         question_type: i16,
     ) -> Result<i64, sqlx::Error> {
-        let row = sqlx::query(
+        let id = sqlx::query(
             r#"
             INSERT INTO question_relation (question_id, child_id, question_type)
             VALUES ($1, $2, $3)
@@ -39,7 +39,7 @@ impl QuestionRelation {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
     // 批量建立题目关联

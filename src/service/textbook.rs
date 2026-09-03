@@ -294,7 +294,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         }
     }
 
-    let row = Textbook::delete(db, id).await.map_err(|e| {
+    let row = Textbook::delete_by_id(db, id).await.map_err(|e| {
         error!("Error deleting textbook: {:?}", e);
         AppError::db_error("菜单删除失败")
     })?;

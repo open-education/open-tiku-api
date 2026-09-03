@@ -14,7 +14,6 @@ pub struct Task {
     pub author_id: i64,
     pub status: i16,
     pub result: Option<String>,
-    // 创建更新时间
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -55,7 +54,7 @@ impl Task {
         status: i16,
         result: String,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(
+        let row = sqlx::query(
             r#"
         UPDATE task
         SET status = $2, result = $3, updated_at = NOW()
@@ -67,9 +66,8 @@ impl Task {
         .bind(result)
         .execute(pool)
         .await?;
-
-        // rows_affected() 返回受影响的行数
-        Ok(result.rows_affected())
+        
+        Ok(row.rows_affected())
     }
 
     pub async fn count_by_cate(

@@ -31,12 +31,12 @@ impl ChapterKnowledge {
 
     // 删除关联关系
     pub async fn delete_by_id(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM chapter_knowledge WHERE id = $1 ")
+        let row = sqlx::query("DELETE FROM chapter_knowledge WHERE id = $1 ")
             .bind(id)
             .execute(pool)
             .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     // 通过章节小节或者知识点小类获取所有的关联关系

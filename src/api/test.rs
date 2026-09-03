@@ -1,4 +1,4 @@
-use crate::api::req::test::{LatestAttemptReq, ListReq};
+use crate::api::req::test::{LatestAttemptReq, ListReq, TestAnswerAddReq};
 use crate::api::resp::test::{AttemptInfoResp, ListResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::StudentUserInfo;
@@ -17,11 +17,21 @@ pub async fn list(
 }
 
 // 进行中的做题记录
-#[post("/latest/attempt")]
-pub async fn latest_attempt(
+#[post("/attempt/latest")]
+pub async fn attempt_latest(
     app_state: web::Data<AppState>,
     req: web::Json<LatestAttemptReq>,
     user_info: StudentUserInfo,
 ) -> ApiResponse<AttemptInfoResp> {
-    ApiResponse::response(test::latest_attempt(&app_state, req.into_inner(), user_info).await)
+    ApiResponse::response(test::attempt_latest(&app_state, req.into_inner(), user_info).await)
+}
+
+// 保存答案
+#[post("/answer/add")]
+pub async fn answer_add(
+    app_state: web::Data<AppState>,
+    req: web::Json<TestAnswerAddReq>,
+    user_info: StudentUserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(test::answer_add(&app_state, req.into_inner(), user_info).await)
 }

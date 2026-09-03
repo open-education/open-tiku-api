@@ -1,10 +1,10 @@
 use crate::enums::test::TestStatus;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 // 作业学生测试尝试记录表
-#[derive(Debug, Clone, FromRow)]
+#[derive(FromRow)]
 pub struct HomeworkStudentTestAttempt {
     pub id: Option<i64>,
     pub student_id: i64,
@@ -50,8 +50,7 @@ impl HomeworkStudentTestAttempt {
             status = EXCLUDED.status,
             score = EXCLUDED.score,
             created_at = EXCLUDED.created_at,
-            updated_at = EXCLUDED.updated_at,
-            completed_at = EXCLUDED.completed_at
+            completed_at = CURRENT_TIMESTAMP
         RETURNING id
         "#,
         )
@@ -73,7 +72,7 @@ impl HomeworkStudentTestAttempt {
         Ok(id)
     }
 
-    pub async fn get_max_attempt_number(
+    pub async fn find_max_attempt_number(
         pool: &PgPool,
         homework_id: i64,
         student_id: i64,
@@ -89,13 +88,13 @@ impl HomeworkStudentTestAttempt {
         Ok(max)
     }
 
-    pub async fn get_in_progress_latest_attempt(
+    pub async fn find_in_progress_latest_attempt(
         pool: &PgPool,
         homework_id: i64,
         student_id: i64,
         method: i16,
     ) -> Result<Option<Self>, sqlx::Error> {
-        let record = sqlx::query_as::<_, Self>(
+        let row = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM homework_student_test_attempt
@@ -111,6 +110,43 @@ impl HomeworkStudentTestAttempt {
         .fetch_optional(pool)
         .await?;
 
-        Ok(record)
+        Ok(row)
+    }
+
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<Self>, sqlx::Error> {
+        let row = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_student_test_attempt
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn done_by_id(
+        tx: &mut Transaction<'_, Postgres>,
+        id: i64,
+    ) -> Result<u64, sqlx::Error> {
+        let row = sqlx::query::<_>(
+            r#"
+            UPDATE homework_student_test_attempt
+            SET
+                status = $1,
+                updated_at = CURRENT_TIMESTAMP,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+            "#,
+        )
+        .bind(TestStatus::Done.as_i16())
+        .bind(id)
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(row.rows_affected())
     }
 }

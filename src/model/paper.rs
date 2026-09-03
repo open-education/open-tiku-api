@@ -105,12 +105,12 @@ impl Paper {
     }
 
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
-        let paper = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = $1"#)
+        let row = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = $1"#)
             .bind(paper_id)
             .fetch_optional(pool)
             .await?;
 
-        Ok(paper)
+        Ok(row)
     }
 
     pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
@@ -122,8 +122,8 @@ impl Paper {
         Ok(rows)
     }
 
-    /// 构建 WHERE 子句，返回 (where_clause, param_count)
-    /// 参数顺序固定：related_id（必填），tag（可选），year（可选），grade（可选），semester（可选）
+    // 构建 WHERE 子句，返回 (where_clause, param_count)
+    // 参数顺序固定：related_id（必填），tag（可选），year（可选），grade（可选），semester（可选）
     pub fn build_condition(req: &PaperListReq, author_id: Option<i64>) -> (String, usize) {
         let mut conditions = Vec::new();
         let mut param_count = 0;
@@ -171,7 +171,7 @@ impl Paper {
         (where_clause, param_count)
     }
 
-    /// 查询总数，需要传入 where_clause 和 param_count（由 build_filter 返回）
+    // 查询总数，需要传入 where_clause 和 param_count（由 build_filter 返回）
     pub async fn count(
         pool: &PgPool,
         req: &PaperListReq,
@@ -207,7 +207,7 @@ impl Paper {
         Ok(total)
     }
 
-    /// 查询分页列表，需要传入 where_clause 和 param_count（由 build_filter 返回）
+    // 查询分页列表，需要传入 where_clause 和 param_count（由 build_filter 返回）
     pub async fn list(
         pool: &PgPool,
         req: &PaperListReq,
@@ -260,18 +260,13 @@ impl Paper {
     pub async fn get_latest_papers(
         pool: &PgPool,
         paper_type: i16,
-        limit: i64, // 传入需要获取的条数
+        limit: i64,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        // 若 limit <= 0，直接返回空向量（或视业务需求抛错）
-        if limit <= 0 {
-            return Ok(vec![]);
-        }
-
         let papers = sqlx::query_as::<_, Self>(
             "SELECT * FROM paper WHERE paper_type = $1 ORDER BY id DESC LIMIT $2",
         )
         .bind(paper_type)
-        .bind(limit) // 绑定参数
+        .bind(limit)
         .fetch_all(pool)
         .await?;
 
@@ -286,7 +281,6 @@ impl Paper {
         approve_id: i64,
         reject_reason: Option<String>,
     ) -> Result<u64, sqlx::Error> {
-        // 1. 获取当前 UTC 时间用于更新 approve_at
         let now = Utc::now();
 
         let result = sqlx::query(
@@ -311,12 +305,13 @@ impl Paper {
         Ok(result.rows_affected())
     }
 
-    /// 根据 ID 删除记录
+    // 根据 ID 删除记录
     pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM paper WHERE id = $1")
+        let row = sqlx::query("DELETE FROM paper WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
-        Ok(result.rows_affected())
+
+        Ok(row.rows_affected())
     }
 }

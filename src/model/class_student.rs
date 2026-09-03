@@ -63,7 +63,7 @@ impl ClassStudent {
     }
 
     pub async fn update_by_id(pool: &PgPool, req: &Self) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query::<_>(
+        let row = sqlx::query::<_>(
             r#"
             UPDATE class_student
             SET
@@ -87,7 +87,7 @@ impl ClassStudent {
         .execute(pool)
         .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     pub async fn find_by_class_ids(
