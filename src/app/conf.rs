@@ -4,8 +4,6 @@ use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use std::str::FromStr;
 
-/// 配置相关初始化
-
 // 配置结构定义
 
 // 服务监听地址和端口配置

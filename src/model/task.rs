@@ -72,8 +72,8 @@ impl Task {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM task 
-            WHERE question_cate_id=$1 
+            SELECT COUNT(*) FROM task
+            WHERE question_cate_id=$1
               AND task_type = $2
             "#,
         )

@@ -157,8 +157,8 @@ impl HomeworkStudentTestAttempt {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM homework_student_test_attempt 
-            WHERE homework_id = $1 
+            SELECT COUNT(*) FROM homework_student_test_attempt
+            WHERE homework_id = $1
               AND student_id = $2
             "#,
         )
@@ -179,7 +179,7 @@ impl HomeworkStudentTestAttempt {
             r#"
         SELECT *
         FROM homework_student_test_attempt
-        WHERE homework_id = $1 
+        WHERE homework_id = $1
           AND student_id = $2
         ORDER BY id DESC
         LIMIT $3 OFFSET $4

@@ -121,7 +121,7 @@ impl Textbook {
         sqlx::query_as::<_, Self>(
             r#"
         SELECT * FROM textbook
-        WHERE parent_id IS NOT DISTINCT FROM $1 
+        WHERE parent_id IS NOT DISTINCT FROM $1
           AND label = $2
           AND ($3 IS NULL OR id <> $3)
         LIMIT 1
@@ -157,9 +157,9 @@ impl Textbook {
             SELECT id, parent_id, label, key, path_depth, sort_order, path_type, path
             FROM textbook
             WHERE parent_id = $1
-            
+
             UNION ALL
-            
+
             -- 递归部分：关联子节点
             SELECT t.id, t.parent_id, t.label, t.key, t.path_depth, t.sort_order, t.path_type, t.path
             FROM textbook t

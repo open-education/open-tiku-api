@@ -91,7 +91,7 @@ impl Class {
     pub async fn count(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<i64> {
         let id = sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM class
             WHERE author_id = $1
               AND ($2 IS NULL OR year = $2)

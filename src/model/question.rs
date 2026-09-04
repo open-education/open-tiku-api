@@ -310,7 +310,7 @@ impl Question {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM question 
+            SELECT COUNT(*) FROM question
             WHERE question_cate_id = ANY($1)
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
@@ -401,9 +401,9 @@ impl Question {
         let result = sqlx::query(
             r#"
         UPDATE question
-        SET status = $2, 
-            approve_id = $3, 
-            reject_reason = $4, 
+        SET status = $2,
+            approve_id = $3,
+            reject_reason = $4,
             approve_at = $5,
             updated_at = $5
         WHERE id = $1

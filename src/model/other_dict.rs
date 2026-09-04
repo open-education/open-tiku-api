@@ -68,8 +68,8 @@ impl TextbookDict {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            SELECT id, textbook_id, type_code, item_value, sort_order, is_select 
-            FROM textbook_dict 
+            SELECT id, textbook_id, type_code, item_value, sort_order, is_select
+            FROM textbook_dict
             WHERE textbook_id = $1 AND type_code = $2
             ORDER BY sort_order
             "#,

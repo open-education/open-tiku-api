@@ -70,7 +70,7 @@ impl ChapterKnowledge {
         chapter_or_knowledge_id: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            "SELECT id, chapter_id, knowledge_id 
+            "SELECT id, chapter_id, knowledge_id
                  FROM chapter_knowledge
                  WHERE chapter_id = $1 OR knowledge_id = $1
                 ",

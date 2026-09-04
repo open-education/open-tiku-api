@@ -286,9 +286,9 @@ impl Paper {
         let result = sqlx::query(
             r#"
         UPDATE paper
-        SET status = $2, 
-            approve_id = $3, 
-            reject_reason = $4, 
+        SET status = $2,
+            approve_id = $3,
+            reject_reason = $4,
             approve_at = $5,
             updated_at = $5
         WHERE id = $1
