@@ -186,7 +186,7 @@ fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
 
     // 草稿中和待审核支持编辑
     let paper_status = PaperStatus::from_i16(req.status).as_i16();
-    if !vec![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
+    if ![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
         return Err(AppError::business_error("试卷状态不支持编辑"));
     }
 
@@ -369,7 +369,7 @@ fn to_top_resp(
         let question_resp = question.into();
         questions_map
             .entry(group_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(question_resp);
     }
 
@@ -486,10 +486,10 @@ pub async fn preview(
     user_info: UserInfo,
 ) -> Result<GenPaperResp, AppError> {
     // 题型和题量非空
-    if req.conf.question_cate_ids.len() == 0 {
+    if req.conf.question_cate_ids.is_empty() {
         return Err(AppError::param_error("题型不能为空"));
     }
-    if req.conf.question_types.len() == 0 {
+    if req.conf.question_types.is_empty() {
         return Err(AppError::param_error("题量配置不能为空"));
     }
 
@@ -994,7 +994,7 @@ fn to_gen_resp(
         let question_resp = to_gen_paper_question_resp(question, raw, user_map);
         questions_map
             .entry(group_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(question_resp);
     }
 

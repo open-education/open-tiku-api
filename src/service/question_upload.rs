@@ -130,8 +130,8 @@ async fn get_or_load_dict(
 async fn single(
     app_state: &AppState,
     task_info: Task,
-    question_type_list: &Vec<TextbookDict>,
-    question_tag_list: &Vec<TextbookDict>,
+    question_type_list: &[TextbookDict],
+    question_tag_list: &[TextbookDict],
 ) -> Result<(), AppError> {
     // 记录结果日志
     let mut result: Vec<String> = vec![];
@@ -171,8 +171,8 @@ async fn single(
             None,
             QuestionRelationType::Base,
             &task_info,
-            &question_type_list,
-            &question_tag_list,
+            question_type_list,
+            question_tag_list,
         );
         info!("Add parent question name: {} begin", simple_parent_title);
         let parent = Question::tx_insert(&mut tx, parent_req)
@@ -196,8 +196,8 @@ async fn single(
                 Some(parent.id),
                 QuestionRelationType::Similar,
                 &task_info,
-                &question_type_list,
-                &question_tag_list,
+                question_type_list,
+                question_tag_list,
             );
             info!("Add child question name: {} begin", simple_child_title);
             children_req.push(child_req);

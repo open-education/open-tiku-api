@@ -27,9 +27,9 @@ impl Textbook {
     // 每个菜单的标识
     fn get_label_key(parent_id: Option<i32>, label: &str) -> String {
         if let Some(parent_id) = parent_id {
-            (&format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10]).to_string()
+            format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10].to_string()
         } else {
-            (&format!("{:x}", md5::compute(label))[..10]).to_string()
+            format!("{:x}", md5::compute(label))[..10].to_string()
         }
     }
 

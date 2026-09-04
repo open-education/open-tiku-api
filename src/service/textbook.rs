@@ -171,15 +171,11 @@ pub async fn list_children(
 fn fill_question_cate(
     relation_map: &HashMap<i32, Vec<i32>>,
     question_id_map: &HashMap<i32, Vec<QuestionCate>>,
-    resp: &mut Vec<TextbookResp>,
+    resp: &mut [TextbookResp],
 ) {
     for item in resp.iter_mut() {
-        if item.path_depth != Some(7) && item.children.is_some() {
-            fill_question_cate(
-                relation_map,
-                question_id_map,
-                item.children.as_mut().unwrap(),
-            );
+        if let Some(ref mut children) = item.children {
+            fill_question_cate(relation_map, question_id_map, children);
             continue;
         }
 

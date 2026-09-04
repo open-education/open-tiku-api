@@ -10,7 +10,7 @@ use tracing::error;
 
 // 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
-    let res = ChapterKnowledge::find_unique(&pool, req.chapter_id, req.knowledge_id)
+    let res = ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
         .await
         .map_err(|err| {
             error!("add relation query err: {}", err);
@@ -74,7 +74,7 @@ pub async fn remove(
     let db = &app_state.db;
 
     // 查询关联记录
-    let relation_row = ChapterKnowledge::find_unique(&db, chapter_id, knowledge_id)
+    let relation_row = ChapterKnowledge::find_unique(db, chapter_id, knowledge_id)
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);

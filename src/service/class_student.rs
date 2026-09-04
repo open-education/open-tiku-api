@@ -149,9 +149,9 @@ pub async fn check_class_list_info(
 }
 
 // 验证学生账户是否存在
-async fn check_student_accounts(db: &PgPool, accounts: &Vec<String>) -> Result<(), AppError> {
+async fn check_student_accounts(db: &PgPool, accounts: &[String]) -> Result<(), AppError> {
     // 验证账户是否存在-登录账户必须是全局的唯一
-    let has_rows = ClassStudent::find_by_accounts(db, &accounts)
+    let has_rows = ClassStudent::find_by_accounts(db, accounts)
         .await
         .map_err(|e| {
             error!("Select class student by account err: {}", e);
@@ -287,9 +287,7 @@ pub async fn list(
 
     let mut map: HashMap<i64, Vec<ClassStudent>> = HashMap::new();
     for student in rows {
-        map.entry(student.class_id)
-            .or_insert_with(Vec::new)
-            .push(student);
+        map.entry(student.class_id).or_default().push(student);
     }
 
     let resp_map: HashMap<_, _> = map
@@ -410,10 +408,10 @@ async fn check_student_is_edit(
     }
 
     // 或者该账户是当前用户也可以修改
-    if let Some(row) = has_rows {
-        if row.id == student.id {
-            return Ok(());
-        }
+    if let Some(row) = has_rows
+        && row.id == student.id
+    {
+        return Ok(());
     }
 
     Err(AppError::business_error(

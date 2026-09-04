@@ -12,6 +12,7 @@ pub struct HomeworkClass {
     pub class_id: i64,
     pub author_id: i64,
     pub title: String,
+    pub deadline: DateTime<Utc>,
     pub remark: String,
     pub created_at: Option<DateTime<Utc>>,
 }
@@ -26,15 +27,16 @@ impl HomeworkClass {
         }
 
         let mut qb = QueryBuilder::new(
-            "INSERT INTO homework_class (batch_no, homework_id, class_id, paper_id, author_id, title, remark) ",
+            "INSERT INTO homework_class (batch_no, homework_id, class_id, paper_id, author_id, title, deadline, remark) ",
         );
         qb.push_values(records, |mut b, r| {
             b.push(r.batch_no)
                 .push_bind(r.homework_id)
                 .push_bind(r.class_id)
-                .push_bind(&r.paper_id)
+                .push_bind(r.paper_id)
                 .push_bind(r.author_id)
                 .push_bind(&r.title)
+                .push_bind(r.deadline)
                 .push_bind(&r.remark);
         });
         Ok(qb.build().execute(&mut **tx).await?.rows_affected())

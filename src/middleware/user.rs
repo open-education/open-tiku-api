@@ -53,10 +53,10 @@ impl FromRequest for TeacherUserInfo {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        if let Some(user_info) = req.extensions().get::<UserInfo>() {
-            if user_info.role == RoleType::Teacher.as_i16() {
-                return ready(Ok(TeacherUserInfo(user_info.clone())));
-            }
+        if let Some(user_info) = req.extensions().get::<UserInfo>()
+            && user_info.role == RoleType::Teacher.as_i16()
+        {
+            return ready(Ok(TeacherUserInfo(user_info.clone())));
         }
 
         ready(Err(ErrorUnauthorized("权限不足, 仅限教师用户访问")))
@@ -72,10 +72,10 @@ impl FromRequest for StudentUserInfo {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        if let Some(user_info) = req.extensions().get::<UserInfo>() {
-            if user_info.role == RoleType::Student.as_i16() {
-                return ready(Ok(StudentUserInfo(user_info.clone())));
-            }
+        if let Some(user_info) = req.extensions().get::<UserInfo>()
+            && user_info.role == RoleType::Student.as_i16()
+        {
+            return ready(Ok(StudentUserInfo(user_info.clone())));
         }
 
         ready(Err(ErrorUnauthorized("权限不足, 仅限学生用户访问")))
@@ -251,8 +251,8 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     // 如果过期时间有效的用户则需要给用户续期
     let remain = session.expired_at - Utc::now();
     if remain.num_seconds() > 0 && remain.num_seconds() <= 3600 {
-        session.expired_at = session.expired_at + Duration::hours(meta::RENEW_TOKEN_EXPIRED_HOUR);
-        session.renew_cnt = session.renew_cnt + 1; // 续期次数累加
+        session.expired_at += Duration::hours(meta::RENEW_TOKEN_EXPIRED_HOUR);
+        session.renew_cnt += 1; // 续期次数累加
         let _ = match UserSession::save(db, session).await {
             Ok(u) => u,
             Err(err) => {

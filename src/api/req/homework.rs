@@ -8,6 +8,7 @@ pub struct HomeworkAddReq {
     #[serde(rename(deserialize = "paperId"))]
     pub paper_id: i64,
     pub title: String,
+    pub deadline: String,
     pub remark: Option<String>,
     #[serde(rename(deserialize = "classMap"))]
     pub class_map: HashMap<i64, Vec<i64>>,

@@ -21,7 +21,7 @@ pub fn read_file(
 
     match fs::read(&file_path) {
         Ok(image_data) => {
-            let content_type = get_content_type(&filename);
+            let content_type = get_content_type(filename);
             Ok(HttpResponse::Ok()
                 .content_type(content_type)
                 .body(image_data))
@@ -52,6 +52,6 @@ pub async fn delete_file(meta_path: &str, is_image: bool, filename: &str) -> Res
     } else {
         format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
     };
-    let _ = tokio::fs::remove_file(file_path).await?;
+    tokio::fs::remove_file(file_path).await?;
     Ok(true)
 }

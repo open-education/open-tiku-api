@@ -14,21 +14,12 @@ pub async fn add(
 ) -> Result<i64, AppError> {
     let db = &app_state.db;
 
-    let row_id = Task::insert(
-        db,
-        req.question_cate_id,
-        req.task_type,
-        &req.name,
-        user_info.user_id,
-        &req.url,
-        &req.email,
-        req.textbook_id,
-    )
-    .await
-    .map_err(|e| {
-        error!("task add err: {:?}", e);
-        AppError::db_error("任务添加失败")
-    })?;
+    let row_id = Task::insert(db, req, user_info.user_id)
+        .await
+        .map_err(|e| {
+            error!("task add err: {:?}", e);
+            AppError::db_error("任务添加失败")
+        })?;
 
     Ok(row_id)
 }

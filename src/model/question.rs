@@ -72,6 +72,28 @@ pub struct Question {
     pub updated_at: DateTime<Utc>,
 }
 
+// 普通题目列表请求
+pub struct CateAndTypeReq {
+    pub cate_ids: Vec<i32>,
+    pub status: i16,
+    pub type_id: Option<i32>,
+    pub ids: Option<Vec<i64>>,
+    pub title_val: Option<String>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub dimension_ids: Option<Vec<i32>>,
+    pub author_id: Option<i64>,
+}
+
+// 变式题列表请求
+pub struct SimilarReq {
+    pub question_id: i64,
+    pub status: i16,
+    pub cate_id: i32,
+    pub type_id: Option<i32>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub dimension_ids: Option<Vec<i32>>,
+}
+
 impl Question {
     // 添加题目-根据主键判断是新增还是更新
     pub async fn simple_save(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
@@ -284,14 +306,7 @@ impl Question {
     // 题型下题目数量
     pub async fn count_by_cate_and_type(
         pool: &PgPool,
-        cate_ids: Vec<i32>,
-        status: i16,
-        type_id: Option<i32>,
-        ids: Option<Vec<i64>>,
-        title_val: Option<String>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
-        author_id: Option<i64>,
+        req: &CateAndTypeReq,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -306,16 +321,16 @@ impl Question {
               AND ($10 IS NULL OR author_id = $10)
             "#,
         )
-        .bind(cate_ids)
-        .bind(status)
-        .bind(type_id)
-        .bind(ids)
-        .bind(title_val)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
-        .bind(author_id)
+        .bind(&req.cate_ids)
+        .bind(req.status)
+        .bind(req.type_id)
+        .bind(&req.ids)
+        .bind(&req.title_val)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
+        .bind(req.author_id)
         .fetch_one(pool)
         .await
     }
@@ -323,14 +338,7 @@ impl Question {
     // 题型下题目列表
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
-        cate_ids: Vec<i32>,
-        status: i16,
-        type_id: Option<i32>,
-        ids: Option<Vec<i64>>,
-        title_val: Option<String>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
-        author_id: Option<i64>,
+        req: &CateAndTypeReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -350,16 +358,16 @@ impl Question {
             LIMIT $11 OFFSET $12
             "#,
         )
-        .bind(cate_ids)
-        .bind(status)
-        .bind(type_id)
-        .bind(ids)
-        .bind(title_val)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
-        .bind(author_id)
+        .bind(&req.cate_ids)
+        .bind(req.status)
+        .bind(req.type_id)
+        .bind(&req.ids)
+        .bind(&req.title_val)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
+        .bind(req.author_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
@@ -415,12 +423,7 @@ impl Question {
     // 母题下面变式题数量
     pub async fn count_similar_by_params(
         pool: &PgPool,
-        question_id: i64,
-        status: i16,
-        cate_id: i32,
-        type_id: Option<i32>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
+        req: &SimilarReq,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -436,14 +439,14 @@ impl Question {
               AND ($7 IS NULL OR q.question_dimension_ids @> $8)
             "#,
         )
-        .bind(question_id)
-        .bind(status)
-        .bind(cate_id)
-        .bind(type_id)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
+        .bind(req.question_id)
+        .bind(req.status)
+        .bind(req.cate_id)
+        .bind(req.type_id)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
         .fetch_one(pool)
         .await
     }
@@ -451,12 +454,7 @@ impl Question {
     // 母题下面变式题列表
     pub async fn list_similar_by_params(
         pool: &PgPool,
-        question_id: i64,
-        status: i16,
-        cate_id: i32,
-        type_id: Option<i32>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
+        req: &SimilarReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -476,14 +474,14 @@ impl Question {
             LIMIT $9 OFFSET $10
             "#,
         )
-        .bind(question_id)
-        .bind(status)
-        .bind(cate_id)
-        .bind(type_id)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
+        .bind(req.question_id)
+        .bind(req.status)
+        .bind(req.cate_id)
+        .bind(req.type_id)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)

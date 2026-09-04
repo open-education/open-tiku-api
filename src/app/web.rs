@@ -6,8 +6,7 @@ use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
 
-/// web 服务入口
-
+// web 服务入口
 pub async fn run_web() -> std::io::Result<()> {
     let guard = init_logger("app.log");
     Box::leak(Box::new(guard));

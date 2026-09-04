@@ -325,13 +325,14 @@ CREATE INDEX idx_account ON class_student (account);
 CREATE TABLE homework_class
 (
     id          BIGSERIAL PRIMARY KEY,
-    batch_no    INTEGER        NOT NULL,            -- 批次号
-    homework_id BIGINT         NOT NULL,            -- 作业标识, 一次多个班级
-    paper_id    BIGINT         NOT NULL,            -- 试卷标识
-    class_id    BIGINT         NOT NULL,            -- 班级标识
-    author_id   BIGINT         NOT NULL,            -- 作者标识
-    title       CHARACTER(500) NOT NULL DEFAULT '', -- 作业名称
-    remark      TEXT           NOT NULL DEFAULT '', -- 备注
+    batch_no    INTEGER        NOT NULL,                           -- 批次号
+    homework_id BIGINT         NOT NULL,                           -- 作业标识, 一次多个班级
+    paper_id    BIGINT         NOT NULL,                           -- 试卷标识
+    class_id    BIGINT         NOT NULL,                           -- 班级标识
+    author_id   BIGINT         NOT NULL,                           -- 作者标识
+    title       CHARACTER(500) NOT NULL DEFAULT '',                -- 作业名称
+    deadline    TIMESTAMPTZ    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 作业截止时间
+    remark      TEXT           NOT NULL DEFAULT '',                -- 备注
 
     -- 审计字段
     created_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP,

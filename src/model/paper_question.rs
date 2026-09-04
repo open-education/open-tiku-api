@@ -29,14 +29,14 @@ impl PaperQuestion {
         );
 
         builder.push_values(questions, |mut b, q| {
-            b.push_bind(&q.paper_id)
+            b.push_bind(q.paper_id)
                 .push_bind(q.group_id)
                 .push_bind(&q.gen_id)
-                .push_bind(&q.order_num)
+                .push_bind(q.order_num)
                 .push_bind(&q.stem)
                 .push_bind(&q.images)
                 .push_bind(&q.options)
-                .push_bind(&q.options_layout)
+                .push_bind(q.options_layout)
                 .push_bind(&q.answer)
                 .push_bind(&q.analysis)
                 .push_bind(q.score);

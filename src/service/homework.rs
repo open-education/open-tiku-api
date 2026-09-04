@@ -11,7 +11,7 @@ use crate::api::resp::class_student::ClassStudentResp;
 use crate::api::resp::homework::{HomeworkInfoResp, HomeworkListResp};
 use crate::service::class_student::check_class_list_info;
 use crate::util::error::AppError;
-use crate::util::local::to_local_datetime;
+use crate::util::local::{get_datetime, to_local_datetime};
 use crate::util::snowflake::generate_id;
 use std::collections::HashMap;
 use tracing::{error, info};
@@ -39,12 +39,15 @@ pub async fn add(
     if req.title.is_empty() {
         return Err(AppError::param_error("标题不能为空"));
     }
+    if req.deadline.is_empty() {
+        return Err(AppError::param_error("截止日期不能为空"));
+    }
     if req.class_map.is_empty() {
         return Err(AppError::param_error("班级信息为空"));
     }
 
     // 批次号要匹配, 避免同一批次好重复添加, 如果冲突太多, 后续可以考虑优化, 获取不加入判断, 自动自增
-    let cur_max_batch_no = batch_no(&app_state, req.paper_id).await?;
+    let cur_max_batch_no = batch_no(app_state, req.paper_id).await?;
     if cur_max_batch_no != req.batch_no {
         return Err(AppError::param_error(
             "当前批次号已被其它教师使用，需要刷新后重新布置作业",
@@ -103,6 +106,7 @@ fn build_homework_add_req(
 ) -> Result<(Vec<HomeworkClass>, Vec<HomeworkClassStudent>), AppError> {
     let mut class_list: Vec<HomeworkClass> = vec![];
     let mut class_students: Vec<HomeworkClassStudent> = vec![];
+    let deadline = get_datetime(&req.deadline)?;
     for (class_id, student_ids) in req.class_map.iter() {
         // 班级信息不能为空
         if student_ids.is_empty() {
@@ -127,6 +131,7 @@ fn build_homework_add_req(
             class_id: *class_id,
             author_id,
             title: req.title.clone(),
+            deadline,
             remark: req.remark.clone().unwrap_or_default(),
             created_at: None,
         })

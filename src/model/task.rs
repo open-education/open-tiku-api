@@ -1,6 +1,6 @@
+use crate::api::req::task::TaskAddReq;
 use crate::enums::task::TaskStatus;
 use sqlx::{FromRow, PgPool};
-
 // 任务管理
 
 #[derive(FromRow)]
@@ -21,13 +21,8 @@ pub struct Task {
 impl Task {
     pub async fn insert(
         pool: &PgPool,
-        question_cate_id: i64,
-        task_type: i16,
-        name: &String,
+        req: TaskAddReq,
         author_id: i64,
-        url: &String,
-        email: &String,
-        textbook_id: i32,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
             r#"
@@ -36,14 +31,14 @@ impl Task {
         RETURNING id
         "#,
         )
-            .bind(question_cate_id)
-            .bind(task_type)
-            .bind(name)
-            .bind(url)
+            .bind(req.question_cate_id)
+            .bind(req.task_type)
+            .bind(req.name)
+            .bind(req.url)
             .bind(author_id)
             .bind(TaskStatus::Waiting as i16)
-            .bind(email)
-            .bind(textbook_id)
+            .bind(req.email)
+            .bind(req.textbook_id)
             .fetch_one(pool)
             .await
     }
@@ -66,7 +61,7 @@ impl Task {
         .bind(result)
         .execute(pool)
         .await?;
-        
+
         Ok(row.rows_affected())
     }
 

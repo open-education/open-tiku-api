@@ -11,6 +11,7 @@ use crate::model::homework_student_test_attempt::HomeworkStudentTestAttempt;
 use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;
+use crate::util::local::to_local_date;
 use chrono::Utc;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -70,10 +71,10 @@ pub async fn list(
             error!("test list homework rows error: {}", e);
             AppError::db_error("获取学生作业布置信息出错")
         })?;
-    // 作业标识id->试卷id
-    let homework_id_paper_id_map: HashMap<i64, i64> = homework_rows
+    // 作业标识id-> 作业信息
+    let homework_id_class_map: HashMap<i64, &HomeworkClass> = homework_rows
         .iter()
-        .map(|item| (item.homework_id, item.paper_id))
+        .map(|item| (item.homework_id, item))
         .collect();
 
     // 获取试卷信息
@@ -95,11 +96,11 @@ pub async fn list(
     let mut resp: Vec<InfoResp> = Vec::new();
     for item in rows.into_iter() {
         // 获取对应的试卷标识
-        let paper_id = if let Some(paper_id) = homework_id_paper_id_map.get(&item.homework_id) {
-            paper_id
+        let (paper_id, deadline) = if let Some(hc) = homework_id_class_map.get(&item.homework_id) {
+            (hc.paper_id, to_local_date(hc.deadline))
         } else {
             error!("test list homework id is empty: {}", item.homework_id);
-            &0
+            (0, "".to_string())
         };
 
         // 获取试卷详情, 试卷不存在默认空
@@ -114,7 +115,7 @@ pub async fn list(
             id: item.id,
             homework_id: item.homework_id,
             student_id: item.student_id,
-            deadline: "2026-09-02".to_string(),
+            deadline,
             paper_info: paper_resp,
         })
     }

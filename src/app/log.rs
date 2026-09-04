@@ -39,7 +39,7 @@ pub fn init_logger(file_name: &str) -> WorkerGuard {
         .with_timer(timer);
 
     // 注册日志组件
-    let _ = tracing_subscriber::registry()
+    tracing_subscriber::registry()
         .with(env_filter)
         .with(file_layer)
         .init();

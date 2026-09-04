@@ -135,24 +135,24 @@ impl Paper {
         conditions.push(format!("status = ${}", param_count + 1));
         param_count += 1;
 
-        if let Some(_) = &req.paper_type {
+        if req.paper_type.is_some() {
             param_count += 1;
             conditions.push(format!("paper_type = ${}", param_count));
         }
 
-        if let Some(_) = &req.tag {
+        if req.tag.is_some() {
             param_count += 1;
             conditions.push(format!("tag = ${}", param_count));
         }
-        if let Some(_) = &req.year {
+        if req.year.is_some() {
             param_count += 1;
             conditions.push(format!("year = ${}", param_count));
         }
-        if let Some(_) = &req.grade {
+        if req.grade.is_some() {
             param_count += 1;
             conditions.push(format!("grade = ${}", param_count));
         }
-        if let Some(_) = &req.semester {
+        if req.semester.is_some() {
             param_count += 1;
             conditions.push(format!("semester = ${}", param_count));
         }

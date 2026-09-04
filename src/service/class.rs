@@ -17,7 +17,7 @@ pub async fn add(
     let db = &app_state.db;
 
     if req.id.is_some() {
-        let has = Class::find_by_id(db, req.id.clone().unwrap_or_default())
+        let has = Class::find_by_id(db, req.id.unwrap_or_default())
             .await
             .map_err(|err| {
                 error!("Select class err: {}", err);

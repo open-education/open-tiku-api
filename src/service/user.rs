@@ -65,8 +65,8 @@ pub async fn login(
 
     // 根据来源进行登录
     match source {
-        s if s == UserSource::User => handle_normal_login(db, &req, &client_info).await,
-        s if s == UserSource::Student => {
+        UserSource::User => handle_normal_login(db, &req, &client_info).await,
+        UserSource::Student => {
             handle_student_login(
                 db,
                 &req,
@@ -76,7 +76,6 @@ pub async fn login(
             )
             .await
         }
-        _ => Err(AppError::business_error("非法的登录类型")),
     }
 }
 
@@ -99,7 +98,7 @@ async fn handle_normal_login(
 
     // 更新 session
     session.expired_at = Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR);
-    session.renew_cnt = session.renew_cnt + 1;
+    session.renew_cnt += 1;
     // 实际登录时才填写用户跟踪信息
     session.client_ip = client_info.ip.clone();
     session.user_agent = client_info.user_agent.clone();
@@ -112,7 +111,7 @@ async fn handle_normal_login(
 
     // 更新用户统计信息
     user.last_login_time = Some(Utc::now());
-    user.login_count = user.login_count + 1;
+    user.login_count += 1;
     let _ = UserIdentity::save(db, &user).await.map_err(|err| {
         error!("Login save user session save err: {}", err);
         AppError::db_error("更新用户信息错误")
@@ -185,7 +184,7 @@ async fn handle_student_login(
 
     // 更新用户统计信息
     student.last_login_time = Some(Utc::now());
-    student.login_count = student.login_count + 1;
+    student.login_count += 1;
     let _ = ClassStudent::update_by_id(db, &student)
         .await
         .map_err(|err| {

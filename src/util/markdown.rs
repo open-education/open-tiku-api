@@ -169,7 +169,7 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
                 // 加粗的类型
                 if in_strong {
                     // 去除一些特殊的字符
-                    match s.trim_end_matches(|c| c == ':' || c == '：') {
+                    match s.trim_end_matches([':', '：']) {
                         "难度" => {
                             state = Section::DifficultyLevel;
                             continue;
@@ -209,9 +209,9 @@ fn parse_question(title: String, markdown: &str) -> RawQuestion {
                 }
                 match state {
                     Section::Head5 => head5.push_str(s),
-                    Section::DifficultyLevel => difficulty_level.push_str(&s),
-                    Section::Stage => stage.push_str(&s),
-                    Section::QuestionType => question_type.push_str(&s),
+                    Section::DifficultyLevel => difficulty_level.push_str(s),
+                    Section::Stage => stage.push_str(s),
+                    Section::QuestionType => question_type.push_str(s),
                     Section::Knowledge => knowledge.push_str(s),
                     Section::Answer => {
                         answer.push_str(s);
@@ -271,15 +271,15 @@ pub fn get_difficulty_level(val: &str) -> Decimal {
 }
 
 // 解析出选项列表
-pub fn get_choices(choices: &Vec<String>) -> Vec<(char, String)> {
+pub fn get_choices(choices: &[String]) -> Vec<(char, String)> {
     let mut result: Vec<(char, String)> = choices
-        .into_iter()
+        .iter()
         .filter_map(|s| {
             // 取第一个字符作为选项字母
             let mut chars = s.chars();
             let letter = chars.next()?;
             // 跳过点分隔符（可能是 '．' 或 '.'）
-            let rest = chars.as_str().trim_start_matches(|c| c == '．' || c == '.');
+            let rest = chars.as_str().trim_start_matches(['．', '.']);
             if rest.is_empty() {
                 None
             } else {
