@@ -1,6 +1,6 @@
-use crate::api::req::test::{LatestAttemptReq, ListReq, TestAnswerAddReq};
+use crate::api::req::test::{AttemptListReq, LatestAttemptReq, ListReq, TestAnswerAddReq};
 use crate::api::resp::paper::CommonPaperResp;
-use crate::api::resp::test::{AttemptInfoResp, InfoResp, ListResp};
+use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, InfoResp, ListResp};
 use crate::app::conf::AppState;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::middleware::user::StudentUserInfo;
@@ -142,17 +142,7 @@ pub async fn attempt_latest(
     let student = get_student_by_user_id(db, user_info.0.user_id).await?;
 
     // 学生作业布置信息
-    let hcs = HomeworkClassStudent::find_by_id(db, req.id)
-        .await
-        .map_err(|e| {
-            error!("get test latest attempt row error: {}", e);
-            AppError::db_error("获取学生作业布置信息出错")
-        })?
-        .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
-
-    if hcs.student_id != student.id {
-        return Err(AppError::business_error("这不是你的作业"));
-    }
+    let hcs = get_class_student(db, req.id, student.id).await?;
 
     // 作业详情
     let hc_rows = HomeworkClass::find_by_homework_ids(db, vec![hcs.homework_id])
@@ -235,12 +225,13 @@ pub async fn attempt_latest(
     }
 
     // 获取做题明细记录
-    let answers = HomeworkStudentTestAnswer::find_by_attempt_id(db, hsta.id.unwrap_or_default())
-        .await
-        .map_err(|e| {
-            error!("get test latest answer row error: {}", e);
-            AppError::db_error("获取答案明细出错")
-        })?;
+    let answers =
+        HomeworkStudentTestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
+            .await
+            .map_err(|e| {
+                error!("get test latest answer row error: {}", e);
+                AppError::db_error("获取答案明细出错")
+            })?;
 
     let mut resp: AttemptInfoResp = hsta.into();
     resp.answers = answers.into_iter().map(Into::into).collect();
@@ -265,6 +256,105 @@ async fn validate_attempt(db: &PgPool, user_id: i64, attempt_id: i64) -> Result<
     }
 
     Ok(())
+}
+
+// 获取学生作业布置明细
+async fn get_class_student(
+    pool: &PgPool,
+    id: i64,
+    student_id: i64,
+) -> Result<HomeworkClassStudent, AppError> {
+    let hcs = HomeworkClassStudent::find_by_id(pool, id)
+        .await
+        .map_err(|e| {
+            error!("get homework class student row error: {}", e);
+            AppError::db_error("获取学生作业布置信息出错")
+        })?
+        .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
+
+    if hcs.student_id != student_id {
+        return Err(AppError::business_error("这不是你的作业"));
+    }
+
+    Ok(hcs)
+}
+
+pub async fn attempts(
+    app_state: &AppState,
+    req: AttemptListReq,
+    user_info: StudentUserInfo,
+) -> Result<AttemptListResp, AppError> {
+    let db = &app_state.db;
+
+    // 学生信息
+    let student = get_student_by_user_id(db, user_info.0.user_id).await?;
+
+    // 学生作业布置信息
+    let hcs = get_class_student(db, req.id, student.id).await?;
+
+    let total = HomeworkStudentTestAttempt::count(db, hcs.student_id, hcs.student_id)
+        .await
+        .map_err(|e| {
+            error!("get attempts count error: {}", e);
+            AppError::db_error("作业做题记录计数查询出错")
+        })?;
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 {
+        return Ok(AttemptListResp {
+            list: vec![],
+            page_no: req.page_no,
+            page_size: req.page_size,
+            total,
+        });
+    }
+
+    let rows = HomeworkStudentTestAttempt::list(
+        db,
+        hcs.homework_id,
+        hcs.student_id,
+        req.page_size,
+        offset,
+    )
+    .await
+    .map_err(|e| {
+        error!("get attempts list row error: {}", e);
+        AppError::db_error("作业做题记录列表查询出错")
+    })?;
+
+    let attempt_ids: Vec<i64> = rows
+        .iter()
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
+    let answers = HomeworkStudentTestAnswer::find_by_attempt_ids(db, &attempt_ids)
+        .await
+        .map_err(|e| {
+            error!("find test attempt row error: {}", e);
+            AppError::db_error("获取做题记录出错")
+        })?;
+    let mut answer_map: HashMap<i64, Vec<HomeworkStudentTestAnswer>> =
+        answers.into_iter().fold(HashMap::new(), |mut acc, item| {
+            acc.entry(item.id.unwrap_or_default())
+                .or_default()
+                .push(item);
+            acc
+        });
+
+    let mut resp_list: Vec<AttemptInfoResp> = Vec::with_capacity(rows.len());
+    for row in rows.into_iter() {
+        let id = row.id.unwrap_or_default();
+        let mut resp: AttemptInfoResp = row.into();
+        if let Some(cur_answers) = answer_map.remove(&id) {
+            resp.answers = cur_answers.into_iter().map(Into::into).collect();
+        }
+        resp_list.push(resp);
+    }
+
+    Ok(AttemptListResp {
+        list: resp_list,
+        page_no: req.page_no,
+        page_size: req.page_size,
+        total,
+    })
 }
 
 pub async fn answer_add(

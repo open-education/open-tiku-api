@@ -37,3 +37,12 @@ pub struct TestAnswerAddReq {
     pub status: i16,
     pub list: Vec<AnswerAddReq>,
 }
+
+#[derive(Deserialize)]
+pub struct AttemptListReq {
+    pub id: i64,
+    #[serde(rename(deserialize = "pageNo"))]
+    pub page_no: i32,
+    #[serde(rename(deserialize = "pageSize"))]
+    pub page_size: i32,
+}

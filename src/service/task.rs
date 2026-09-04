@@ -28,7 +28,7 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
     let db = &app_state.db;
 
     // 1. 查询总数
-    let total = Task::count_by_cate(db, req.question_cate_id, 1, req.task_type)
+    let total = Task::count_by_cate(db, req.question_cate_id, req.task_type)
         .await
         .map_err(|e| {
             error!("task count by id err: {:?}", e);
@@ -50,7 +50,6 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
     let list_data = Task::list_by_cate(
         db,
         req.question_cate_id,
-        1,
         req.task_type,
         req.page_size,
         offset,

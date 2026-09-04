@@ -57,15 +57,18 @@ impl HomeworkStudentTestAnswer {
         Ok(row.rows_affected())
     }
 
-    pub async fn find_by_attempt_id(pool: &PgPool, attempt_id: i64) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn find_by_attempt_ids(
+        pool: &PgPool,
+        attempt_ids: &[i64],
+    ) -> Result<Vec<Self>, sqlx::Error> {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM homework_student_test_answer
-            WHERE attempt_id = $1
+            WHERE attempt_id = ANY($1)
             "#,
         )
-        .bind(attempt_id)
+        .bind(attempt_ids)
         .fetch_all(pool)
         .await?;
 

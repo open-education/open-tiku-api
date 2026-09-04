@@ -68,19 +68,16 @@ impl Task {
     pub async fn count_by_cate(
         pool: &PgPool,
         question_cate_id: i64,
-        author_id: i64,
         task_type: i16,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM task 
             WHERE question_cate_id=$1 
-            AND author_id = $2
-              AND task_type = $3
+              AND task_type = $2
             "#,
         )
         .bind(question_cate_id)
-        .bind(author_id)
         .bind(task_type)
         .fetch_one(pool)
         .await
@@ -89,7 +86,6 @@ impl Task {
     pub async fn list_by_cate(
         pool: &PgPool,
         question_cate_id: i64,
-        author_id: i64,
         task_type: i16,
         limit: i32,
         offset: i32,
@@ -99,14 +95,12 @@ impl Task {
         SELECT *
         FROM task
         WHERE question_cate_id = $1
-          AND author_id = $2
-          AND task_type = $3
+          AND task_type = $2
         ORDER BY id DESC
-        LIMIT $4 OFFSET $5
+        LIMIT $3 OFFSET $4
         "#,
         )
         .bind(question_cate_id)
-        .bind(author_id)
         .bind(task_type)
         .bind(limit)
         .bind(offset)

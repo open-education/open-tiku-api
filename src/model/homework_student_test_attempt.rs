@@ -149,4 +149,47 @@ impl HomeworkStudentTestAttempt {
 
         Ok(row.rows_affected())
     }
+
+    pub async fn count(
+        pool: &PgPool,
+        homework_id: i64,
+        student_id: i64,
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT COUNT(*) FROM homework_student_test_attempt 
+            WHERE homework_id = $1 
+              AND student_id = $2
+            "#,
+        )
+        .bind(homework_id)
+        .bind(student_id)
+        .fetch_one(pool)
+        .await
+    }
+
+    pub async fn list(
+        pool: &PgPool,
+        homework_id: i64,
+        student_id: i64,
+        limit: i32,
+        offset: i32,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT *
+        FROM homework_student_test_attempt
+        WHERE homework_id = $1 
+          AND student_id = $2
+        ORDER BY id DESC
+        LIMIT $3 OFFSET $4
+        "#,
+        )
+        .bind(homework_id)
+        .bind(student_id)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+    }
 }

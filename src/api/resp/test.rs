@@ -132,3 +132,13 @@ impl From<HomeworkStudentTestAttempt> for AttemptInfoResp {
         }
     }
 }
+
+#[derive(Serialize)]
+pub struct AttemptListResp {
+    pub list: Vec<AttemptInfoResp>,
+    #[serde(rename(serialize = "pageNo"))]
+    pub page_no: i32,
+    #[serde(rename(serialize = "pageSize"))]
+    pub page_size: i32,
+    pub total: i64,
+}

@@ -116,5 +116,6 @@ pub fn homework(cfg: &mut web::ServiceConfig) {
 pub fn test(cfg: &mut web::ServiceConfig) {
     cfg.service(test::list)
         .service(test::attempt_latest)
-        .service(test::answer_add);
+        .service(test::answer_add)
+        .service(test::attempts);
 }
