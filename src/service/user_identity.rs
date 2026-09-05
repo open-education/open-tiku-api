@@ -1,4 +1,5 @@
-use crate::model::user_identity::{StatusType, UserIdentity};
+use crate::enums::user::StatusType;
+use crate::model::user_identity::UserIdentity;
 use crate::util::error::AppError;
 use sqlx::PgPool;
 use tracing::error;

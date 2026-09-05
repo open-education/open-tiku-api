@@ -6,8 +6,7 @@ use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
 
-/// web 服务入口
-
+// web 服务入口
 pub async fn run_web() -> std::io::Result<()> {
     let guard = init_logger("app.log");
     Box::leak(Box::new(guard));
@@ -40,6 +39,7 @@ pub async fn run_web() -> std::io::Result<()> {
             .service(web::scope("/class/student").configure(route::class_student))
             .service(web::scope("/class").configure(route::class))
             .service(web::scope("/homework").configure(route::homework))
+            .service(web::scope("/test").configure(route::test))
     })
     .bind(&addr)?
     .run()

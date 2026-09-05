@@ -54,7 +54,7 @@ fn validate_file_type(filename: &str, is_image: bool) -> Result<(), AppError> {
 fn generate_safe_filename(original_name: &str) -> String {
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S_%f");
     let safe_name = sanitize_filename::sanitize(original_name);
-    (&format!("{:x}", md5::compute(format!("{}_{}", timestamp, safe_name)))[..meta::IMAGE_NAME_LEN])
+    format!("{:x}", md5::compute(format!("{}_{}", timestamp, safe_name)))[..meta::IMAGE_NAME_LEN]
         .to_string()
 }
 

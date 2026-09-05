@@ -1,26 +1,10 @@
+use crate::api::req::chapter_knowledge::{CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq};
+use crate::api::resp::chapter_knowledge::ChapterKnowledgeResp;
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::chapter_knowledge;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
-use serde::{Deserialize, Serialize};
-
-#[derive(Deserialize)]
-pub struct CreateChapterKnowledgeReq {
-    #[serde(rename(deserialize = "chapterId"))]
-    pub chapter_id: i32,
-    #[serde(rename(deserialize = "knowledgeId"))]
-    pub knowledge_id: i32,
-}
-
-#[derive(Serialize)]
-pub struct ChapterKnowledgeResp {
-    pub id: Option<i32>,
-    #[serde(rename(serialize = "chapterId"))]
-    pub chapter_id: i32,
-    #[serde(rename(serialize = "knowledgeId"))]
-    pub knowledge_id: i32,
-}
 
 // 关联章节小节和知识点小类
 #[post("/add")]
@@ -40,15 +24,6 @@ pub async fn list(
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<ChapterKnowledgeResp>> {
     ApiResponse::response(chapter_knowledge::list(&app_state, path.into_inner().0).await)
-}
-
-#[derive(Deserialize)]
-pub struct RemoveChapterKnowledgeReq {
-    pub id: i32,
-    #[serde(rename(deserialize = "chapterId"))]
-    pub chapter_id: i32,
-    #[serde(rename(deserialize = "knowledgeId"))]
-    pub knowledge_id: i32,
 }
 
 // 解除绑定关系

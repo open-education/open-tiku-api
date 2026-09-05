@@ -1,14 +1,14 @@
-use crate::api::user::{
-    ExchangeTokenReq, UserEditReq, UserIdentityInfoResp, UserListReq, UserListResp, UserLoginReq,
-    UserSessionInfoResp, UserSessionListReq, UserSessionListResp,
+use crate::api::req::user::{
+    ExchangeTokenReq, UserEditReq, UserListReq, UserLoginReq, UserSessionListReq,
 };
+use crate::api::resp::user::{UserListResp, UserSessionInfoResp, UserSessionListResp};
 use crate::app::conf::AppState;
 use crate::constant::meta;
-use crate::enums::user::RoleType;
+use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::middleware::user::{ClientInfo, UserInfo};
 use crate::model::class_student::ClassStudent;
-use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
-use crate::model::user_session::{UserSession, UserSource};
+use crate::model::user_identity::UserIdentity;
+use crate::model::user_session::UserSession;
 use crate::service::class_student::get_student_by_user_id;
 use crate::service::user_identity::get_user_identity_by_user_id;
 use crate::service::user_session::get_user_session_by_token;
@@ -65,8 +65,8 @@ pub async fn login(
 
     // 根据来源进行登录
     match source {
-        s if s == UserSource::User => handle_normal_login(db, &req, &client_info).await,
-        s if s == UserSource::Student => {
+        UserSource::User => handle_normal_login(db, &req, &client_info).await,
+        UserSource::Student => {
             handle_student_login(
                 db,
                 &req,
@@ -76,7 +76,6 @@ pub async fn login(
             )
             .await
         }
-        _ => Err(AppError::business_error("非法的登录类型")),
     }
 }
 
@@ -99,7 +98,7 @@ async fn handle_normal_login(
 
     // 更新 session
     session.expired_at = Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR);
-    session.renew_cnt = session.renew_cnt + 1;
+    session.renew_cnt += 1;
     // 实际登录时才填写用户跟踪信息
     session.client_ip = client_info.ip.clone();
     session.user_agent = client_info.user_agent.clone();
@@ -112,7 +111,7 @@ async fn handle_normal_login(
 
     // 更新用户统计信息
     user.last_login_time = Some(Utc::now());
-    user.login_count = user.login_count + 1;
+    user.login_count += 1;
     let _ = UserIdentity::save(db, &user).await.map_err(|err| {
         error!("Login save user session save err: {}", err);
         AppError::db_error("更新用户信息错误")
@@ -185,7 +184,7 @@ async fn handle_student_login(
 
     // 更新用户统计信息
     student.last_login_time = Some(Utc::now());
-    student.login_count = student.login_count + 1;
+    student.login_count += 1;
     let _ = ClassStudent::update_by_id(db, &student)
         .await
         .map_err(|err| {
@@ -305,35 +304,11 @@ pub async fn account_list(
         })?;
 
     Ok(UserListResp {
-        list: rows.into_iter().map(to_user_identity_info_resp).collect(),
+        list: rows.into_iter().map(Into::into).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total: count,
     })
-}
-
-fn to_user_identity_info_resp(raw: UserIdentity) -> UserIdentityInfoResp {
-    UserIdentityInfoResp {
-        id: raw.id.unwrap_or_default(),
-        user_id: raw.user_id,
-        provider: raw.provider,
-        provider_desc: ProviderType::desc(raw.provider),
-        provider_username: raw.provider_username.unwrap_or_default(),
-        provider_email: raw.provider_email.unwrap_or_default(),
-        last_login_time: if raw.last_login_time.is_some() {
-            to_local_datetime(raw.last_login_time.unwrap_or_default())
-        } else {
-            "".to_string()
-        },
-        login_count: raw.login_count,
-        role: raw.role,
-        role_desc: RoleType::desc(raw.role),
-        status: raw.status,
-        status_desc: StatusType::desc(raw.status),
-        remark: raw.remark,
-        created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-        updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
-    }
 }
 
 // session 列表

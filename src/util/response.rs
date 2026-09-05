@@ -1,6 +1,7 @@
 use crate::util::error::AppError;
 use actix_web::{HttpResponse, Responder};
 use serde::Serialize;
+use tracing::error;
 
 #[derive(Serialize)]
 pub struct ApiResponse<T: Serialize> {
@@ -19,6 +20,8 @@ impl<T: Serialize> ApiResponse<T> {
     }
 
     fn fail(error: AppError) -> Self {
+        error!("api resp err code: {}, msg: {}", error.code, error.msg);
+
         Self {
             code: error.code,
             msg: error.msg,

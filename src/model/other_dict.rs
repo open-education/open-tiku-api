@@ -1,7 +1,7 @@
-use crate::api::other_dict::CreateTextbookDictReq;
+use crate::api::req::other_dict::CreateTextbookDictReq;
 use sqlx::{FromRow, PgPool};
 
-/// 教材其它字典
+// 教材其它字典
 
 #[derive(FromRow, Clone)]
 pub struct TextbookDict {
@@ -68,8 +68,8 @@ impl TextbookDict {
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
-            SELECT id, textbook_id, type_code, item_value, sort_order, is_select 
-            FROM textbook_dict 
+            SELECT id, textbook_id, type_code, item_value, sort_order, is_select
+            FROM textbook_dict
             WHERE textbook_id = $1 AND type_code = $2
             ORDER BY sort_order
             "#,
@@ -82,11 +82,11 @@ impl TextbookDict {
 
     // 删除特定字典项
     pub async fn delete(pool: &PgPool, id: i32) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM textbook_dict WHERE id = $1")
+        let row = sqlx::query("DELETE FROM textbook_dict WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 }

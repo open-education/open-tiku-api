@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool, Type};
-
-/// 任务管理
+use crate::api::req::task::TaskAddReq;
+use crate::enums::task::TaskStatus;
+use sqlx::{FromRow, PgPool};
+// 任务管理
 
 #[derive(FromRow)]
 pub struct Task {
@@ -14,48 +14,15 @@ pub struct Task {
     pub author_id: i64,
     pub status: i16,
     pub result: Option<String>,
-    // 创建更新时间
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Serialize, Deserialize, Type, PartialEq)]
-#[repr(i16)]
-pub enum TaskType {
-    UploadQuestion = 1, // 题目上传
-}
-
-#[derive(Serialize, Deserialize, Type, PartialEq)]
-#[repr(i16)]
-pub enum TaskStatus {
-    Waiting = 1, // 待处理
-    Running = 2, // 处理中
-    Success = 3, // 处理成功
-    Failed = 10, // 处理失败
-}
-
-impl TaskStatus {
-    pub fn desc(code: i16) -> &'static str {
-        match code {
-            1 => "待处理",
-            2 => "处理中",
-            3 => "处理成功",
-            10 => "处理失败",
-            _ => "未知状态",
-        }
-    }
 }
 
 impl Task {
     pub async fn insert(
         pool: &PgPool,
-        question_cate_id: i64,
-        task_type: i16,
-        name: &String,
+        req: TaskAddReq,
         author_id: i64,
-        url: &String,
-        email: &String,
-        textbook_id: i32,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
             r#"
@@ -64,14 +31,14 @@ impl Task {
         RETURNING id
         "#,
         )
-            .bind(question_cate_id)
-            .bind(task_type)
-            .bind(name)
-            .bind(url)
+            .bind(req.question_cate_id)
+            .bind(req.task_type)
+            .bind(req.name)
+            .bind(req.url)
             .bind(author_id)
             .bind(TaskStatus::Waiting as i16)
-            .bind(email)
-            .bind(textbook_id)
+            .bind(req.email)
+            .bind(req.textbook_id)
             .fetch_one(pool)
             .await
     }
@@ -82,7 +49,7 @@ impl Task {
         status: i16,
         result: String,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(
+        let row = sqlx::query(
             r#"
         UPDATE task
         SET status = $2, result = $3, updated_at = NOW()
@@ -95,26 +62,22 @@ impl Task {
         .execute(pool)
         .await?;
 
-        // rows_affected() 返回受影响的行数
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     pub async fn count_by_cate(
         pool: &PgPool,
         question_cate_id: i64,
-        author_id: i64,
         task_type: i16,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM task 
-            WHERE question_cate_id=$1 
-            AND author_id = $2
-              AND task_type = $3
+            SELECT COUNT(*) FROM task
+            WHERE question_cate_id=$1
+              AND task_type = $2
             "#,
         )
         .bind(question_cate_id)
-        .bind(author_id)
         .bind(task_type)
         .fetch_one(pool)
         .await
@@ -123,7 +86,6 @@ impl Task {
     pub async fn list_by_cate(
         pool: &PgPool,
         question_cate_id: i64,
-        author_id: i64,
         task_type: i16,
         limit: i32,
         offset: i32,
@@ -133,14 +95,12 @@ impl Task {
         SELECT *
         FROM task
         WHERE question_cate_id = $1
-          AND author_id = $2
-          AND task_type = $3
+          AND task_type = $2
         ORDER BY id DESC
-        LIMIT $4 OFFSET $5
+        LIMIT $3 OFFSET $4
         "#,
         )
         .bind(question_cate_id)
-        .bind(author_id)
         .bind(task_type)
         .bind(limit)
         .bind(offset)

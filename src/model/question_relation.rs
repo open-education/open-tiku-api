@@ -1,3 +1,4 @@
+use crate::enums::question::QuestionRelationType;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, QueryBuilder, Transaction};
 
@@ -13,28 +14,6 @@ pub struct QuestionRelation {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum QuestionRelationType {
-    Similar = 1,  // 变式题
-    Original = 2, // 课本原题
-    Base = 3,     // 母题
-}
-
-impl QuestionRelationType {
-    pub fn from_i16(val: i16) -> Option<QuestionRelationType> {
-        match val {
-            1 => Some(QuestionRelationType::Similar),
-            2 => Some(QuestionRelationType::Original),
-            3 => Some(QuestionRelationType::Base),
-            _ => None,
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
-}
-
 impl QuestionRelation {
     pub async fn insert(
         pool: &PgPool,
@@ -42,7 +21,7 @@ impl QuestionRelation {
         child_id: i64,
         question_type: i16,
     ) -> Result<i64, sqlx::Error> {
-        let row = sqlx::query(
+        let id = sqlx::query(
             r#"
             INSERT INTO question_relation (question_id, child_id, question_type)
             VALUES ($1, $2, $3)
@@ -60,7 +39,7 @@ impl QuestionRelation {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
     // 批量建立题目关联

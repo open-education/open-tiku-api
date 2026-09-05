@@ -4,7 +4,6 @@ use tracing_subscriber::fmt::time::OffsetTime;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 // 初始化日志配置
-
 pub fn init_logger(file_name: &str) -> WorkerGuard {
     // 日志存储位置
     let log_dir = "./log";
@@ -39,7 +38,7 @@ pub fn init_logger(file_name: &str) -> WorkerGuard {
         .with_timer(timer);
 
     // 注册日志组件
-    let _ = tracing_subscriber::registry()
+    tracing_subscriber::registry()
         .with(env_filter)
         .with(file_layer)
         .init();

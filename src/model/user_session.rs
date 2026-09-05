@@ -3,34 +3,6 @@ use sqlx::{FromRow, PgPool};
 
 // 用户登录管理
 
-// 用户来源
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum UserSource {
-    User = 1,    // 普通第三方用户
-    Student = 2, // 学生账户
-}
-
-impl UserSource {
-    pub fn desc(value: i16) -> String {
-        match value {
-            1 => "普通第三方用户".to_string(),
-            2 => "学生账户".to_string(),
-            _ => "未知".to_string(),
-        }
-    }
-    pub fn from_i16(code: i16) -> Option<Self> {
-        match code {
-            1 => Some(Self::User),
-            2 => Some(Self::Student),
-            _ => None,
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        self.clone() as i16
-    }
-}
-
 #[derive(FromRow)]
 pub struct UserSession {
     pub id: Option<i64>,
@@ -94,22 +66,23 @@ impl UserSession {
 
     // 删除 session
     pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM user_session WHERE id = $1")
+        let row = sqlx::query("DELETE FROM user_session WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     // 删除过期的 session
     pub async fn delete_expired_sessions(pool: &PgPool) -> Result<u64, sqlx::Error> {
         let now = Utc::now();
-        let result = sqlx::query("DELETE FROM user_session WHERE expired_at <= $1")
+
+        let row = sqlx::query("DELETE FROM user_session WHERE expired_at <= $1")
             .bind(now)
             .execute(pool)
             .await?;
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {

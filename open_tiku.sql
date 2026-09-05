@@ -318,25 +318,28 @@ CREATE TABLE class_student
     CONSTRAINT unique_account UNIQUE (account)
 );
 CREATE INDEX idx_class_id ON class_student (class_id);
+CREATE INDEX idx_user_id ON class_student (user_id);
+CREATE INDEX idx_account ON class_student (account);
 
 -- 7 班级作业
 CREATE TABLE homework_class
 (
     id          BIGSERIAL PRIMARY KEY,
-    batch_no    INTEGER        NOT NULL,            -- 批次号
-    homework_id BIGINT         NOT NULL,            -- 作业标识, 一次多个班级
-    paper_id    BIGINT         NOT NULL,            -- 试卷标识
-    class_id    BIGINT         NOT NULL,            -- 班级标识
-    author_id   BIGINT         NOT NULL,            -- 作者标识
-    title       CHARACTER(500) NOT NULL DEFAULT '', -- 作业名称
-    remark      TEXT           NOT NULL DEFAULT '', -- 备注
+    batch_no    INTEGER        NOT NULL,                           -- 批次号
+    homework_id BIGINT         NOT NULL,                           -- 作业标识, 一次多个班级
+    paper_id    BIGINT         NOT NULL,                           -- 试卷标识
+    class_id    BIGINT         NOT NULL,                           -- 班级标识
+    author_id   BIGINT         NOT NULL,                           -- 作者标识
+    title       CHARACTER(500) NOT NULL DEFAULT '',                -- 作业名称
+    deadline    TIMESTAMPTZ    NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 作业截止时间
+    remark      TEXT           NOT NULL DEFAULT '',                -- 备注
 
     -- 审计字段
     created_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_paper_batch_no ON homework_class (paper_id, batch_no);
-CREATE INDEX ids_paper_author_id ON homework_class (paper_id, author_id);
+CREATE INDEX idx_paper_author_id ON homework_class (paper_id, author_id);
 
 -- 7.1 班级作业学生列表
 CREATE TABLE homework_class_student
@@ -349,4 +352,43 @@ CREATE TABLE homework_class_student
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX ids_homework_id ON homework_class_student (homework_id);
+CREATE INDEX idx_homework_id ON homework_class_student (homework_id);
+CREATE INDEX idx_homework_student_created
+    ON homework_class_student (student_id, created_at);
+
+-- 7.2 学生做题记录表
+CREATE TABLE homework_student_test_attempt
+(
+    id             BIGSERIAL PRIMARY KEY,
+    student_id     BIGINT   NOT NULL,                           -- 学生 ID
+    homework_id    BIGINT   NOT NULL,                           -- 作业标识
+    class_id       BIGINT   NOT NULL,                           -- 班级标识
+    paper_id       BIGINT   NOT NULL,                           -- 试卷 ID
+    attempt_number SMALLINT NOT NULL DEFAULT 1,                 -- 刷题轮次/批次 第1次刷 第2次刷...
+    method         SMALLINT NOT NULL DEFAULT 1,                 -- 训练方法 1 练习模式 2 考试模式
+    status         SMALLINT NOT NULL DEFAULT 1,                 -- 状态：1 进行中 2 已交卷
+    score          NUMERIC(5, 1)     DEFAULT 0.0,               -- 最终总得分 交卷前为0
+    created_at     TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP, -- 开始时间
+    updated_at     TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP, -- 进度更新时间, 减去开始时间为耗时
+    completed_at   TIMESTAMPTZ,                                 -- 交卷时间
+
+    CONSTRAINT unique_homework_student_attempt UNIQUE (homework_id, student_id, attempt_number)
+);
+CREATE INDEX idx_homework_student_statue ON homework_student_test_attempt (homework_id, student_id, status);
+
+-- 7.3 学生做题明细记录表
+CREATE TABLE homework_student_test_answer
+(
+    id          BIGSERIAL PRIMARY KEY,
+    attempt_id  BIGINT   NOT NULL,            -- 做题记录标识
+    question_id BIGINT   NOT NULL,            -- 原始题目 ID
+    answer      TEXT     NOT NULL DEFAULT '', -- 用户的最终选择/填写内容
+    result      SMALLINT NOT NULL DEFAULT 0,  -- 是否正确 0 未作答 1 正确 2 错误
+    note        TEXT     NOT NULL DEFAULT '', -- 笔记
+    remark      TEXT     NOT NULL DEFAULT '', -- 备注
+    created_at  TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
+
+    -- 保证在同一次刷题/考试中 一道题有且仅有一行记录
+    CONSTRAINT unique_attempt_question UNIQUE (attempt_id, question_id)
+);

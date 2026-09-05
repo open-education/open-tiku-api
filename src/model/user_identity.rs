@@ -1,6 +1,7 @@
-use crate::api::user::UserEditReq;
+use crate::api::req::user::UserEditReq;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
+
 // 第三方用户登录信息
 
 #[derive(FromRow)]
@@ -19,66 +20,6 @@ pub struct UserIdentity {
     // 创建更新时间
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
-}
-
-// 登录平台类型
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ProviderType {
-    Github = 1,
-    QQ = 2,
-}
-
-impl ProviderType {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            1 => Some(Self::Github),
-            2 => Some(Self::QQ),
-            _ => None, // 未知平台登录无法处理
-        }
-    }
-
-    pub fn desc(value: i16) -> String {
-        match value {
-            1 => "GitHub".to_string(),
-            2 => "QQ".to_string(),
-            _ => "Unknown".to_string(),
-        }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
-}
-
-// 用户状态
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum StatusType {
-    Active = 1,     // 1 正常
-    Paused = 2,     // 2 暂停
-    Forbidden = 20, // 20 封禁
-}
-
-impl StatusType {
-    pub fn from_i16(value: i16) -> Option<Self> {
-        match value {
-            1 => Some(Self::Active),
-            2 => Some(Self::Paused),
-            3 => Some(Self::Forbidden),
-            _ => None,
-        }
-    }
-
-    pub fn desc(value: i16) -> String {
-        match value {
-            1 => "激活".to_string(),
-            2 => "暂停".to_string(),
-            20 => "封禁".to_string(),
-            _ => "Unknown".to_string(),
-        }
-    }
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
 }
 
 impl UserIdentity {

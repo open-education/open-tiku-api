@@ -1,19 +1,9 @@
-use crate::api::other_dict::{CreateTextbookDictReq, TextbookDictResp};
+use crate::api::req::other_dict::CreateTextbookDictReq;
+use crate::api::resp::other_dict::TextbookDictResp;
 use crate::app::conf::AppState;
 use crate::model::other_dict::TextbookDict;
 use crate::util::error::AppError;
 use tracing::error;
-
-fn to_resp(row: TextbookDict) -> TextbookDictResp {
-    TextbookDictResp {
-        id: row.id,
-        textbook_id: row.textbook_id,
-        type_code: row.type_code,
-        item_value: row.item_value,
-        sort_order: row.sort_order,
-        is_select: row.is_select,
-    }
-}
 
 // 添加字典
 pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32, AppError> {
@@ -55,7 +45,7 @@ pub async fn get_list(
             error!("error finding unique textbook item: {}", e);
             AppError::db_error("字典列表查询失败")
         })?;
-    let res: Vec<TextbookDictResp> = rows.into_iter().map(to_resp).collect();
+    let res: Vec<TextbookDictResp> = rows.into_iter().map(Into::into).collect();
 
     Ok(res)
 }

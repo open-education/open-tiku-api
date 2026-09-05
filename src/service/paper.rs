@@ -1,13 +1,16 @@
-use crate::api::paper::{
-    CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperReq, CommonPaperResp, DeleteReq,
-    GenPaperGenConfig, GenPaperGroupResp, GenPaperPreviewReq, GenPaperQuestionResp, GenPaperResp,
-    PaperGenGroupReq, PaperGenReq, PaperListReq, PaperListResp, TopPaperGroupReq,
-    TopPaperGroupResp, TopPaperQuestionResp, TopPaperReq, TopPaperResp,
+use crate::api::req::paper::{
+    CommonPaperReq, DeleteReq, GenPaperGenConfig, GenPaperPreviewReq, PaperGenGroupReq,
+    PaperGenReq, PaperListReq, TopPaperGroupReq, TopPaperReq,
+};
+use crate::api::resp::paper::{
+    CommonPaperGenQuestionResp, CommonPaperGroupResp, CommonPaperResp, GenPaperGroupResp,
+    GenPaperQuestionResp, GenPaperResp, PaperListResp, TopPaperGroupResp, TopPaperQuestionResp,
+    TopPaperResp,
 };
 use crate::app::conf::AppState;
-use crate::enums::paper::PaperPageSource;
+use crate::enums::paper::{PaperPageSource, PaperStatus, PaperType};
 use crate::middleware::user::UserInfo;
-use crate::model::paper::{Paper, PaperStatus, PaperType};
+use crate::model::paper::Paper;
 use crate::model::paper_gen_config::{DifficultyLevelInfo, PaperGenConfig, QuestionTypeInfo};
 use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
@@ -183,7 +186,7 @@ fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
 
     // 草稿中和待审核支持编辑
     let paper_status = PaperStatus::from_i16(req.status).as_i16();
-    if !vec![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
+    if ![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
         return Err(AppError::business_error("试卷状态不支持编辑"));
     }
 
@@ -354,7 +357,7 @@ fn to_top_resp(
     paper_questions: Vec<PaperQuestion>,
 ) -> TopPaperResp {
     let mut resp = TopPaperResp {
-        common: to_common_paper_resp(paper),
+        common: paper.into(),
         groups: Vec::new(),
     };
 
@@ -363,18 +366,18 @@ fn to_top_resp(
 
     for question in paper_questions {
         let group_id = question.group_id;
-        let question_resp = to_top_paper_question_resp(question);
+        let question_resp = question.into();
         questions_map
             .entry(group_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(question_resp);
     }
 
     let mut groups = Vec::with_capacity(paper_groups.len());
     for group in paper_groups {
         let group_resp = TopPaperGroupResp {
-            common: to_common_paper_group_resp(&group),
             questions: questions_map.remove(&group.id).unwrap_or_default(),
+            common: group.into(),
         };
         groups.push(group_resp);
     }
@@ -382,61 +385,6 @@ fn to_top_resp(
     resp.groups = groups;
 
     resp
-}
-
-fn to_common_paper_resp(row: Paper) -> CommonPaperResp {
-    CommonPaperResp {
-        id: row.id,
-        related_id: row.related_id,
-        related_name: row.related_name,
-        paper_type: row.paper_type,
-        tag: row.tag,
-        year: row.year,
-        grade: row.grade,
-        semester: row.semester,
-        title: row.title,
-        score: row.score,
-        source: row.source,
-        author_id: row.author_id,
-        author_name: row.author_name,
-        status: row.status,
-        status_desc: PaperStatus::desc(row.status),
-        approve_id: row.approve_id,
-        reject_reason: row.reject_reason,
-        approve_at: None,
-        remark: row.remark,
-        count: row.count,
-        created_at: to_local_datetime(row.created_at),
-        updated_at: to_local_datetime(row.updated_at),
-    }
-}
-
-fn to_common_paper_group_resp(row: &PaperGroup) -> CommonPaperGroupResp {
-    CommonPaperGroupResp {
-        id: row.id,
-        paper_id: row.paper_id,
-        gen_id: row.gen_id.clone(),
-        type_name: row.type_name.clone(),
-        sub_title: row.sub_title.clone(),
-    }
-}
-
-// 转换为 PaperQuestionResp
-fn to_top_paper_question_resp(row: PaperQuestion) -> TopPaperQuestionResp {
-    TopPaperQuestionResp {
-        id: row.id,
-        paper_id: row.paper_id,
-        group_id: row.group_id,
-        gen_id: row.gen_id,
-        order_num: row.order_num,
-        stem: row.stem,
-        images: row.images,
-        options: row.options,
-        options_layout: row.options_layout,
-        answer: row.answer,
-        analysis: row.analysis,
-        score: row.score,
-    }
 }
 
 // 列表查询
@@ -507,7 +455,7 @@ pub async fn list(
     })?;
 
     Ok(PaperListResp {
-        list: papers.into_iter().map(to_common_paper_resp).collect(),
+        list: papers.into_iter().map(Into::into).collect(),
         page_no: req.page_no,
         page_size: req.page_size,
         total,
@@ -526,7 +474,7 @@ pub async fn latest(
             AppError::db_error("查询试卷列表失败")
         })?;
 
-    let list: Vec<CommonPaperResp> = papers.into_iter().map(to_common_paper_resp).collect();
+    let list: Vec<CommonPaperResp> = papers.into_iter().map(Into::into).collect();
 
     Ok(list)
 }
@@ -538,10 +486,10 @@ pub async fn preview(
     user_info: UserInfo,
 ) -> Result<GenPaperResp, AppError> {
     // 题型和题量非空
-    if req.conf.question_cate_ids.len() == 0 {
+    if req.conf.question_cate_ids.is_empty() {
         return Err(AppError::param_error("题型不能为空"));
     }
-    if req.conf.question_types.len() == 0 {
+    if req.conf.question_types.is_empty() {
         return Err(AppError::param_error("题量配置不能为空"));
     }
 
@@ -1019,7 +967,7 @@ fn to_gen_resp(
     question_raw_map: HashMap<i64, Question>,
 ) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
-        common: to_common_paper_resp(paper),
+        common: paper.into(),
         conf: GenPaperGenConfig {
             question_cate_ids: paper_gen_config.question_cate_ids.0,
             tag_ids: paper_gen_config.question_tag_ids.map(|j| j.0),
@@ -1046,15 +994,15 @@ fn to_gen_resp(
         let question_resp = to_gen_paper_question_resp(question, raw, user_map);
         questions_map
             .entry(group_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(question_resp);
     }
 
     let mut groups = Vec::with_capacity(paper_groups.len());
     for group in paper_groups {
         let group_resp = GenPaperGroupResp {
-            common: to_common_paper_group_resp(&group),
             questions: questions_map.remove(&group.id).unwrap_or_default(),
+            common: group.into(),
         };
         groups.push(group_resp);
     }
@@ -1070,15 +1018,7 @@ fn to_gen_paper_question_resp(
     user_map: &HashMap<i64, String>,
 ) -> GenPaperQuestionResp {
     GenPaperQuestionResp {
-        common: CommonPaperGenQuestionResp {
-            id: gen_info.id,
-            paper_id: gen_info.paper_id,
-            group_id: gen_info.group_id,
-            gen_id: gen_info.gen_id,
-            order_num: gen_info.order_num,
-            question_id: gen_info.question_id,
-            score: gen_info.score,
-        },
+        common: gen_info.into(),
 
         info: question::to_info_resp(
             row,

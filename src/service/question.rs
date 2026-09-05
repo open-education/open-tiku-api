@@ -1,12 +1,14 @@
-use crate::api::question::{
-    CreateQuestionReq, DeleteReq, OriginalReq, QuestionBaseResp, QuestionExtraInfo,
-    QuestionInfoResp, QuestionListReq, QuestionListResp, QuestionSimilarListReq,
+use crate::api::req::question::{
+    CreateQuestionReq, DeleteReq, OriginalReq, QuestionListReq, QuestionSimilarListReq,
+};
+use crate::api::resp::question::{
+    QuestionBaseResp, QuestionExtraInfoResp, QuestionInfoResp, QuestionListResp,
 };
 use crate::app::conf::AppState;
-use crate::enums::question::QuestionPageSource;
+use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
-use crate::model::question::{Question, QuestionStatus};
-use crate::model::question_relation::{QuestionRelation, QuestionRelationType};
+use crate::model::question::{CateAndTypeReq, Question, SimilarReq};
+use crate::model::question_relation::QuestionRelation;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
@@ -14,7 +16,7 @@ use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use tracing::error;
 
-/// 将包含 LaTeX 的富文本标题转换为纯文本
+// 将包含 LaTeX 的富文本标题转换为纯文本
 pub fn to_plain_text(title: &str) -> String {
     // 1. 移除 LaTeX 符号 (例如 $...$ 或 $$...$$)
     let re_latex = Regex::new(r"\$[^$]+\$").unwrap();
@@ -161,11 +163,7 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
         approve_id: row.approve_id,
         approve_name,
         reject_reason: row.reject_reason.clone(),
-        approve_at: if let Some(at) = row.approve_at {
-            Some(to_local_datetime(at))
-        } else {
-            None
-        },
+        approve_at: row.approve_at.map(to_local_datetime),
         steps: row.steps.clone(),
         created_at: to_local_datetime(row.created_at),
         updated_at: to_local_datetime(row.updated_at),
@@ -173,8 +171,8 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
 }
 
 // 额外扩展信息
-fn to_extra_resp(row: &Question) -> QuestionExtraInfo {
-    QuestionExtraInfo {
+fn to_extra_resp(row: &Question) -> QuestionExtraInfoResp {
+    QuestionExtraInfoResp {
         answer: row.answer.clone(),
         knowledge: row.knowledge.clone(),
         analysis: row.analysis.clone(),
@@ -251,23 +249,24 @@ pub async fn list(
         }
     };
 
-    // 查询总数
-    let total = Question::count_by_cate_and_type(
-        db,
-        req.question_cate_ids.clone(),
+    let query_req: CateAndTypeReq = CateAndTypeReq {
+        cate_ids: req.question_cate_ids,
         status,
-        req.question_type_id,
-        req.ids.clone(),
-        req.title_val.clone(),
-        req.tag_ids.clone(),
-        req.dimension_ids.clone(),
+        type_id: req.question_type_id,
+        ids: req.ids,
+        title_val: req.title_val,
+        tag_ids: req.tag_ids,
+        dimension_ids: req.dimension_ids,
         author_id,
-    )
-    .await
-    .map_err(|e| {
-        error!("question count by id err: {:?}", e);
-        AppError::db_error("题目计数查询失败")
-    })?;
+    };
+
+    // 查询总数
+    let total = Question::count_by_cate_and_type(db, &query_req)
+        .await
+        .map_err(|e| {
+            error!("question count by id err: {:?}", e);
+            AppError::db_error("题目计数查询失败")
+        })?;
 
     // 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
@@ -281,24 +280,12 @@ pub async fn list(
     }
 
     // 查询列表 (添加 ? 运算符解包 Result)
-    let list_data = Question::list_by_cate_and_type(
-        db,
-        req.question_cate_ids,
-        status,
-        req.question_type_id,
-        req.ids,
-        req.title_val,
-        req.tag_ids,
-        req.dimension_ids,
-        author_id,
-        req.page_size,
-        offset,
-    )
-    .await
-    .map_err(|e| {
-        error!("question list by id err: {:?}", e);
-        AppError::db_error("题目列表查询失败")
-    })?;
+    let list_data = Question::list_by_cate_and_type(db, &query_req, req.page_size, offset)
+        .await
+        .map_err(|e| {
+            error!("question list by id err: {:?}", e);
+            AppError::db_error("题目列表查询失败")
+        })?;
 
     let mut user_ids_set = HashSet::with_capacity(list_data.len() * 2);
 
@@ -360,21 +347,22 @@ pub async fn similar(
 
     let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
 
-    // 查询总数
-    let total = Question::count_similar_by_params(
-        db,
-        req.question_id,
+    let query_req: SimilarReq = SimilarReq {
+        question_id: req.question_id,
         status,
-        req.question_cate_id,
-        req.question_type_id,
-        req.tag_ids.clone(),
-        req.question_dimension_ids.clone(),
-    )
-    .await
-    .map_err(|e| {
-        error!("question similar count by id err: {:?}", e);
-        AppError::db_error("变式题计数查询失败")
-    })?;
+        cate_id: req.question_cate_id,
+        type_id: req.question_type_id,
+        tag_ids: req.tag_ids,
+        dimension_ids: req.question_dimension_ids,
+    };
+
+    // 查询总数
+    let total = Question::count_similar_by_params(db, &query_req)
+        .await
+        .map_err(|e| {
+            error!("question similar count by id err: {:?}", e);
+            AppError::db_error("变式题计数查询失败")
+        })?;
 
     if total == 0 {
         return Ok(QuestionListResp {
@@ -389,22 +377,12 @@ pub async fn similar(
     let offset = (req.page_no - 1) * req.page_size;
 
     // 查询列表 (添加 ? 运算符解包 Result)
-    let list_data = Question::list_similar_by_params(
-        db,
-        req.question_id,
-        status,
-        req.question_cate_id,
-        req.question_type_id,
-        req.tag_ids,
-        req.question_dimension_ids,
-        req.page_size,
-        offset,
-    )
-    .await
-    .map_err(|e| {
-        error!("question similar list by id err: {:?}", e);
-        AppError::db_error("变式题列表查询失败")
-    })?;
+    let list_data = Question::list_similar_by_params(db, &query_req, req.page_size, offset)
+        .await
+        .map_err(|e| {
+            error!("question similar list by id err: {:?}", e);
+            AppError::db_error("变式题列表查询失败")
+        })?;
 
     let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
     let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
@@ -428,24 +406,21 @@ pub async fn original(
         .ok_or_else(|| AppError::param_error("不受支持的类型查询"))?;
 
     let db = &app_state.db;
-    let base_id: i64;
 
     // 查找母题标识
-    match relation_type {
-        QuestionRelationType::Similar => {
-            base_id = QuestionRelation::find_base_by_similar_id(db, req.id)
-                .await
-                .map_err(|err| {
-                    error!("question similar child id err: {:?}", err);
-                    AppError::db_error("查询变式题关联的母题失败")
-                })?
-                .ok_or_else(|| AppError::business_error("该变式题没有关联母题"))?;
-        }
+    let base_id: i64 = match relation_type {
+        QuestionRelationType::Similar => QuestionRelation::find_base_by_similar_id(db, req.id)
+            .await
+            .map_err(|err| {
+                error!("question similar child id err: {:?}", err);
+                AppError::db_error("查询变式题关联的母题失败")
+            })?
+            .ok_or_else(|| AppError::business_error("该变式题没有关联母题"))?,
         QuestionRelationType::Original => {
             return Err(AppError::param_error("该题目本身已是课本原题"));
         }
-        QuestionRelationType::Base => base_id = req.id,
-    }
+        QuestionRelationType::Base => req.id,
+    };
 
     // 通过母题查找课本原题
     let origin_ids = QuestionRelation::find_original_by_base_id(db, base_id)

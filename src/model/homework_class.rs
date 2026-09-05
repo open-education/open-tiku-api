@@ -12,6 +12,7 @@ pub struct HomeworkClass {
     pub class_id: i64,
     pub author_id: i64,
     pub title: String,
+    pub deadline: DateTime<Utc>,
     pub remark: String,
     pub created_at: Option<DateTime<Utc>>,
 }
@@ -26,32 +27,33 @@ impl HomeworkClass {
         }
 
         let mut qb = QueryBuilder::new(
-            "INSERT INTO homework_class (batch_no, homework_id, class_id, paper_id, author_id, title, remark) ",
+            "INSERT INTO homework_class (batch_no, homework_id, class_id, paper_id, author_id, title, deadline, remark) ",
         );
         qb.push_values(records, |mut b, r| {
             b.push(r.batch_no)
                 .push_bind(r.homework_id)
                 .push_bind(r.class_id)
-                .push_bind(&r.paper_id)
+                .push_bind(r.paper_id)
                 .push_bind(r.author_id)
                 .push_bind(&r.title)
+                .push_bind(r.deadline)
                 .push_bind(&r.remark);
         });
         Ok(qb.build().execute(&mut **tx).await?.rows_affected())
     }
 
-    pub async fn get_max_batch_no(
+    pub async fn find_max_batch_no(
         pool: &PgPool,
         paper_id: i64,
     ) -> Result<Option<i32>, sqlx::Error> {
-        let max = sqlx::query_scalar::<_, Option<i32>>(
+        let max_batch_no = sqlx::query_scalar::<_, Option<i32>>(
             "SELECT MAX(batch_no) FROM homework_class WHERE paper_id = $1",
         )
         .bind(paper_id)
         .fetch_one(pool)
         .await?;
 
-        Ok(max)
+        Ok(max_batch_no)
     }
 
     pub async fn count(
@@ -102,6 +104,21 @@ impl HomeworkClass {
         .bind(batch_no)
         .bind(limit)
         .bind(offset)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
+        let rows = sqlx::query_as::<_, Self>(
+            r#"
+            SELECT *
+            FROM homework_class
+            WHERE homework_id = ANY($1)
+            "#,
+        )
+        .bind(ids)
         .fetch_all(pool)
         .await?;
 

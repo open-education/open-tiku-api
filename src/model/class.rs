@@ -1,8 +1,8 @@
-use crate::api::class::ClassListReq;
+use crate::api::resp::class::ClassListReq;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Result};
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct Class {
     pub id: Option<i64>,
     pub year: String,
@@ -74,7 +74,7 @@ impl Class {
     }
 
     pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>> {
-        let row = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
@@ -85,13 +85,13 @@ impl Class {
             .fetch_all(pool)
             .await?;
 
-        Ok(row)
+        Ok(rows)
     }
 
     pub async fn count(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<i64> {
-        let row = sqlx::query_scalar::<_, i64>(
+        let id = sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM class
             WHERE author_id = $1
               AND ($2 IS NULL OR year = $2)
@@ -106,7 +106,7 @@ impl Class {
         .fetch_one(pool)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
     pub async fn list(

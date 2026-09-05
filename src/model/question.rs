@@ -1,11 +1,11 @@
-use crate::api::question::CreateQuestionReq;
+use crate::api::req::question::CreateQuestionReq;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
-/// 题目
+// 题目
 
 // 选项内容
 #[derive(Serialize, Deserialize, Clone)]
@@ -14,21 +14,6 @@ pub struct QuestionOption {
     pub content: String,             // 选项内容
     pub images: Option<Vec<String>>, // 图片列表
     pub order: i32,                  // 顺序
-}
-
-// 审核状态枚举
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum QuestionStatus {
-    Draft = 0,     // 0: 草稿
-    Pending = 1,   // 1: 待审核
-    Published = 2, // 2: 已发布
-    Rejected = 3,  // 3: 被拒绝
-}
-
-impl QuestionStatus {
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
 }
 
 // 解题分析
@@ -85,6 +70,28 @@ pub struct Question {
     // 创建更新时间
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+// 普通题目列表请求
+pub struct CateAndTypeReq {
+    pub cate_ids: Vec<i32>,
+    pub status: i16,
+    pub type_id: Option<i32>,
+    pub ids: Option<Vec<i64>>,
+    pub title_val: Option<String>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub dimension_ids: Option<Vec<i32>>,
+    pub author_id: Option<i64>,
+}
+
+// 变式题列表请求
+pub struct SimilarReq {
+    pub question_id: i64,
+    pub status: i16,
+    pub cate_id: i32,
+    pub type_id: Option<i32>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub dimension_ids: Option<Vec<i32>>,
 }
 
 impl Question {
@@ -215,19 +222,19 @@ impl Question {
     // 注意事务签名类型 tx: &mut Transaction<'_, Postgres>,
     pub async fn tx_batch_insert(
         tx: &mut Transaction<'_, Postgres>,
-        req_list: Vec<CreateQuestionReq>,
+        records: Vec<CreateQuestionReq>,
     ) -> Result<Vec<i64>, sqlx::Error> {
         // 请求参数为空则返回空即可
-        if req_list.is_empty() {
+        if records.is_empty() {
             return Ok(vec![]);
         }
 
         // 预分配容量
-        let mut all_ids = Vec::with_capacity(req_list.len());
+        let mut all_ids = Vec::with_capacity(records.len());
 
         // 避免 SQL 语句过大
         // 简单看了下一个中等规模的题直接存为 .md 是 1.6k 500*1.6=800k, 大部分题都是选择填空一次性写300条应该暂时没什么风险
-        for chunk in req_list.chunks(300) {
+        for chunk in records.chunks(300) {
             let mut query_builder = QueryBuilder::new(
                 r#"
             INSERT INTO question (
@@ -299,18 +306,11 @@ impl Question {
     // 题型下题目数量
     pub async fn count_by_cate_and_type(
         pool: &PgPool,
-        cate_ids: Vec<i32>,
-        status: i16,
-        type_id: Option<i32>,
-        ids: Option<Vec<i64>>,
-        title_val: Option<String>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
-        author_id: Option<i64>,
+        req: &CateAndTypeReq,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM question 
+            SELECT COUNT(*) FROM question
             WHERE question_cate_id = ANY($1)
               AND status = $2
               AND ($3 IS NULL OR question_type_id = $3)
@@ -321,16 +321,16 @@ impl Question {
               AND ($10 IS NULL OR author_id = $10)
             "#,
         )
-        .bind(cate_ids)
-        .bind(status)
-        .bind(type_id)
-        .bind(ids)
-        .bind(title_val)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
-        .bind(author_id)
+        .bind(&req.cate_ids)
+        .bind(req.status)
+        .bind(req.type_id)
+        .bind(&req.ids)
+        .bind(&req.title_val)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
+        .bind(req.author_id)
         .fetch_one(pool)
         .await
     }
@@ -338,14 +338,7 @@ impl Question {
     // 题型下题目列表
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
-        cate_ids: Vec<i32>,
-        status: i16,
-        type_id: Option<i32>,
-        ids: Option<Vec<i64>>,
-        title_val: Option<String>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
-        author_id: Option<i64>,
+        req: &CateAndTypeReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -365,16 +358,16 @@ impl Question {
             LIMIT $11 OFFSET $12
             "#,
         )
-        .bind(cate_ids)
-        .bind(status)
-        .bind(type_id)
-        .bind(ids)
-        .bind(title_val)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
-        .bind(author_id)
+        .bind(&req.cate_ids)
+        .bind(req.status)
+        .bind(req.type_id)
+        .bind(&req.ids)
+        .bind(&req.title_val)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
+        .bind(req.author_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
@@ -383,7 +376,6 @@ impl Question {
 
     // 题型下是否存在题目
     pub async fn exist_by_cate_id(pool: &PgPool, cate_id: i32) -> Result<bool, sqlx::Error> {
-        // EXISTS 返回布尔值
         let exists = sqlx::query_scalar::<_, bool>(
             r#"
         SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)
@@ -404,15 +396,14 @@ impl Question {
         approve_id: i64,
         reject_reason: Option<String>,
     ) -> Result<u64, sqlx::Error> {
-        // 1. 获取当前 UTC 时间用于更新 approve_at
         let now = Utc::now();
 
         let result = sqlx::query(
             r#"
         UPDATE question
-        SET status = $2, 
-            approve_id = $3, 
-            reject_reason = $4, 
+        SET status = $2,
+            approve_id = $3,
+            reject_reason = $4,
             approve_at = $5,
             updated_at = $5
         WHERE id = $1
@@ -432,12 +423,7 @@ impl Question {
     // 母题下面变式题数量
     pub async fn count_similar_by_params(
         pool: &PgPool,
-        question_id: i64,
-        status: i16,
-        cate_id: i32,
-        type_id: Option<i32>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
+        req: &SimilarReq,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
@@ -453,14 +439,14 @@ impl Question {
               AND ($7 IS NULL OR q.question_dimension_ids @> $8)
             "#,
         )
-        .bind(question_id)
-        .bind(status)
-        .bind(cate_id)
-        .bind(type_id)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
+        .bind(req.question_id)
+        .bind(req.status)
+        .bind(req.cate_id)
+        .bind(req.type_id)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
         .fetch_one(pool)
         .await
     }
@@ -468,12 +454,7 @@ impl Question {
     // 母题下面变式题列表
     pub async fn list_similar_by_params(
         pool: &PgPool,
-        question_id: i64,
-        status: i16,
-        cate_id: i32,
-        type_id: Option<i32>,
-        tag_ids: Option<Vec<i32>>,
-        dimension_ids: Option<Vec<i32>>,
+        req: &SimilarReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
@@ -493,27 +474,27 @@ impl Question {
             LIMIT $9 OFFSET $10
             "#,
         )
-        .bind(question_id)
-        .bind(status)
-        .bind(cate_id)
-        .bind(type_id)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
+        .bind(req.question_id)
+        .bind(req.status)
+        .bind(req.cate_id)
+        .bind(req.type_id)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
         .await
     }
 
-    /// 根据 ID 删除记录
+    // 根据 ID 删除记录
     pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query("DELETE FROM question WHERE id = $1")
+        let row = sqlx::query("DELETE FROM question WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 
     // 题型等条件下题目列表

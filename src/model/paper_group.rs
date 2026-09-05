@@ -37,7 +37,7 @@ impl PaperGroup {
 
     // 通过 paper_id 查询所有题型（使用 &Pool）
     pub async fn find_by_paper_id(pool: &PgPool, paper_id: i64) -> Result<Vec<Self>, sqlx::Error> {
-        let groups = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM paper_group
@@ -49,7 +49,7 @@ impl PaperGroup {
         .fetch_all(pool)
         .await?;
 
-        Ok(groups)
+        Ok(rows)
     }
 
     // 根据paper_id删除所有题型分类
@@ -57,7 +57,7 @@ impl PaperGroup {
         tx: &mut Transaction<'_, Postgres>,
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(
+        let row = sqlx::query(
             r#"
         DELETE FROM paper_group
         WHERE paper_id = $1
@@ -67,6 +67,6 @@ impl PaperGroup {
         .execute(&mut **tx)
         .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 }

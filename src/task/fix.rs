@@ -1,4 +1,5 @@
-use crate::api::textbook::{CreateTextbookReq, TextbookResp};
+use crate::api::req::textbook::CreateTextbookReq;
+use crate::api::resp::textbook::TextbookResp;
 use crate::app::conf::AppState;
 use crate::constant;
 use crate::model::textbook::Textbook;

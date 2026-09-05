@@ -1,12 +1,12 @@
+use crate::api::req::file::DeleteFileReq;
 use crate::app::conf::AppState;
 use crate::service;
 use crate::util::response::ApiResponse;
 use crate::util::upload::UploadFileResp;
 use actix_multipart::Multipart;
 use actix_web::{HttpResponse, get, post, web};
-use serde::Deserialize;
 
-/// 上传请求
+// 上传请求
 
 // 图片上传
 #[post("/upload/image")]
@@ -42,13 +42,6 @@ pub async fn read_file(
     path: web::Path<(String,)>,
 ) -> actix_web::Result<HttpResponse> {
     service::file::read_file(&app_state, path.into_inner().0.as_str())
-}
-
-#[derive(Deserialize)]
-pub struct DeleteFileReq {
-    #[serde(rename(deserialize = "isImage"))]
-    pub is_image: bool,
-    pub filename: String,
 }
 
 // 图片删除

@@ -12,7 +12,7 @@ pub async fn get_github_user(
 ) -> actix_web::Result<GithubUser, Error> {
     let client = Client::new();
 
-    let access_token = get_access_token(&client, &client_id, client_secret, code).await?;
+    let access_token = get_access_token(&client, client_id, client_secret, code).await?;
 
     let user = get_user(&client, &access_token).await?;
 

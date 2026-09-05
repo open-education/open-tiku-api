@@ -2,10 +2,10 @@ use actix_web::web;
 
 use crate::api::{
     callback, chapter_knowledge, class, class_student, edit, file, homework, other_dict, paper,
-    question, question_cate, task, text, textbook, user,
+    question, question_cate, task, test, text, textbook, user,
 };
 
-/// web 服务路由配置
+// web 服务路由配置
 
 // 图片等资源
 pub fn file(cfg: &mut web::ServiceConfig) {
@@ -111,4 +111,11 @@ pub fn homework(cfg: &mut web::ServiceConfig) {
     cfg.service(homework::add)
         .service(homework::batch_no)
         .service(homework::list);
+}
+
+pub fn test(cfg: &mut web::ServiceConfig) {
+    cfg.service(test::list)
+        .service(test::attempt_latest)
+        .service(test::answer_add)
+        .service(test::attempts);
 }

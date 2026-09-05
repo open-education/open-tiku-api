@@ -1,7 +1,5 @@
-use crate::api::callback::CallbackQuery;
-
-use crate::model::user_identity::{ProviderType, StatusType, UserIdentity};
-use crate::model::user_session::{UserSession, UserSource};
+use crate::model::user_identity::UserIdentity;
+use crate::model::user_session::UserSession;
 use crate::util::github::get_github_user;
 use crate::util::qq::get_qq_user;
 use crate::util::snowflake;
@@ -12,9 +10,10 @@ use tracing::error;
 use url::Url;
 use uuid::Uuid;
 
+use crate::api::req::callback::CallbackQueryReq;
 use crate::app::conf::AppState;
 use crate::constant::meta;
-use crate::enums::user::RoleType;
+use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::util::error::AppError;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -109,7 +108,7 @@ pub async fn login_url(
 }
 
 // Github 登录
-pub async fn github(app_state: &AppState, query: CallbackQuery) -> Result<HttpResponse> {
+pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
     let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let github_user = get_github_user(
@@ -156,7 +155,7 @@ pub async fn github(app_state: &AppState, query: CallbackQuery) -> Result<HttpRe
 }
 
 // QQ 登录
-pub async fn qq(app_state: &AppState, query: CallbackQuery) -> Result<HttpResponse> {
+pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
     let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
 
     let (open_id, qq_user) = get_qq_user(
@@ -201,7 +200,10 @@ pub async fn qq(app_state: &AppState, query: CallbackQuery) -> Result<HttpRespon
 // 提取 code，缺失或为空时返回 400 错误
 // 比如 github: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
 // qq: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b&state=tiku
-async fn get_query_code(query: CallbackQuery, oauth_state_secret: &str) -> Result<String, Error> {
+async fn get_query_code(
+    query: CallbackQueryReq,
+    oauth_state_secret: &str,
+) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()

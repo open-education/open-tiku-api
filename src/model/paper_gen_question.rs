@@ -49,7 +49,7 @@ impl PaperGenQuestion {
             return Ok(Vec::new());
         }
 
-        let questions = sqlx::query_as::<_, Self>(
+        let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
             FROM paper_gen_question
@@ -62,14 +62,14 @@ impl PaperGenQuestion {
         .fetch_all(pool)
         .await?;
 
-        Ok(questions)
+        Ok(rows)
     }
 
     pub async fn delete_by_paper_id(
         tx: &mut Transaction<'_, Postgres>,
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let result = sqlx::query(
+        let row = sqlx::query(
             r#"
         DELETE FROM paper_gen_question
         WHERE paper_id = $1
@@ -79,6 +79,6 @@ impl PaperGenQuestion {
         .execute(&mut **tx)
         .await?;
 
-        Ok(result.rows_affected())
+        Ok(row.rows_affected())
     }
 }

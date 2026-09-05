@@ -2,8 +2,8 @@
 pub const IMAGE_NAME: &str = "images";
 /// 其它文件存储路径
 pub const FILE_NAME: &str = "files";
-/// 最大文件大小（字节）
-pub const MAX_IMAGE_SIZE: usize = 1 * 1024 * 1024;
+/// 最大文件大小（字节）1*1024*1024=1048576 kb=1M
+pub const MAX_IMAGE_SIZE: usize = 1048576;
 /// 允许的文件扩展名
 pub const ALLOW_IMAGE_EXTENSION: [&str; 4] = ["jpg", "jpeg", "png", "gif"];
 /// 允许的其它文件扩展名

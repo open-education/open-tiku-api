@@ -47,10 +47,10 @@ async fn get_access_token(
         .get("https://graph.qq.com/oauth2.0/token")
         .query(&[
             ("grant_type", "authorization_code"),
-            ("client_id", &client_id),
-            ("client_secret", &client_secret),
-            ("code", &code),
-            ("redirect_uri", &redirect_uri),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("code", code),
+            ("redirect_uri", redirect_uri),
             ("fmt", "json"),
         ])
         .send()
@@ -144,7 +144,7 @@ async fn get_user(
         .query(&[
             ("access_token", access_token),
             ("oauth_consumer_key", client_id),
-            ("openid", &openid),
+            ("openid", openid),
             ("fmt", "json"),
         ])
         .send()

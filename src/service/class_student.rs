@@ -1,10 +1,10 @@
-use crate::api::class_student::{
-    ClassStudentEditReq, ClassStudentListReq, ClassStudentReq, ClassStudentResp,
-};
+use crate::api::req::class_student::{ClassStudentEditReq, ClassStudentListReq, ClassStudentReq};
+use crate::api::resp::class_student::ClassStudentResp;
 use crate::app::conf::AppState;
+use crate::enums::student::StudentStatus;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
-use crate::model::class_student::{ClassStudent, StudentStatus};
+use crate::model::class_student::ClassStudent;
 use crate::util::argon2::{generate_random_password, hash_password};
 use crate::util::email::{get_student_account_html, send_html_email};
 use crate::util::error::AppError;
@@ -149,9 +149,9 @@ pub async fn check_class_list_info(
 }
 
 // 验证学生账户是否存在
-async fn check_student_accounts(db: &PgPool, accounts: &Vec<String>) -> Result<(), AppError> {
+async fn check_student_accounts(db: &PgPool, accounts: &[String]) -> Result<(), AppError> {
     // 验证账户是否存在-登录账户必须是全局的唯一
-    let has_rows = ClassStudent::find_by_accounts(db, &accounts)
+    let has_rows = ClassStudent::find_by_accounts(db, accounts)
         .await
         .map_err(|e| {
             error!("Select class student by account err: {}", e);
@@ -287,40 +287,18 @@ pub async fn list(
 
     let mut map: HashMap<i64, Vec<ClassStudent>> = HashMap::new();
     for student in rows {
-        map.entry(student.class_id)
-            .or_insert_with(Vec::new)
-            .push(student);
+        map.entry(student.class_id).or_default().push(student);
     }
 
     let resp_map: HashMap<_, _> = map
         .into_iter()
         .map(|(class_id, students)| {
-            let converted = students.into_iter().map(to_info_resp).collect();
+            let converted = students.into_iter().map(Into::into).collect();
             (class_id, converted)
         })
         .collect();
 
     Ok(resp_map)
-}
-
-pub fn to_info_resp(raw: ClassStudent) -> ClassStudentResp {
-    ClassStudentResp {
-        id: raw.id,
-        class_id: raw.class_id,
-        user_id: raw.user_id,
-        account: raw.account,
-        status: raw.status,
-        status_desc: StudentStatus::desc(raw.status),
-        remark: raw.remark,
-        last_login_time: if raw.last_login_time.is_none() {
-            "".to_string()
-        } else {
-            to_local_datetime(raw.last_login_time.unwrap_or_default())
-        },
-        login_count: raw.login_count,
-        created_at: to_local_datetime(raw.created_at.unwrap_or_default()),
-        updated_at: to_local_datetime(raw.updated_at.unwrap_or_default()),
-    }
 }
 
 // 编辑用户信息
@@ -430,10 +408,10 @@ async fn check_student_is_edit(
     }
 
     // 或者该账户是当前用户也可以修改
-    if let Some(row) = has_rows {
-        if row.id == student.id {
-            return Ok(());
-        }
+    if let Some(row) = has_rows
+        && row.id == student.id
+    {
+        return Ok(());
     }
 
     Err(AppError::business_error(

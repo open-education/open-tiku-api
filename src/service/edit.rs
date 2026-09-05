@@ -1,8 +1,10 @@
-use crate::api::edit::CommonEditStatusReq;
+use crate::api::req::edit::CommonEditStatusReq;
 use crate::app::conf::AppState;
+use crate::enums::paper::PaperStatus;
+use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
-use crate::model::paper::{Paper, PaperStatus};
-use crate::model::question::{Question, QuestionStatus};
+use crate::model::paper::Paper;
+use crate::model::question::Question;
 use crate::util::error::AppError;
 use tracing::error;
 
@@ -37,10 +39,10 @@ pub async fn question_status(
             || s == QuestionStatus::Draft.as_i16() =>
         {
             // 拒绝时必须填写原因
-            if s == QuestionStatus::Rejected.as_i16() {
-                if req.reject_reason.as_ref().map_or(true, |s| s.is_empty()) {
-                    return Err(AppError::business_error("拒绝审核必须说明原因"));
-                }
+            if s == QuestionStatus::Rejected.as_i16()
+                && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
+            {
+                return Err(AppError::business_error("拒绝审核必须说明原因"));
             }
         }
         // 其他状态暂不支持
@@ -101,10 +103,10 @@ pub async fn paper_status(
             || s == PaperStatus::Draft.as_i16() =>
         {
             // 拒绝时必须填写原因
-            if s == PaperStatus::Rejected.as_i16() {
-                if req.reject_reason.as_ref().map_or(true, |s| s.is_empty()) {
-                    return Err(AppError::business_error("拒绝审核必须说明原因"));
-                }
+            if s == PaperStatus::Rejected.as_i16()
+                && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
+            {
+                return Err(AppError::business_error("拒绝审核必须说明原因"));
             }
         }
         // 其他状态（如布置作业）暂不支持
