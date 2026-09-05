@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 #[derive(FromRow)]
@@ -5,6 +6,8 @@ pub struct HomeworkClassStudent {
     pub id: i64,
     pub homework_id: i64,
     pub student_id: i64,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl HomeworkClassStudent {

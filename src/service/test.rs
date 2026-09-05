@@ -11,7 +11,7 @@ use crate::model::homework_student_test_attempt::HomeworkStudentTestAttempt;
 use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;
-use crate::util::local::to_local_date;
+use crate::util::local::{to_local_date, to_local_datetime};
 use sqlx::PgPool;
 use std::collections::HashMap;
 use tracing::{error, info};
@@ -115,6 +115,8 @@ pub async fn list(
             homework_id: item.homework_id,
             student_id: item.student_id,
             deadline,
+            created_at: to_local_datetime(item.created_at.unwrap_or_default()),
+            updated_at: to_local_datetime(item.updated_at.unwrap_or_default()),
             paper_info: paper_resp,
         })
     }

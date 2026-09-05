@@ -120,6 +120,8 @@ fn build_homework_add_req(
                 id: 0,
                 homework_id,
                 student_id: *student_id,
+                created_at: None,
+                updated_at: None,
             })
         }
 
