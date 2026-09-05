@@ -33,12 +33,11 @@ impl HomeworkStudentTestAttempt {
             r#"
         INSERT INTO homework_student_test_attempt (
             id, student_id, homework_id, class_id, paper_id,
-            attempt_number, method, status, score,
-            created_at, updated_at, completed_at
+            attempt_number, method, status, score
         )
         VALUES (
             COALESCE($1, nextval('homework_student_test_attempt_id_seq')),
-            $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            $2, $3, $4, $5, $6, $7, $8, $9
         )
         ON CONFLICT (id) DO UPDATE SET
             student_id = EXCLUDED.student_id,
@@ -49,8 +48,8 @@ impl HomeworkStudentTestAttempt {
             method = EXCLUDED.method,
             status = EXCLUDED.status,
             score = EXCLUDED.score,
-            created_at = EXCLUDED.created_at,
-            completed_at = CURRENT_TIMESTAMP
+            created_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
         RETURNING id
         "#,
         )
@@ -63,9 +62,6 @@ impl HomeworkStudentTestAttempt {
         .bind(req.method)
         .bind(req.status)
         .bind(req.score)
-        .bind(req.created_at)
-        .bind(req.updated_at)
-        .bind(req.completed_at)
         .fetch_one(pool)
         .await?;
 

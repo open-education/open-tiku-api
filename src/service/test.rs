@@ -12,7 +12,6 @@ use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;
 use crate::util::local::to_local_date;
-use chrono::Utc;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use tracing::{error, info};
@@ -142,26 +141,10 @@ pub async fn attempt_latest(
     let student = get_student_by_user_id(db, user_info.0.user_id).await?;
 
     // 学生作业布置信息
-    let hcs = get_class_student(db, req.id, student.id).await?;
+    let hcs = get_class_student_by_id(db, req.id, student.id).await?;
 
     // 作业详情
-    let hc_rows = HomeworkClass::find_by_homework_ids(db, vec![hcs.homework_id])
-        .await
-        .map_err(|e| {
-            error!("get test latest homework class rows error: {}", e);
-            AppError::db_error("获取班级作业信息失败")
-        })?;
-
-    if hc_rows.is_empty() {
-        return Err(AppError::not_found("作业布置信息为空"));
-    }
-    if hc_rows.len() > 1 {
-        return Err(AppError::business_error("作业布置不匹配"));
-    }
-    let hc = hc_rows
-        .into_iter()
-        .next()
-        .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
+    let hc = get_homework_class_by_homework_id(db, hcs.homework_id).await?;
 
     // 先尝试获取当前最新的做题记录
     let maybe_hsta = HomeworkStudentTestAttempt::find_in_progress_latest_attempt(
@@ -176,9 +159,7 @@ pub async fn attempt_latest(
         AppError::db_error("查询最新的作业记录失败")
     })?;
 
-    // 使用 match 平铺处理异步逻辑 避免闭包编译报错
     let mut hsta = match maybe_hsta {
-        // 如果能查到记录，且该记录还没写完（比如你可能需要在外面判断 status == InProgress，或者这个方法本身就只查进行中的数据）
         Some(record) => record,
 
         // 如果没有记录 或者已有记录都已完成 需要开启新一轮
@@ -195,7 +176,7 @@ pub async fn attempt_latest(
             })?
             .unwrap_or(0);
 
-            // 开启新一轮做题，批次号在历史最大值基础上 + 1
+            // 开启新一轮做题, 批次号在历史最大值基础上 + 1
             HomeworkStudentTestAttempt {
                 id: None,
                 student_id: hcs.student_id,
@@ -206,14 +187,14 @@ pub async fn attempt_latest(
                 method: test_method.as_i16(),
                 status: TestStatus::InProgress.as_i16(),
                 score: None,
-                created_at: Some(Utc::now()),
-                updated_at: Some(Utc::now()),
+                created_at: None,
+                updated_at: None,
                 completed_at: None,
             }
         }
     };
 
-    // 3. 如果是新生成的批次数据（id 为 None），将其落库保存
+    // 首次保存进行中的做题记录
     if hsta.id.is_none() {
         let id = HomeworkStudentTestAttempt::save(db, &hsta)
             .await
@@ -224,7 +205,7 @@ pub async fn attempt_latest(
         hsta.id = Some(id);
     }
 
-    // 获取做题明细记录
+    // 获取做题答案明细记录
     let answers =
         HomeworkStudentTestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
             .await
@@ -259,7 +240,7 @@ async fn validate_attempt(db: &PgPool, user_id: i64, attempt_id: i64) -> Result<
 }
 
 // 获取学生作业布置明细
-async fn get_class_student(
+async fn get_class_student_by_id(
     pool: &PgPool,
     id: i64,
     student_id: i64,
@@ -273,10 +254,37 @@ async fn get_class_student(
         .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
 
     if hcs.student_id != student_id {
-        return Err(AppError::business_error("这不是你的作业"));
+        return Err(AppError::permission_denied("你只能查看自己的作业"));
     }
 
     Ok(hcs)
+}
+
+// 通过作业标识获取作业信息
+async fn get_homework_class_by_homework_id(
+    pool: &PgPool,
+    homework_id: i64,
+) -> Result<HomeworkClass, AppError> {
+    // 作业详情
+    let hc_rows = HomeworkClass::find_by_homework_ids(pool, vec![homework_id])
+        .await
+        .map_err(|e| {
+            error!("get homework class rows error: {}", e);
+            AppError::db_error("获取班级作业信息失败")
+        })?;
+
+    if hc_rows.is_empty() {
+        return Err(AppError::not_found("作业布置信息为空"));
+    }
+    if hc_rows.len() > 1 {
+        return Err(AppError::business_error("作业布置不匹配"));
+    }
+    let hc = hc_rows
+        .into_iter()
+        .next()
+        .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
+
+    Ok(hc)
 }
 
 pub async fn attempts(
@@ -290,9 +298,9 @@ pub async fn attempts(
     let student = get_student_by_user_id(db, user_info.0.user_id).await?;
 
     // 学生作业布置信息
-    let hcs = get_class_student(db, req.id, student.id).await?;
+    let hcs = get_class_student_by_id(db, req.id, student.id).await?;
 
-    let total = HomeworkStudentTestAttempt::count(db, hcs.student_id, hcs.student_id)
+    let total = HomeworkStudentTestAttempt::count(db, hcs.homework_id, hcs.student_id)
         .await
         .map_err(|e| {
             error!("get attempts count error: {}", e);
