@@ -341,9 +341,7 @@ pub async fn attempts(
         })?;
     let mut answer_map: HashMap<i64, Vec<HomeworkStudentTestAnswer>> =
         answers.into_iter().fold(HashMap::new(), |mut acc, item| {
-            acc.entry(item.id.unwrap_or_default())
-                .or_default()
-                .push(item);
+            acc.entry(item.attempt_id).or_default().push(item);
             acc
         });
 
