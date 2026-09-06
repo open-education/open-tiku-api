@@ -233,9 +233,7 @@ async fn check_parent_and_label_is_exists(
 pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, AppError> {
     let db = &app_state.db;
 
-    if req.id.is_some() {
-        check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), None).await?;
-    }
+    check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), req.id).await?;
 
     let row_id = Textbook::save(db, req).await.map_err(|e| {
         error!("Error inserting textbook: {:?}", e);

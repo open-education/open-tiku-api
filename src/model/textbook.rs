@@ -117,7 +117,6 @@ impl Textbook {
         label: &str,
         id: Option<i32>,
     ) -> Result<Option<Self>, sqlx::Error> {
-        // 注意返回值改为 Option
         sqlx::query_as::<_, Self>(
             r#"
         SELECT * FROM textbook
