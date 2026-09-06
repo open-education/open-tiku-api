@@ -60,7 +60,10 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
     })?;
 
     // 作者名称补充
-    let author_ids: Vec<i64> = list_data.iter().map(|task| task.author_id).collect();
+    let mut author_ids: Vec<i64> = list_data.iter().map(|task| task.author_id).collect();
+    author_ids.sort_unstable();
+    author_ids.dedup();
+
     let user_name_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
 
     let resp_list: Vec<TaskInfoResp> = list_data
