@@ -4,23 +4,18 @@ use crate::util::local::to_local_datetime;
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskInfoResp {
     pub id: i64,
-    #[serde(rename(serialize = "questionCateId"))]
     pub question_cate_id: i64,
-    #[serde(rename(serialize = "taskType"))]
     pub task_type: i16,
     pub name: String,
     pub author: String,
     pub email: String,
     pub status: i16,
-    #[serde(rename(serialize = "statusDesc"))]
     pub status_desc: String,
     pub result: Option<String>,
-    // 创建更新时间
-    #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
-    #[serde(rename(serialize = "updatedAt"))]
     pub updated_at: String,
 }
 
@@ -43,11 +38,10 @@ impl From<Task> for TaskInfoResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskListResp {
     pub list: Vec<TaskInfoResp>,
-    #[serde(rename(serialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(serialize = "pageSize"))]
     pub page_size: i32,
     pub total: i64,
 }

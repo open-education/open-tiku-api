@@ -322,7 +322,7 @@ CREATE INDEX idx_user_id ON class_student (user_id);
 CREATE INDEX idx_account ON class_student (account);
 
 -- 7 班级作业
-CREATE TABLE homework_class
+CREATE TABLE homework
 (
     id          BIGSERIAL PRIMARY KEY,
     batch_no    INTEGER        NOT NULL,                           -- 批次号
@@ -338,11 +338,11 @@ CREATE TABLE homework_class
     created_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ             DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_paper_batch_no ON homework_class (paper_id, batch_no);
-CREATE INDEX idx_paper_author_id ON homework_class (paper_id, author_id);
+CREATE INDEX idx_paper_batch_no ON homework (paper_id, batch_no);
+CREATE INDEX idx_paper_author_id ON homework (paper_id, author_id);
 
 -- 7.1 班级作业学生列表
-CREATE TABLE homework_class_student
+CREATE TABLE homework_student
 (
     id          BIGSERIAL PRIMARY KEY,
     homework_id BIGINT NOT NULL, -- 班级作业主表标识
@@ -352,12 +352,12 @@ CREATE TABLE homework_class_student
     created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_homework_id ON homework_class_student (homework_id);
+CREATE INDEX idx_homework_id ON homework_student (homework_id);
 CREATE INDEX idx_homework_student_created
-    ON homework_class_student (student_id, created_at);
+    ON homework_student (student_id, created_at);
 
 -- 7.2 学生做题记录表
-CREATE TABLE homework_student_test_attempt
+CREATE TABLE test_attempt
 (
     id             BIGSERIAL PRIMARY KEY,
     student_id     BIGINT   NOT NULL,                           -- 学生 ID
@@ -374,10 +374,10 @@ CREATE TABLE homework_student_test_attempt
 
     CONSTRAINT unique_homework_student_attempt UNIQUE (homework_id, student_id, attempt_number)
 );
-CREATE INDEX idx_homework_student_statue ON homework_student_test_attempt (homework_id, student_id, status);
+CREATE INDEX idx_homework_student_statue ON test_attempt (homework_id, student_id, status);
 
 -- 7.3 学生做题明细记录表
-CREATE TABLE homework_student_test_answer
+CREATE TABLE test_answer
 (
     id          BIGSERIAL PRIMARY KEY,
     attempt_id  BIGINT   NOT NULL,            -- 做题记录标识

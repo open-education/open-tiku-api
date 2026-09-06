@@ -24,7 +24,7 @@ impl Class {
         INSERT INTO class (
             id, year, grade, semester, label, email, sort_order, author_id, remark
         ) VALUES (
-            COALESCE($1, nextval('class_id_seq')), $2, $3, $4, $5, $6, $7, $8, $9
+            COALESCE($1, DEFAULT), $2, $3, $4, $5, $6, $7, $8, $9
         )
         ON CONFLICT (id) DO UPDATE SET
             year = EXCLUDED.year,

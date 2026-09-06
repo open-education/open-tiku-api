@@ -272,7 +272,9 @@ fn get_question_type_and_options(
         .or_else(|| question_type_list.iter().find(|item| !item.is_select));
 
     // 3. 获取题型 ID，若未找到则 -1
-    let question_type_id = question_type_info.map(|item| item.id).unwrap_or(-1);
+    let question_type_id = question_type_info
+        .map(|item| item.id.unwrap_or(-1))
+        .unwrap_or(-1);
 
     // 4. 处理选择题选项
     let options = if let Some(info) = question_type_info {
@@ -315,7 +317,7 @@ fn to_req(
         .iter()
         .find(|item| item.item_value.contains("变式题"));
     let question_tag_ids: Option<Vec<i32>> = if parent_id.is_some() {
-        question_tag_info.map(|tag_info| vec![tag_info.id])
+        question_tag_info.map(|tag_info| vec![tag_info.id.unwrap_or_default()])
     } else {
         None
     };
@@ -385,7 +387,7 @@ pub async fn parse_question_snippet(
         .type_list
         .into_iter()
         .map(|r| TextbookDict {
-            id: r.id,
+            id: Some(r.id),
             textbook_id: r.textbook_id,
             type_code: r.type_code,
             item_value: r.item_value,

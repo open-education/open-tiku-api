@@ -19,7 +19,7 @@ impl QuestionCate {
         let id = sqlx::query(
             r#"
         INSERT INTO question_cate (id, related_id, label, key, sort_order)
-        VALUES (COALESCE($1, nextval('question_cate_id_seq')), $2, $3, $4, $5)
+        VALUES (COALESCE($1, DEFAULT), $2, $3, $4, $5)
         ON CONFLICT (id) DO UPDATE SET
             related_id = EXCLUDED.related_id,
             label = EXCLUDED.label,

@@ -5,7 +5,7 @@ use sqlx::{FromRow, PgPool};
 
 #[derive(FromRow, Clone)]
 pub struct TextbookDict {
-    pub id: i32,
+    pub id: Option<i32>,
     pub textbook_id: i32,
     pub type_code: String,
     pub item_value: String,
@@ -20,7 +20,7 @@ impl TextbookDict {
             r#"
         INSERT INTO textbook_dict (id, textbook_id, type_code, item_value, sort_order, is_select)
         VALUES (
-            COALESCE(NULLIF($1, 0), nextval('textbook_dict_id_seq')),
+            COALESCE($1, DEFAULT),
             $2, $3, $4, $5, $6
         )
         ON CONFLICT (id) DO UPDATE SET

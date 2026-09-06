@@ -25,7 +25,7 @@ impl UserSession {
             id, user_id, source, token, expired_at, renew_cnt, client_ip, user_agent
         )
         VALUES (
-            COALESCE($1, nextval('user_session_id_seq')),
+            COALESCE($1, DEFAULT),
             $2, $3, $4, $5, $6, $7, $8
         )
         ON CONFLICT (id) DO UPDATE SET

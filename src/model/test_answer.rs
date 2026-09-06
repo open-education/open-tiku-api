@@ -3,7 +3,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 // 作业学生测试答题详情表
 #[derive(FromRow)]
-pub struct HomeworkStudentTestAnswer {
+pub struct TestAnswer {
     pub id: Option<i64>,
     // 做题记录标识
     pub attempt_id: i64,
@@ -20,7 +20,7 @@ pub struct HomeworkStudentTestAnswer {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl HomeworkStudentTestAnswer {
+impl TestAnswer {
     pub async fn batch_insert(
         tx: &mut Transaction<'_, Postgres>,
         records: &[Self],
@@ -30,7 +30,7 @@ impl HomeworkStudentTestAnswer {
         }
 
         let mut qb = sqlx::QueryBuilder::new(
-            "INSERT INTO homework_student_test_answer (attempt_id, question_id, answer, result, note, remark) ",
+            "INSERT INTO test_answer (attempt_id, question_id, answer, result, note, remark) ",
         );
 
         qb.push_values(records, |mut b, req| {
@@ -49,7 +49,7 @@ impl HomeworkStudentTestAnswer {
         tx: &mut Transaction<'_, Postgres>,
         attempt_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let row = sqlx::query(r#"DELETE FROM homework_student_test_answer WHERE attempt_id = $1"#)
+        let row = sqlx::query(r#"DELETE FROM test_answer WHERE attempt_id = $1"#)
             .bind(attempt_id)
             .execute(&mut **tx)
             .await?;
@@ -64,7 +64,7 @@ impl HomeworkStudentTestAnswer {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_student_test_answer
+            FROM test_answer
             WHERE attempt_id = ANY($1)
             "#,
         )

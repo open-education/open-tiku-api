@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExchangeTokenReq {
-    #[serde(rename(deserialize = "tempToken"))]
     pub temp_token: String,
 }
 
@@ -20,18 +20,16 @@ pub struct UserLoginReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserListReq {
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserSessionListReq {
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }
 

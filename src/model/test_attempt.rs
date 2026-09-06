@@ -5,7 +5,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 // 作业学生测试尝试记录表
 #[derive(FromRow)]
-pub struct HomeworkStudentTestAttempt {
+pub struct TestAttempt {
     pub id: Option<i64>,
     pub student_id: i64,
     pub homework_id: i64,
@@ -27,16 +27,16 @@ pub struct HomeworkStudentTestAttempt {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-impl HomeworkStudentTestAttempt {
+impl TestAttempt {
     pub async fn save(pool: &PgPool, req: &Self) -> Result<i64, sqlx::Error> {
         let id: i64 = sqlx::query_scalar(
             r#"
-        INSERT INTO homework_student_test_attempt (
+        INSERT INTO test_attempt (
             id, student_id, homework_id, class_id, paper_id,
             attempt_number, method, status, score
         )
         VALUES (
-            COALESCE($1, nextval('homework_student_test_attempt_id_seq')),
+            COALESCE($1, DEFAULT),
             $2, $3, $4, $5, $6, $7, $8, $9
         )
         ON CONFLICT (id) DO UPDATE SET
@@ -74,7 +74,7 @@ impl HomeworkStudentTestAttempt {
         student_id: i64,
     ) -> Result<Option<i16>, sqlx::Error> {
         let max = sqlx::query_scalar::<_, Option<i16>>(
-            "SELECT MAX(attempt_number) FROM homework_student_test_attempt WHERE homework_id = $1 AND student_id = $2",
+            "SELECT MAX(attempt_number) FROM test_attempt WHERE homework_id = $1 AND student_id = $2",
         )
             .bind(homework_id)
             .bind(student_id)
@@ -93,7 +93,7 @@ impl HomeworkStudentTestAttempt {
         let row = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_student_test_attempt
+            FROM test_attempt
             WHERE homework_id = $1 AND student_id = $2 AND status = $3 AND method = $4
             ORDER BY id DESC
             LIMIT 1
@@ -113,7 +113,7 @@ impl HomeworkStudentTestAttempt {
         let row = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_student_test_attempt
+            FROM test_attempt
             WHERE id = $1
             "#,
         )
@@ -130,7 +130,7 @@ impl HomeworkStudentTestAttempt {
     ) -> Result<u64, sqlx::Error> {
         let row = sqlx::query::<_>(
             r#"
-            UPDATE homework_student_test_attempt
+            UPDATE test_attempt
             SET
                 status = $1,
                 updated_at = CURRENT_TIMESTAMP,
@@ -153,7 +153,7 @@ impl HomeworkStudentTestAttempt {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) FROM homework_student_test_attempt
+            SELECT COUNT(*) FROM test_attempt
             WHERE homework_id = $1
               AND student_id = $2
             "#,
@@ -174,7 +174,7 @@ impl HomeworkStudentTestAttempt {
         sqlx::query_as::<_, Self>(
             r#"
         SELECT *
-        FROM homework_student_test_attempt
+        FROM test_attempt
         WHERE homework_id = $1
           AND student_id = $2
         ORDER BY id DESC

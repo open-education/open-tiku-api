@@ -2,13 +2,12 @@ use crate::model::question_cate::QuestionCate;
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionCateResp {
     pub id: i32,
-    #[serde(rename(serialize = "relatedId"))]
     pub related_id: i32,
     pub label: String,
     pub key: String,
-    #[serde(rename(serialize = "sortOrder"))]
     pub sort_order: i32,
 }
 

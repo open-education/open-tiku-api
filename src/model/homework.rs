@@ -4,7 +4,7 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 // 作业班级
 
 #[derive(FromRow)]
-pub struct HomeworkClass {
+pub struct Homework {
     pub id: Option<i64>,
     pub batch_no: i32,
     pub homework_id: i64,
@@ -17,7 +17,7 @@ pub struct HomeworkClass {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-impl HomeworkClass {
+impl Homework {
     pub async fn batch_insert(
         tx: &mut Transaction<'_, Postgres>,
         records: &[Self],
@@ -27,7 +27,7 @@ impl HomeworkClass {
         }
 
         let mut qb = QueryBuilder::new(
-            "INSERT INTO homework_class (batch_no, homework_id, class_id, paper_id, author_id, title, deadline, remark) ",
+            "INSERT INTO homework (batch_no, homework_id, class_id, paper_id, author_id, title, deadline, remark) ",
         );
         qb.push_values(records, |mut b, r| {
             b.push(r.batch_no)
@@ -47,7 +47,7 @@ impl HomeworkClass {
         paper_id: i64,
     ) -> Result<Option<i32>, sqlx::Error> {
         let max_batch_no = sqlx::query_scalar::<_, Option<i32>>(
-            "SELECT MAX(batch_no) FROM homework_class WHERE paper_id = $1",
+            "SELECT MAX(batch_no) FROM homework WHERE paper_id = $1",
         )
         .bind(paper_id)
         .fetch_one(pool)
@@ -65,7 +65,7 @@ impl HomeworkClass {
         let row = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*)
-            FROM homework_class
+            FROM homework
             WHERE author_id = $1
               AND paper_id = $2
               AND ($3 IS NULL OR batch_no = $3)
@@ -91,7 +91,7 @@ impl HomeworkClass {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_class
+            FROM homework
             WHERE author_id = $1
               AND paper_id = $2
               AND ($3 IS NULL OR batch_no = $3)
@@ -114,7 +114,7 @@ impl HomeworkClass {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_class
+            FROM homework
             WHERE homework_id = ANY($1)
             "#,
         )

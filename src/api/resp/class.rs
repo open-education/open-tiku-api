@@ -3,18 +3,18 @@ use crate::util::local::to_local_datetime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClassListReq {
     pub year: Option<String>,
     pub grade: Option<String>,
     pub semester: Option<String>,
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }
 
 // 班级信息返回
 #[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ClassInfoResp {
     pub id: i64,
     pub year: String,
@@ -22,12 +22,9 @@ pub struct ClassInfoResp {
     pub semester: String,
     pub label: String,
     pub email: String,
-    #[serde(rename(serialize = "sortOrder"))]
     pub sort_order: i16,
     pub remark: String,
-    #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
-    #[serde(rename(serialize = "updatedAt"))]
     pub updated_at: String,
 }
 
@@ -49,11 +46,10 @@ impl From<Class> for ClassInfoResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClassListResp {
     pub list: Vec<ClassInfoResp>,
-    #[serde(rename(serialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(serialize = "pageSize"))]
     pub page_size: i32,
     pub total: i64,
 }

@@ -4,13 +4,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommonPaperReq {
     pub id: Option<i64>,
-    #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
-    #[serde(rename(deserialize = "relatedName"))]
     pub related_name: String,
-    #[serde(rename(deserialize = "paperType"))]
     pub paper_type: i16,
     pub tag: String,
     pub year: String,
@@ -31,26 +29,22 @@ pub struct TopPaperReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopPaperGroupReq {
-    #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(deserialize = "typeName"))]
     pub type_name: String,
-    #[serde(rename(deserialize = "subTitle"))]
     pub sub_title: Option<String>,
     pub questions: Vec<TopPaperQuestionReq>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopPaperQuestionReq {
-    #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(deserialize = "orderNum"))]
     pub order_num: i16,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
-    #[serde(rename(deserialize = "optionsLayout"))]
     pub options_layout: Option<i16>,
     pub answer: Option<String>,
     pub analysis: Option<Json<Content>>,
@@ -58,35 +52,28 @@ pub struct TopPaperQuestionReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperListReq {
     pub source: String,
-    #[serde(rename(deserialize = "relatedId"))]
     pub related_id: i32,
-    #[serde(rename(deserialize = "paperType"))]
     pub paper_type: Option<i16>,
     pub tag: Option<String>,
     pub year: Option<String>,
     pub grade: Option<String>,
     pub semester: Option<String>,
     pub status: Option<i16>,
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }
 
 // 以下为配置信息
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GenPaperGenConfig {
-    #[serde(rename(deserialize = "questionCateIds", serialize = "questionCateIds"))]
     pub question_cate_ids: Vec<i32>,
-    #[serde(rename(deserialize = "tagIds", serialize = "tagIds"))]
     pub tag_ids: Option<Vec<i16>>,
-    #[serde(rename(deserialize = "dimensionIds", serialize = "dimensionIds"))]
     pub dimension_ids: Option<Vec<i16>>,
-    #[serde(rename(deserialize = "levelRange", serialize = "levelRange"))]
     pub level_range: DifficultyLevelInfo,
-    #[serde(rename(deserialize = "questionTypes", serialize = "questionTypes"))]
     pub question_types: Vec<QuestionTypeInfo>,
 }
 
@@ -97,23 +84,19 @@ pub struct GenPaperPreviewReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperGenQuestionReq {
-    #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(deserialize = "orderNum"))]
     pub order_num: i16,
-    #[serde(rename(deserialize = "questionId"))]
     pub question_id: i64,
     pub score: i32,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperGenGroupReq {
-    #[serde(rename(deserialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(deserialize = "typeName"))]
     pub type_name: String,
-    #[serde(rename(deserialize = "subTitle"))]
     pub sub_title: Option<String>,
     pub questions: Vec<PaperGenQuestionReq>,
 }
