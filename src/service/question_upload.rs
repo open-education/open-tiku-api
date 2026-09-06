@@ -217,7 +217,7 @@ async fn single(
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64, i16)> = children_ids
             .into_iter()
-            .map(|child| (parent.id, child, QuestionRelationType::Similar.as_i16()))
+            .map(|child| (parent.id, child, QuestionRelationType::Similar as i16))
             .collect();
 
         // 关联母题和变式题对应关系
@@ -324,7 +324,7 @@ fn to_req(
         id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
-        relation_type: relation_type.as_i16(),
+        relation_type: relation_type as i16,
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,
@@ -403,7 +403,7 @@ pub async fn parse_question_snippet(
         id: None,
         question_cate_id: 0,
         source_id: None,
-        relation_type: QuestionRelationType::Base.as_i16(),
+        relation_type: QuestionRelationType::Base as i16,
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,

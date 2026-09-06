@@ -70,14 +70,14 @@ impl From<Paper> for CommonPaperResp {
             author_id: row.author_id,
             author_name: row.author_name,
             status: row.status,
-            status_desc: PaperStatus::desc(row.status),
+            status_desc: PaperStatus::desc(row.status).to_string(),
             approve_id: row.approve_id,
             reject_reason: row.reject_reason,
             approve_at: None,
             remark: row.remark,
             count: row.count,
-            created_at: to_local_datetime(row.created_at),
-            updated_at: to_local_datetime(row.updated_at),
+            created_at: to_local_datetime(Some(row.created_at)),
+            updated_at: to_local_datetime(Some(row.updated_at)),
         }
     }
 }

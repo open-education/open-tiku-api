@@ -42,8 +42,8 @@ impl From<Class> for ClassInfoResp {
             email: row.email,
             sort_order: row.sort_order,
             remark: row.remark,
-            created_at: to_local_datetime(row.created_at),
-            updated_at: to_local_datetime(row.updated_at),
+            created_at: to_local_datetime(Some(row.created_at)),
+            updated_at: to_local_datetime(Some(row.updated_at)),
         }
     }
 }

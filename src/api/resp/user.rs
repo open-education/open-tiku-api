@@ -38,22 +38,18 @@ impl From<UserIdentity> for UserIdentityInfoResp {
             id: row.id.unwrap_or_default(),
             user_id: row.user_id,
             provider: row.provider,
-            provider_desc: ProviderType::desc(row.provider),
+            provider_desc: ProviderType::desc(row.provider).to_string(),
             provider_username: row.provider_username.unwrap_or_default(),
             provider_email: row.provider_email.unwrap_or_default(),
-            last_login_time: if row.last_login_time.is_some() {
-                to_local_datetime(row.last_login_time.unwrap_or_default())
-            } else {
-                "".to_string()
-            },
+            last_login_time: to_local_datetime(row.last_login_time),
             login_count: row.login_count,
             role: row.role,
-            role_desc: RoleType::desc(row.role),
+            role_desc: RoleType::desc(row.role).to_string(),
             status: row.status,
-            status_desc: StatusType::desc(row.status),
+            status_desc: StatusType::desc(row.status).to_string(),
             remark: row.remark,
-            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(row.created_at),
+            updated_at: to_local_datetime(row.updated_at),
         }
     }
 }

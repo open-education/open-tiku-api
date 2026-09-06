@@ -96,7 +96,7 @@ pub async fn list(
     for item in rows.into_iter() {
         // 获取对应的试卷标识
         let (paper_id, deadline) = if let Some(hc) = homework_id_class_map.get(&item.homework_id) {
-            (hc.paper_id, to_local_date(hc.deadline))
+            (hc.paper_id, to_local_date(Some(hc.deadline)))
         } else {
             error!("test list homework id is empty: {}", item.homework_id);
             (0, "".to_string())
@@ -115,8 +115,8 @@ pub async fn list(
             homework_id: item.homework_id,
             student_id: item.student_id,
             deadline,
-            created_at: to_local_datetime(item.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(item.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(item.created_at),
+            updated_at: to_local_datetime(item.updated_at),
             paper_info: paper_resp,
         })
     }
@@ -186,8 +186,8 @@ pub async fn attempt_latest(
                 class_id: hc.class_id,
                 paper_id: hc.paper_id,
                 attempt_number: max_no + 1,
-                method: test_method.as_i16(),
-                status: TestStatus::InProgress.as_i16(),
+                method: test_method as i16,
+                status: TestStatus::InProgress as i16,
                 score: None,
                 created_at: None,
                 updated_at: None,
@@ -437,7 +437,7 @@ fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<HomeworkStudentTestAn
             attempt_id: req_list.attempt_id,
             question_id: req.question_id,
             answer: req.answer,
-            result: test_result.as_i16(),
+            result: test_result as i16,
             note: req.note,
             remark: "".to_string(),
             created_at: None,

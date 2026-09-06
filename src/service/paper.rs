@@ -185,8 +185,10 @@ fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
     }
 
     // 草稿中和待审核支持编辑
-    let paper_status = PaperStatus::from_i16(req.status).as_i16();
-    if ![PaperStatus::Draft.as_i16(), PaperStatus::Pending.as_i16()].contains(&paper_status) {
+    if !match PaperStatus::from_i16(req.status) {
+        PaperStatus::Draft | PaperStatus::Pending => true,
+        _ => false,
+    } {
         return Err(AppError::business_error("试卷状态不支持编辑"));
     }
 
@@ -216,7 +218,7 @@ fn build_paper_meta_from_request(
         author_name: user_info.username.clone().unwrap_or_default(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
-        status: PaperStatus::from_i16(req.status).as_i16(),
+        status: PaperStatus::from_i16(req.status) as i16,
         approve_id: 0,
         reject_reason: None,
         approve_at: None,
@@ -501,7 +503,7 @@ pub async fn preview(
     let level_range = req.conf.level_range;
     let question_types = req.conf.question_types.clone();
 
-    let created_at = to_local_datetime(Utc::now());
+    let created_at = to_local_datetime(Some(Utc::now()));
     let status = PaperStatus::Draft as i16;
 
     let paper_id = 1;
@@ -604,7 +606,7 @@ pub async fn preview(
             author_id: user_info.user_id,
             author_name: user_name,
             status,
-            status_desc: PaperStatus::desc(status),
+            status_desc: PaperStatus::desc(status).to_string(),
             approve_id: 0,
             reject_reason: None,
             approve_at: None,
@@ -1059,7 +1061,7 @@ pub async fn delete(
     }
 
     // 只有草稿的试卷可以删除
-    if has_paper.status != PaperStatus::Draft.as_i16() {
+    if has_paper.status != PaperStatus::Draft as i16 {
         return Err(AppError::business_error("只允许删除草稿中的试卷"));
     }
 
@@ -1076,10 +1078,10 @@ pub async fn delete(
 
     // 删除试卷明细
     match has_paper.paper_type {
-        t if t == PaperType::Top.as_i16() => {
+        t if t == PaperType::Top as i16 => {
             delete_top_info(&mut tx, req.id, "delete").await?;
         }
-        t if t == PaperType::Gen.as_i16() => {
+        t if t == PaperType::Gen as i16 => {
             delete_gen_info(&mut tx, req.id, "delete").await?;
         }
         _ => {

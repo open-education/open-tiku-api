@@ -101,7 +101,7 @@ impl HomeworkStudentTestAttempt {
         )
         .bind(homework_id)
         .bind(student_id)
-        .bind(TestStatus::InProgress.as_i16())
+        .bind(TestStatus::InProgress as i16)
         .bind(method)
         .fetch_optional(pool)
         .await?;
@@ -138,7 +138,7 @@ impl HomeworkStudentTestAttempt {
             WHERE id = $2
             "#,
         )
-        .bind(TestStatus::Done.as_i16())
+        .bind(TestStatus::Done as i16)
         .bind(id)
         .execute(&mut **tx)
         .await?;

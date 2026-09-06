@@ -54,7 +54,7 @@ impl FromRequest for TeacherUserInfo {
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         if let Some(user_info) = req.extensions().get::<UserInfo>()
-            && user_info.role == RoleType::Teacher.as_i16()
+            && user_info.role == RoleType::Teacher as i16
         {
             return ready(Ok(TeacherUserInfo(user_info.clone())));
         }
@@ -73,7 +73,7 @@ impl FromRequest for StudentUserInfo {
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         if let Some(user_info) = req.extensions().get::<UserInfo>()
-            && user_info.role == RoleType::Student.as_i16()
+            && user_info.role == RoleType::Student as i16
         {
             return ready(Ok(StudentUserInfo(user_info.clone())));
         }
@@ -211,7 +211,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     };
 
     // 获取用户身份
-    let user_info: UserInfo = if session.source == UserSource::User.as_i16() {
+    let user_info: UserInfo = if session.source == UserSource::User as i16 {
         match get_user_identity_by_user_id(db, session.user_id).await {
             Ok(user) => UserInfo {
                 user_id: user.user_id,
@@ -227,13 +227,13 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
                 return Err((err, req));
             }
         }
-    } else if session.source == UserSource::Student.as_i16() {
+    } else if session.source == UserSource::Student as i16 {
         match get_student_by_user_id(db, session.user_id).await {
             Ok(user) => UserInfo {
                 user_id: user.user_id,
                 username: Some(user.account),
                 email: None,
-                role: UserSource::Student.as_i16(),
+                role: UserSource::Student as i16,
                 status: user.status,
                 token: Some(token.to_string()),
             },

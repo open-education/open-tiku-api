@@ -33,16 +33,12 @@ impl From<ClassStudent> for ClassStudentResp {
             user_id: row.user_id,
             account: row.account,
             status: row.status,
-            status_desc: StudentStatus::desc(row.status),
+            status_desc: StudentStatus::desc(row.status).to_string(),
             remark: row.remark,
-            last_login_time: if row.last_login_time.is_none() {
-                "".to_string()
-            } else {
-                to_local_datetime(row.last_login_time.unwrap_or_default())
-            },
+            last_login_time: to_local_datetime(row.last_login_time),
             login_count: row.login_count,
-            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(row.created_at),
+            updated_at: to_local_datetime(row.updated_at),
         }
     }
 }

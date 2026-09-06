@@ -51,7 +51,7 @@ pub struct QuestionBaseResp {
     #[serde(rename(serialize = "rejectReason"))]
     pub reject_reason: Option<String>, // 拒绝原因
     #[serde(rename(serialize = "approveAt"))]
-    pub approve_at: Option<String>, // 审核时间
+    pub approve_at: String, // 审核时间
 
     pub steps: Option<Json<Vec<Step>>>, // 解题步骤需要返回
 

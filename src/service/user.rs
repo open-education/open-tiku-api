@@ -30,7 +30,7 @@ pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<Str
     let mut session = get_user_session_by_token(db, req.temp_token.as_str()).await?;
 
     // 只有第三方登录用户需要换取登录 token
-    if session.source != UserSource::User.as_i16() {
+    if session.source != UserSource::User as i16 {
         return Err(AppError::param_error("非法的交换 token"));
     }
 
@@ -168,7 +168,7 @@ async fn handle_student_login(
     let session = UserSession {
         id: None,
         user_id: student.user_id,
-        source: UserSource::Student.as_i16(),
+        source: UserSource::Student as i16,
         token: token.clone(),
         expired_at: Utc::now() + Duration::hours(meta::LOGIN_TOKEN_EXPIRED_HOUR),
         renew_cnt: 1,
@@ -196,7 +196,7 @@ async fn handle_student_login(
         user_id: student.user_id,
         username: Some(student.account),
         email: None,
-        role: RoleType::Student.as_i16(),
+        role: RoleType::Student as i16,
         status: student.status,
         token: Some(token),
     })
@@ -210,7 +210,7 @@ pub async fn info(app_state: &AppState, token: &str) -> Result<UserInfo, AppErro
 
     // 根据用户来源分别处理
     match session.source {
-        src if src == UserSource::User.as_i16() => {
+        src if src == UserSource::User as i16 => {
             let user = get_user_identity_by_user_id(db, session.user_id).await?;
 
             Ok(UserInfo {
@@ -222,14 +222,14 @@ pub async fn info(app_state: &AppState, token: &str) -> Result<UserInfo, AppErro
                 token: None,
             })
         }
-        src if src == UserSource::Student.as_i16() => {
+        src if src == UserSource::Student as i16 => {
             let student = get_student_by_user_id(db, session.user_id).await?;
 
             Ok(UserInfo {
                 user_id: student.user_id,
                 username: Some(student.account),
                 email: None,
-                role: RoleType::Student.as_i16(),
+                role: RoleType::Student as i16,
                 status: student.status,
                 token: None,
             })
@@ -344,7 +344,7 @@ pub async fn session_list(
     let mut account_ids: Vec<i64> = vec![];
     let mut student_ids: Vec<i64> = vec![];
     for row in &rows {
-        if row.source == UserSource::User.as_i16() {
+        if row.source == UserSource::User as i16 {
             account_ids.push(row.user_id);
         } else {
             student_ids.push(row.user_id);
@@ -397,13 +397,13 @@ fn to_session_info_resp(
         let mut username: String = "".to_string();
         let mut provider_desc: String = "".to_string();
 
-        if row.source == UserSource::User.as_i16() {
+        if row.source == UserSource::User as i16 {
             if let Some(account) = account_map.get(&row.user_id) {
                 username = account
                     .provider_username
                     .clone()
                     .unwrap_or("未知".to_string());
-                provider_desc = ProviderType::desc(account.provider);
+                provider_desc = ProviderType::desc(account.provider).to_string();
             }
         } else {
             if let Some(student) = student_map.get(&row.user_id) {
@@ -415,15 +415,15 @@ fn to_session_info_resp(
         resp_list.push(UserSessionInfoResp {
             id: row.id.unwrap_or_default(),
             user_id: row.user_id,
-            source_desc: UserSource::desc(row.source),
+            source_desc: UserSource::desc(row.source).to_string(),
             username: username.clone(),
             provider_desc: provider_desc.clone(),
-            expired_at: to_local_datetime(row.expired_at),
+            expired_at: to_local_datetime(Some(row.expired_at)),
             renew_cnt: row.renew_cnt,
             client_ip: row.client_ip.clone(),
             user_agent: row.user_agent.clone(),
-            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(row.created_at),
+            updated_at: to_local_datetime(row.updated_at),
         })
     }
 

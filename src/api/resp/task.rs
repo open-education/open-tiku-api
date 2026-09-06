@@ -36,8 +36,8 @@ impl From<Task> for TaskInfoResp {
             status_desc: TaskStatus::desc(row.status).to_string(),
             email: row.email.clone(),
             result: row.result.clone(),
-            created_at: to_local_datetime(row.created_at),
-            updated_at: to_local_datetime(row.updated_at),
+            created_at: to_local_datetime(Some(row.created_at)),
+            updated_at: to_local_datetime(Some(row.updated_at)),
         }
     }
 }

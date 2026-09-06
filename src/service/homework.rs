@@ -286,11 +286,7 @@ pub async fn list(
             title: item.title,
             remark: item.remark,
             students: account_list,
-            created_at: if let Some(created_at) = item.created_at {
-                to_local_datetime(created_at)
-            } else {
-                "".to_string()
-            },
+            created_at: to_local_datetime(item.created_at),
         });
     }
 

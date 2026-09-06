@@ -28,18 +28,18 @@ pub async fn question_status(
     // 权限校验
     match req.status {
         // 作者提交审核
-        s if s == QuestionStatus::Pending.as_i16() => {
+        s if s == QuestionStatus::Pending as i16 => {
             if question.author_id != user_info.0.user_id {
                 return Err(AppError::permission_denied("只有题目作者才能提交审核"));
             }
         }
         // 审核结果（通过/拒绝/退回草稿）——均需教师权限
-        s if s == QuestionStatus::Published.as_i16()
-            || s == QuestionStatus::Rejected.as_i16()
-            || s == QuestionStatus::Draft.as_i16() =>
+        s if s == QuestionStatus::Published as i16
+            || s == QuestionStatus::Rejected as i16
+            || s == QuestionStatus::Draft as i16 =>
         {
             // 拒绝时必须填写原因
-            if s == QuestionStatus::Rejected.as_i16()
+            if s == QuestionStatus::Rejected as i16
                 && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
             {
                 return Err(AppError::business_error("拒绝审核必须说明原因"));
@@ -92,18 +92,18 @@ pub async fn paper_status(
     // 权限校验
     match req.status {
         // 作者提交审核
-        s if s == PaperStatus::Pending.as_i16() => {
+        s if s == PaperStatus::Pending as i16 => {
             if paper.author_id != user_info.0.user_id {
                 return Err(AppError::permission_denied("只有试卷作者才能提交审核"));
             }
         }
         // 审核结果（通过/拒绝/退回草稿）——均需教师权限
-        s if s == PaperStatus::Published.as_i16()
-            || s == PaperStatus::Rejected.as_i16()
-            || s == PaperStatus::Draft.as_i16() =>
+        s if s == PaperStatus::Published as i16
+            || s == PaperStatus::Rejected as i16
+            || s == PaperStatus::Draft as i16 =>
         {
             // 拒绝时必须填写原因
-            if s == PaperStatus::Rejected.as_i16()
+            if s == PaperStatus::Rejected as i16
                 && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
             {
                 return Err(AppError::business_error("拒绝审核必须说明原因"));

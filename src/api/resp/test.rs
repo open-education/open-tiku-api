@@ -65,11 +65,11 @@ impl From<HomeworkStudentTestAnswer> for AnswerInfoResp {
             question_id: row.question_id,
             answer: row.answer,
             result: row.result,
-            result_desc: TestResult::desc(row.result),
+            result_desc: TestResult::desc(row.result).to_string(),
             note: row.note,
             remark: row.remark,
-            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(row.created_at),
+            updated_at: to_local_datetime(row.updated_at),
         }
     }
 }
@@ -121,17 +121,13 @@ impl From<HomeworkStudentTestAttempt> for AttemptInfoResp {
             paper_id: row.paper_id,
             attempt_number: row.attempt_number,
             method: row.method,
-            method_desc: TestMethod::desc(row.method),
+            method_desc: TestMethod::desc(row.method).to_string(),
             status: row.status,
-            status_desc: TestStatus::desc(row.status),
+            status_desc: TestStatus::desc(row.status).to_string(),
             score: row.score.unwrap_or_default(),
-            created_at: to_local_datetime(row.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(row.updated_at.unwrap_or_default()),
-            completed_at: if row.completed_at.is_some() {
-                to_local_datetime(row.completed_at.unwrap_or_default())
-            } else {
-                "".to_string()
-            },
+            created_at: to_local_datetime(row.created_at),
+            updated_at: to_local_datetime(row.updated_at),
+            completed_at: to_local_datetime(row.completed_at),
             answers: vec![],
         }
     }
