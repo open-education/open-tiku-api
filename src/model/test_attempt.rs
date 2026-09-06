@@ -36,7 +36,7 @@ impl TestAttempt {
             attempt_number, method, status, score
         )
         VALUES (
-            COALESCE($1, DEFAULT),
+            COALESCE($1, nextval('test_attempt_id_seq')),
             $2, $3, $4, $5, $6, $7, $8, $9
         )
         ON CONFLICT (id) DO UPDATE SET

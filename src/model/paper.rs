@@ -45,10 +45,9 @@ impl Paper {
                 count, remark_ext, status, approve_id, reject_reason, approve_at,
                 paper_type
             ) VALUES (
-                COALESCE($1, DEFAULT), $2, $3, $4, $5, $6,
+                COALESCE($1, nextval('paper_id_seq')), $2, $3, $4, $5, $6,
                 $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19,
-                      $20
+                $13, $14, $15, $16, $17, $18, $19, $20
             )
             ON CONFLICT (id) DO UPDATE SET
                 related_id = EXCLUDED.related_id,
