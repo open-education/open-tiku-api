@@ -1,9 +1,11 @@
 use crate::api::req::task::{TaskAddReq, TaskListReq};
-use crate::api::resp::task::TaskListResp;
+use crate::api::resp::task::{TaskInfoResp, TaskListResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::UserInfo;
 use crate::model::task::Task;
+use crate::service::user::get_user_map;
 use crate::util::error::AppError;
+use std::collections::HashMap;
 use tracing::error;
 
 // 添加任务
@@ -27,7 +29,6 @@ pub async fn add(
 pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
-    // 1. 查询总数
     let total = Task::count_by_cate(db, req.question_cate_id, req.task_type)
         .await
         .map_err(|e| {
@@ -35,7 +36,6 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
             AppError::db_error("任务计数查询失败")
         })?;
 
-    // 2. 计算偏移量
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
         return Ok(TaskListResp {
@@ -46,7 +46,6 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
         });
     }
 
-    // 3. 查询列表
     let list_data = Task::list_by_cate(
         db,
         req.question_cate_id,
@@ -60,9 +59,26 @@ pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp
         AppError::db_error("任务列表查询失败")
     })?;
 
-    // 4. 转换并返回
+    // 作者名称补充
+    let author_ids: Vec<i64> = list_data.iter().map(|task| task.author_id).collect();
+    let user_name_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
+
+    let resp_list: Vec<TaskInfoResp> = list_data
+        .into_iter()
+        .map(|row| {
+            let username = user_name_map
+                .get(&row.author_id)
+                .cloned()
+                .unwrap_or_default();
+
+            let mut info_resp: TaskInfoResp = row.into();
+            info_resp.author = username;
+            info_resp
+        })
+        .collect();
+
     Ok(TaskListResp {
-        list: list_data.into_iter().map(Into::into).collect(),
+        list: resp_list,
         page_no: req.page_no,
         page_size: req.page_size,
         total,

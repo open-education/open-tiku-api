@@ -31,7 +31,7 @@ impl From<Task> for TaskInfoResp {
             question_cate_id: row.question_cate_id,
             task_type: 0,
             name: row.name.clone(),
-            author: "admin".to_string(),
+            author: "".to_string(),
             status: row.status,
             status_desc: TaskStatus::desc(row.status).to_string(),
             email: row.email.clone(),
