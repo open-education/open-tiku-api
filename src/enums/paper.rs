@@ -17,7 +17,7 @@ impl PaperPageSource {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[repr(i16)]
 pub enum PaperStatus {
     Draft = 1,     // 1: 草稿
     Pending = 2,   // 2: 待审核
@@ -27,19 +27,19 @@ pub enum PaperStatus {
 }
 
 impl PaperStatus {
-    pub fn desc(code: i16) -> String {
+    pub fn desc(code: i16) -> &'static str {
         match code {
-            1 => "草稿".to_string(),
-            2 => "待审核".to_string(),
-            3 => "已发布".to_string(),
-            4 => "已布置作业".to_string(),
-            10 => "被拒绝".to_string(),
-            _ => "未知状态".to_string(),
+            1 => "草稿",
+            2 => "待审核",
+            3 => "已发布",
+            4 => "已布置作业",
+            10 => "被拒绝",
+            _ => "未知状态",
         }
     }
 
-    pub fn from_i16(value: i16) -> Self {
-        match value {
+    pub fn from_i16(code: i16) -> Self {
+        match code {
             1 => Self::Draft,
             2 => Self::Pending,
             3 => Self::Published,
@@ -48,21 +48,11 @@ impl PaperStatus {
             _ => Self::Draft,
         }
     }
-
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
 }
 
 // 试卷类型
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[repr(i16)]
 pub enum PaperType {
     Top,
     Gen,
-}
-
-impl PaperType {
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
 }

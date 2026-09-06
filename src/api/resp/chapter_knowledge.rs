@@ -2,11 +2,10 @@ use crate::model::chapter_knowledge::ChapterKnowledge;
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChapterKnowledgeResp {
     pub id: Option<i32>,
-    #[serde(rename(serialize = "chapterId"))]
     pub chapter_id: i32,
-    #[serde(rename(serialize = "knowledgeId"))]
     pub knowledge_id: i32,
 }
 

@@ -11,13 +11,11 @@ use serde::Serialize;
 use sqlx::types::Json;
 
 #[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct CommonPaperResp {
     pub id: Option<i64>,
-    #[serde(rename(serialize = "relatedId"))]
     pub related_id: i32,
-    #[serde(rename(serialize = "relatedName"))]
     pub related_name: String,
-    #[serde(rename(serialize = "paperType"))]
     pub paper_type: i16,
     pub tag: String,
     pub year: String,
@@ -27,29 +25,21 @@ pub struct CommonPaperResp {
     pub score: i32,
     pub source: String,
 
-    #[serde(rename(serialize = "authorId"))]
     pub author_id: i64,
-    #[serde(rename(serialize = "authorName"))]
     pub author_name: String,
 
     // 审核相关
     pub status: i16, // 审核状态
-    #[serde(rename(serialize = "statusDesc"))]
     pub status_desc: String,
-    #[serde(rename(serialize = "approveId"))]
-    pub approve_id: i64, // 审核人
-    #[serde(rename(serialize = "rejectReason"))]
+    pub approve_id: i64,               // 审核人
     pub reject_reason: Option<String>, // 拒绝原因
-    #[serde(rename(serialize = "approveAt"))]
-    pub approve_at: Option<String>, // 审核时间
+    pub approve_at: Option<String>,    // 审核时间
 
     pub remark: Option<String>,
     pub count: i32,
 
     // 创建更新时间
-    #[serde(rename(serialize = "createdAt"))]
     pub created_at: String,
-    #[serde(rename(serialize = "updatedAt"))]
     pub updated_at: String,
 }
 
@@ -70,14 +60,14 @@ impl From<Paper> for CommonPaperResp {
             author_id: row.author_id,
             author_name: row.author_name,
             status: row.status,
-            status_desc: PaperStatus::desc(row.status),
+            status_desc: PaperStatus::desc(row.status).to_string(),
             approve_id: row.approve_id,
             reject_reason: row.reject_reason,
             approve_at: None,
             remark: row.remark,
             count: row.count,
-            created_at: to_local_datetime(row.created_at),
-            updated_at: to_local_datetime(row.updated_at),
+            created_at: to_local_datetime(Some(row.created_at)),
+            updated_at: to_local_datetime(Some(row.updated_at)),
         }
     }
 }
@@ -89,15 +79,12 @@ pub struct TopPaperResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommonPaperGroupResp {
     pub id: i64,
-    #[serde(rename(serialize = "paperId"))]
     pub paper_id: i64,
-    #[serde(rename(serialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(serialize = "typeName"))]
     pub type_name: String,
-    #[serde(rename(serialize = "subTitle"))]
     pub sub_title: Option<String>,
 }
 
@@ -120,20 +107,16 @@ pub struct TopPaperGroupResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TopPaperQuestionResp {
     pub id: i64,
-    #[serde(rename(serialize = "paperId"))]
     pub paper_id: i64,
-    #[serde(rename(serialize = "groupId"))]
     pub group_id: i64,
-    #[serde(rename(serialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(serialize = "orderNum"))]
     pub order_num: i16,
     pub stem: String,
     pub images: Option<Json<Vec<String>>>,
     pub options: Option<Json<Vec<QuestionOption>>>,
-    #[serde(rename(serialize = "optionsLayout"))]
     pub options_layout: Option<i16>,
     pub answer: Option<String>,
     pub analysis: Option<Json<Content>>,
@@ -160,11 +143,10 @@ impl From<PaperQuestion> for TopPaperQuestionResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaperListResp {
     pub list: Vec<CommonPaperResp>,
-    #[serde(rename(serialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(serialize = "pageSize"))]
     pub page_size: i32,
     pub total: i64,
 }
@@ -183,17 +165,13 @@ pub struct GenPaperGroupResp {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommonPaperGenQuestionResp {
     pub id: i64,
-    #[serde(rename(serialize = "paperId"))]
     pub paper_id: i64,
-    #[serde(rename(serialize = "groupId"))]
     pub group_id: i64,
-    #[serde(rename(serialize = "genId"))]
     pub gen_id: String,
-    #[serde(rename(serialize = "orderNum"))]
     pub order_num: i16,
-    #[serde(rename(serialize = "questionId"))]
     pub question_id: i64,
     pub score: i32,
 }

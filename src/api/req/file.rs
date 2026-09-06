@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeleteFileReq {
-    #[serde(rename(deserialize = "isImage"))]
     pub is_image: bool,
     pub filename: String,
 }

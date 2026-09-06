@@ -122,10 +122,10 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
 
     // 保存用户信息
     // 名称拼接
-    let name = if let Some(name) = github_user.name.clone() {
+    let name = if let Some(name) = github_user.name {
         format!("{} <{}>", github_user.login, name)
     } else {
-        github_user.login.clone()
+        github_user.login
     };
     let user = save_user_identity(
         db,
@@ -247,7 +247,9 @@ async fn save_user_identity(
     provider_username: Option<String>,
     email: Option<String>,
 ) -> Result<UserIdentity, Error> {
-    let mut has_user = UserIdentity::find_by_provider(db, provider_type.as_i16(), provider_user_id)
+    let provider_type_val = provider_type as i16;
+
+    let mut has_user = UserIdentity::find_by_provider(db, provider_type_val, provider_user_id)
         .await
         .map_err(|e| {
             error!("Error finding user identity by id: {}", e);
@@ -256,14 +258,14 @@ async fn save_user_identity(
         .unwrap_or_else(|| UserIdentity {
             id: None,
             user_id: snowflake::generate_id(),
-            provider: provider_type.as_i16(),
+            provider: provider_type_val,
             provider_user_id: provider_user_id.to_owned(),
             provider_username: provider_username.clone(),
             provider_email: email.clone(),
             last_login_time: None,
             login_count: 0,
-            role: RoleType::Normal.as_i16(),
-            status: StatusType::Active.as_i16(),
+            role: RoleType::Normal as i16,
+            status: StatusType::Active as i16,
             remark: "".to_string(),
             created_at: None,
             updated_at: None,
@@ -288,7 +290,7 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
     let session = UserSession {
         id: None,
         user_id,
-        source: UserSource::User.as_i16(),
+        source: UserSource::User as i16,
         token: token.to_string(),
         expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
         renew_cnt: 0,

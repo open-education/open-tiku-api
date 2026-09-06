@@ -1,14 +1,11 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListReq {
-    #[serde(rename(deserialize = "startDate"))]
     pub start_date: String,
-    #[serde(rename(deserialize = "endDate"))]
     pub end_date: String,
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }
 
@@ -19,8 +16,8 @@ pub struct LatestAttemptReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AnswerAddReq {
-    #[serde(rename(deserialize = "questionId"))]
     pub question_id: i64,
     // 用户的最终选择/填写内容
     pub answer: String,
@@ -31,18 +28,17 @@ pub struct AnswerAddReq {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestAnswerAddReq {
-    #[serde(rename(deserialize = "attemptId"))]
     pub attempt_id: i64,
     pub status: i16,
     pub list: Vec<AnswerAddReq>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AttemptListReq {
     pub id: i64,
-    #[serde(rename(deserialize = "pageNo"))]
     pub page_no: i32,
-    #[serde(rename(deserialize = "pageSize"))]
     pub page_size: i32,
 }

@@ -1,10 +1,8 @@
-#[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i16)]
 pub enum TaskType {
     UploadQuestion = 1, // 题目上传
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
 #[repr(i16)]
 pub enum TaskStatus {
     Waiting = 1, // 待处理

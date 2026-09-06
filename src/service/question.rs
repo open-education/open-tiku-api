@@ -44,8 +44,8 @@ pub async fn add(
     let is_add = req.id.is_none();
 
     // 题目上传只能上传草稿中和待审核的题目
-    let is_valid_status = req.status == QuestionStatus::Draft.as_i16()
-        || req.status == QuestionStatus::Pending.as_i16();
+    let is_valid_status =
+        req.status == QuestionStatus::Draft as i16 || req.status == QuestionStatus::Pending as i16;
     if !is_valid_status {
         return Err(AppError::param_error(
             "题目状态错误: 仅支持上传草稿或待审核状态",
@@ -128,7 +128,7 @@ pub async fn add(
 
     // 新增如果存在变式题则关联变式题
     if is_add && source_id > 0 {
-        let _ = QuestionRelation::insert(db, source_id, id, relation_type.as_i16())
+        let _ = QuestionRelation::insert(db, source_id, id, relation_type as i16)
             .await
             .map_err(|e| {
                 error!("question add err: {:?}", e);
@@ -163,10 +163,10 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
         approve_id: row.approve_id,
         approve_name,
         reject_reason: row.reject_reason.clone(),
-        approve_at: row.approve_at.map(to_local_datetime),
+        approve_at: to_local_datetime(row.approve_at),
         steps: row.steps.clone(),
-        created_at: to_local_datetime(row.created_at),
-        updated_at: to_local_datetime(row.updated_at),
+        created_at: to_local_datetime(Some(row.created_at)),
+        updated_at: to_local_datetime(Some(row.updated_at)),
     }
 }
 
@@ -236,10 +236,10 @@ pub async fn list(
 
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
-        (None, QuestionStatus::Published.as_i16())
+        (None, QuestionStatus::Published as i16)
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
-        let status = req.status.unwrap_or(QuestionStatus::Published.as_i16());
+        let status = req.status.unwrap_or(QuestionStatus::Published as i16);
 
         // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者
         if req_source == QuestionPageSource::MyQuestion {

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Transaction};
 
 #[derive(FromRow)]
-pub struct HomeworkClassStudent {
+pub struct HomeworkStudent {
     pub id: i64,
     pub homework_id: i64,
     pub student_id: i64,
@@ -10,7 +10,7 @@ pub struct HomeworkClassStudent {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl HomeworkClassStudent {
+impl HomeworkStudent {
     pub async fn batch_insert(
         tx: &mut Transaction<'_, Postgres>,
         records: &[Self],
@@ -19,8 +19,7 @@ impl HomeworkClassStudent {
             return Ok(0);
         }
 
-        let mut qb =
-            QueryBuilder::new("INSERT INTO homework_class_student (homework_id, student_id) ");
+        let mut qb = QueryBuilder::new("INSERT INTO homework_student (homework_id, student_id) ");
         qb.push_values(records, |mut b, r| {
             b.push_bind(r.homework_id).push_bind(r.student_id);
         });
@@ -31,7 +30,7 @@ impl HomeworkClassStudent {
         let row = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_class_student
+            FROM homework_student
             WHERE id = $1
             "#,
         )
@@ -46,7 +45,7 @@ impl HomeworkClassStudent {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_class_student
+            FROM homework_student
             WHERE homework_id = ANY($1)
             "#,
         )
@@ -66,7 +65,7 @@ impl HomeworkClassStudent {
         let row = sqlx::query_scalar::<_, i64>(
             r#"
         SELECT COUNT(*)
-        FROM homework_class_student
+        FROM homework_student
         WHERE student_id = $1
           AND created_at >= $2::DATE
           AND created_at < $3::DATE
@@ -92,7 +91,7 @@ impl HomeworkClassStudent {
         let rows = sqlx::query_as::<_, Self>(
             r#"
             SELECT *
-            FROM homework_class_student
+            FROM homework_student
             WHERE student_id = $1
               AND created_at >= $2::DATE
               AND created_at < $3::DATE

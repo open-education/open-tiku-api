@@ -18,11 +18,11 @@ pub async fn get_user_identity_by_user_id(
         .ok_or_else(|| AppError::not_found("用户不存在"))?;
 
     // 非法用户不允许登录
-    if user.status != StatusType::Active.as_i16() {
+    if user.status != StatusType::Active as i16 {
         return Err(AppError::permission_denied(
-            if user.status == StatusType::Paused.as_i16() {
+            if user.status == StatusType::Paused as i16 {
                 "该账户已被暂停"
-            } else if user.status == StatusType::Forbidden.as_i16() {
+            } else if user.status == StatusType::Forbidden as i16 {
                 "该账户已被封禁"
             } else {
                 "该账户无法继续使用"

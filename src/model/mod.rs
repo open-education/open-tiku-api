@@ -1,10 +1,10 @@
 pub mod chapter_knowledge;
 pub mod class;
 pub mod class_student;
-pub mod homework_class;
-pub mod homework_class_student;
-pub mod homework_student_test_answer;
-pub mod homework_student_test_attempt;
+pub mod homework;
+pub mod homework_student;
+pub mod test_answer;
+pub mod test_attempt;
 pub mod other_dict;
 pub mod paper;
 pub mod paper_gen_config;

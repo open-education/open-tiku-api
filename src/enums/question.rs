@@ -18,7 +18,7 @@ impl QuestionPageSource {
 }
 
 // 审核状态枚举
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(i16)]
 pub enum QuestionStatus {
     Draft = 0,     // 0: 草稿
     Pending = 1,   // 1: 待审核
@@ -26,13 +26,8 @@ pub enum QuestionStatus {
     Rejected = 3,  // 3: 被拒绝
 }
 
-impl QuestionStatus {
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
+#[repr(i16)]
 pub enum QuestionRelationType {
     Similar = 1,  // 变式题
     Original = 2, // 课本原题
@@ -40,16 +35,12 @@ pub enum QuestionRelationType {
 }
 
 impl QuestionRelationType {
-    pub fn from_i16(val: i16) -> Option<QuestionRelationType> {
-        match val {
+    pub fn from_i16(code: i16) -> Option<QuestionRelationType> {
+        match code {
             1 => Some(QuestionRelationType::Similar),
             2 => Some(QuestionRelationType::Original),
             3 => Some(QuestionRelationType::Base),
             _ => None,
         }
-    }
-
-    pub fn as_i16(&self) -> i16 {
-        *self as i16
     }
 }

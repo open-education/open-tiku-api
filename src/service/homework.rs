@@ -3,8 +3,8 @@ use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::model::class_student::ClassStudent;
-use crate::model::homework_class::HomeworkClass;
-use crate::model::homework_class_student::HomeworkClassStudent;
+use crate::model::homework::Homework;
+use crate::model::homework_student::HomeworkStudent;
 
 use crate::api::req::homework::{HomeworkAddReq, HomeworkListReq};
 use crate::api::resp::class_student::ClassStudentResp;
@@ -20,7 +20,7 @@ use tracing::{error, info};
 
 // 获取批次号
 pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppError> {
-    let max_batch_no = HomeworkClass::find_max_batch_no(&app_state.db, paper_id)
+    let max_batch_no = Homework::find_max_batch_no(&app_state.db, paper_id)
         .await
         .map_err(|err| {
             error!("Get paper_id: {} batch no err: {}", paper_id, err);
@@ -69,7 +69,7 @@ pub async fn add(
         AppError::db_error("启动事务失败")
     })?;
 
-    let class_rows = HomeworkClass::batch_insert(&mut tx, &class_list)
+    let class_rows = Homework::batch_insert(&mut tx, &class_list)
         .await
         .map_err(|e| {
             error!("Failed to add homework class to transaction: {}", e);
@@ -80,7 +80,7 @@ pub async fn add(
         class_rows
     );
 
-    let class_students_rows = HomeworkClassStudent::batch_insert(&mut tx, &class_students)
+    let class_students_rows = HomeworkStudent::batch_insert(&mut tx, &class_students)
         .await
         .map_err(|e| {
             error!("Failed to add homework class to transaction: {}", e);
@@ -103,9 +103,9 @@ pub async fn add(
 fn build_homework_add_req(
     req: HomeworkAddReq,
     author_id: i64,
-) -> Result<(Vec<HomeworkClass>, Vec<HomeworkClassStudent>), AppError> {
-    let mut class_list: Vec<HomeworkClass> = vec![];
-    let mut class_students: Vec<HomeworkClassStudent> = vec![];
+) -> Result<(Vec<Homework>, Vec<HomeworkStudent>), AppError> {
+    let mut class_list: Vec<Homework> = vec![];
+    let mut class_students: Vec<HomeworkStudent> = vec![];
     let deadline = get_datetime(&req.deadline)?;
     for (class_id, student_ids) in req.class_map.iter() {
         // 班级信息不能为空
@@ -116,7 +116,7 @@ fn build_homework_add_req(
         // 生成作业标识
         let homework_id = generate_id();
         for student_id in student_ids {
-            class_students.push(HomeworkClassStudent {
+            class_students.push(HomeworkStudent {
                 id: 0,
                 homework_id,
                 student_id: *student_id,
@@ -125,7 +125,7 @@ fn build_homework_add_req(
             })
         }
 
-        class_list.push(HomeworkClass {
+        class_list.push(Homework {
             id: None,
             batch_no: req.batch_no,
             homework_id,
@@ -151,7 +151,7 @@ pub async fn list(
     let user_id = teacher_user_info.0.user_id;
 
     // 获取总数
-    let total = HomeworkClass::count(db, user_id, req.paper_id, req.batch_no)
+    let total = Homework::count(db, user_id, req.paper_id, req.batch_no)
         .await
         .map_err(|e| {
             error!("Count homework class error: {}", e);
@@ -170,7 +170,7 @@ pub async fn list(
     }
 
     // 查询作业列表
-    let rows = HomeworkClass::list(
+    let rows = Homework::list(
         db,
         user_id,
         req.paper_id,
@@ -212,14 +212,14 @@ pub async fn list(
     homework_ids.dedup();
 
     // 获取作业关联的学生列表
-    let students = HomeworkClassStudent::find_by_homework_ids(db, homework_ids)
+    let students = HomeworkStudent::find_by_homework_ids(db, homework_ids)
         .await
         .map_err(|e| {
             error!("List homework class students error: {}", e);
             AppError::db_error("班级作业布置学生列表查询错误")
         })?;
 
-    let mut student_map: HashMap<i64, Vec<&HomeworkClassStudent>> =
+    let mut student_map: HashMap<i64, Vec<&HomeworkStudent>> =
         HashMap::with_capacity(rows.len());
     for student in &students {
         student_map
@@ -286,11 +286,7 @@ pub async fn list(
             title: item.title,
             remark: item.remark,
             students: account_list,
-            created_at: if let Some(created_at) = item.created_at {
-                to_local_datetime(created_at)
-            } else {
-                "".to_string()
-            },
+            created_at: to_local_datetime(item.created_at),
         });
     }
 

@@ -196,7 +196,7 @@ async fn build_student_req(
                     user_id: snowflake::generate_id(),
                     account: account.clone(),
                     password: hashed,
-                    status: StudentStatus::Active.as_i16(),
+                    status: StudentStatus::Active as i16,
                     remark: "".to_string(),
                     last_login_time: None,
                     login_count: 0,
@@ -238,7 +238,7 @@ async fn send_account_email(
 
     // 邮件标题
     let mut titles: Vec<String> = Vec::new();
-    titles.push(to_local_datetime(Utc::now()));
+    titles.push(to_local_datetime(Some(Utc::now())));
     titles.push(class_info.year.to_string());
     if !class_info.grade.is_empty() {
         titles.push(class_info.grade.to_string());
@@ -332,7 +332,7 @@ pub async fn edit(
         user_id: student.user_id,
         account: account.clone(),
         password: student.password.clone(),
-        status: StudentStatus::from_i16(req.status).as_i16(),
+        status: StudentStatus::from_i16(req.status) as i16,
         remark: req.remark,
         last_login_time: student.last_login_time,
         login_count: student.login_count,

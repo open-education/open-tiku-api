@@ -4,10 +4,10 @@ use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, InfoResp, ListRes
 use crate::app::conf::AppState;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::middleware::user::StudentUserInfo;
-use crate::model::homework_class::HomeworkClass;
-use crate::model::homework_class_student::HomeworkClassStudent;
-use crate::model::homework_student_test_answer::HomeworkStudentTestAnswer;
-use crate::model::homework_student_test_attempt::HomeworkStudentTestAttempt;
+use crate::model::homework::Homework;
+use crate::model::homework_student::HomeworkStudent;
+use crate::model::test_answer::TestAnswer;
+use crate::model::test_attempt::TestAttempt;
 use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;
@@ -29,7 +29,7 @@ pub async fn list(
 
     let student = get_student_by_user_id(db, user_info.0.user_id).await?;
 
-    let total = HomeworkClassStudent::count(db, student.id, &req.start_date, &req.end_date)
+    let total = HomeworkStudent::count(db, student.id, &req.start_date, &req.end_date)
         .await
         .map_err(|e| {
             error!("test list count error: {}", e);
@@ -46,7 +46,7 @@ pub async fn list(
         });
     }
 
-    let rows = HomeworkClassStudent::list(
+    let rows = HomeworkStudent::list(
         db,
         student.id,
         &req.start_date,
@@ -64,14 +64,14 @@ pub async fn list(
     let mut homework_ids: Vec<i64> = rows.iter().map(|row| row.homework_id).collect();
     homework_ids.sort_unstable();
     homework_ids.dedup();
-    let homework_rows = HomeworkClass::find_by_homework_ids(db, homework_ids)
+    let homework_rows = Homework::find_by_homework_ids(db, homework_ids)
         .await
         .map_err(|e| {
             error!("test list homework rows error: {}", e);
             AppError::db_error("获取学生作业布置信息出错")
         })?;
     // 作业标识id-> 作业信息
-    let homework_id_class_map: HashMap<i64, &HomeworkClass> = homework_rows
+    let homework_id_class_map: HashMap<i64, &Homework> = homework_rows
         .iter()
         .map(|item| (item.homework_id, item))
         .collect();
@@ -96,7 +96,7 @@ pub async fn list(
     for item in rows.into_iter() {
         // 获取对应的试卷标识
         let (paper_id, deadline) = if let Some(hc) = homework_id_class_map.get(&item.homework_id) {
-            (hc.paper_id, to_local_date(hc.deadline))
+            (hc.paper_id, to_local_date(Some(hc.deadline)))
         } else {
             error!("test list homework id is empty: {}", item.homework_id);
             (0, "".to_string())
@@ -115,8 +115,8 @@ pub async fn list(
             homework_id: item.homework_id,
             student_id: item.student_id,
             deadline,
-            created_at: to_local_datetime(item.created_at.unwrap_or_default()),
-            updated_at: to_local_datetime(item.updated_at.unwrap_or_default()),
+            created_at: to_local_datetime(item.created_at),
+            updated_at: to_local_datetime(item.updated_at),
             paper_info: paper_resp,
         })
     }
@@ -149,7 +149,7 @@ pub async fn attempt_latest(
     let hc = get_homework_class_by_homework_id(db, hcs.homework_id).await?;
 
     // 先尝试获取当前最新的做题记录
-    let maybe_hsta = HomeworkStudentTestAttempt::find_in_progress_latest_attempt(
+    let maybe_hsta = TestAttempt::find_in_progress_latest_attempt(
         db,
         hcs.homework_id,
         hcs.student_id,
@@ -166,7 +166,7 @@ pub async fn attempt_latest(
 
         // 如果没有记录 或者已有记录都已完成 需要开启新一轮
         None => {
-            let max_no = HomeworkStudentTestAttempt::find_max_attempt_number(
+            let max_no = TestAttempt::find_max_attempt_number(
                 db,
                 hcs.homework_id,
                 hcs.student_id,
@@ -179,15 +179,15 @@ pub async fn attempt_latest(
             .unwrap_or(0);
 
             // 开启新一轮做题, 批次号在历史最大值基础上 + 1
-            HomeworkStudentTestAttempt {
+            TestAttempt {
                 id: None,
                 student_id: hcs.student_id,
                 homework_id: hcs.homework_id,
                 class_id: hc.class_id,
                 paper_id: hc.paper_id,
                 attempt_number: max_no + 1,
-                method: test_method.as_i16(),
-                status: TestStatus::InProgress.as_i16(),
+                method: test_method as i16,
+                status: TestStatus::InProgress as i16,
                 score: None,
                 created_at: None,
                 updated_at: None,
@@ -198,7 +198,7 @@ pub async fn attempt_latest(
 
     // 首次保存进行中的做题记录
     if hsta.id.is_none() {
-        let id = HomeworkStudentTestAttempt::save(db, &hsta)
+        let id = TestAttempt::save(db, &hsta)
             .await
             .map_err(|e| {
                 error!("save test latest attempt row error: {}", e);
@@ -209,7 +209,7 @@ pub async fn attempt_latest(
 
     // 获取做题答案明细记录
     let answers =
-        HomeworkStudentTestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
+        TestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
             .await
             .map_err(|e| {
                 error!("get test latest answer row error: {}", e);
@@ -227,7 +227,7 @@ async fn validate_attempt(db: &PgPool, user_id: i64, attempt_id: i64) -> Result<
     let student = get_student_by_user_id(db, user_id).await?;
 
     // 做题记录
-    let attempt = HomeworkStudentTestAttempt::find_by_id(db, attempt_id)
+    let attempt = TestAttempt::find_by_id(db, attempt_id)
         .await
         .map_err(|e| {
             error!("find test attempt row error: {}", e);
@@ -246,8 +246,8 @@ async fn get_class_student_by_id(
     pool: &PgPool,
     id: i64,
     student_id: i64,
-) -> Result<HomeworkClassStudent, AppError> {
-    let hcs = HomeworkClassStudent::find_by_id(pool, id)
+) -> Result<HomeworkStudent, AppError> {
+    let hcs = HomeworkStudent::find_by_id(pool, id)
         .await
         .map_err(|e| {
             error!("get homework class student row error: {}", e);
@@ -266,9 +266,9 @@ async fn get_class_student_by_id(
 async fn get_homework_class_by_homework_id(
     pool: &PgPool,
     homework_id: i64,
-) -> Result<HomeworkClass, AppError> {
+) -> Result<Homework, AppError> {
     // 作业详情
-    let hc_rows = HomeworkClass::find_by_homework_ids(pool, vec![homework_id])
+    let hc_rows = Homework::find_by_homework_ids(pool, vec![homework_id])
         .await
         .map_err(|e| {
             error!("get homework class rows error: {}", e);
@@ -302,7 +302,7 @@ pub async fn attempts(
     // 学生作业布置信息
     let hcs = get_class_student_by_id(db, req.id, student.id).await?;
 
-    let total = HomeworkStudentTestAttempt::count(db, hcs.homework_id, hcs.student_id)
+    let total = TestAttempt::count(db, hcs.homework_id, hcs.student_id)
         .await
         .map_err(|e| {
             error!("get attempts count error: {}", e);
@@ -318,7 +318,7 @@ pub async fn attempts(
         });
     }
 
-    let rows = HomeworkStudentTestAttempt::list(
+    let rows = TestAttempt::list(
         db,
         hcs.homework_id,
         hcs.student_id,
@@ -335,13 +335,13 @@ pub async fn attempts(
         .iter()
         .map(|item| item.id.unwrap_or_default())
         .collect();
-    let answers = HomeworkStudentTestAnswer::find_by_attempt_ids(db, &attempt_ids)
+    let answers = TestAnswer::find_by_attempt_ids(db, &attempt_ids)
         .await
         .map_err(|e| {
             error!("find test attempt row error: {}", e);
             AppError::db_error("获取做题记录出错")
         })?;
-    let mut answer_map: HashMap<i64, Vec<HomeworkStudentTestAnswer>> =
+    let mut answer_map: HashMap<i64, Vec<TestAnswer>> =
         answers.into_iter().fold(HashMap::new(), |mut acc, item| {
             acc.entry(item.attempt_id).or_default().push(item);
             acc
@@ -392,7 +392,7 @@ pub async fn answer_add(
     })?;
 
     // 删除历史答案
-    let rows = HomeworkStudentTestAnswer::delete_by_attempt_id(&mut tx, a_id)
+    let rows = TestAnswer::delete_by_attempt_id(&mut tx, a_id)
         .await
         .map_err(|e| {
             error!("delete by attempt id error: {}", e);
@@ -401,7 +401,7 @@ pub async fn answer_add(
     info!("delete attempt id: {}, rows: {}", a_id, rows);
 
     // 重新写入新答案
-    let id = HomeworkStudentTestAnswer::batch_insert(&mut tx, &add_list)
+    let id = TestAnswer::batch_insert(&mut tx, &add_list)
         .await
         .map_err(|e| {
             error!("save test answer add error: {}", e);
@@ -410,7 +410,7 @@ pub async fn answer_add(
 
     // 得分暂时计算意义不大, 因此已交卷需要更新尝试做题记录表
     if test_status == TestStatus::Done {
-        let row = HomeworkStudentTestAttempt::done_by_id(&mut tx, a_id)
+        let row = TestAttempt::done_by_id(&mut tx, a_id)
             .await
             .map_err(|e| {
                 error!("save test attempt add error: {}", e);
@@ -427,17 +427,17 @@ pub async fn answer_add(
     Ok(id > 0)
 }
 
-fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<HomeworkStudentTestAnswer>, AppError> {
-    let mut add_list: Vec<HomeworkStudentTestAnswer> = vec![];
+fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<TestAnswer>, AppError> {
+    let mut add_list: Vec<TestAnswer> = vec![];
     for req in req_list.list.into_iter() {
         let test_result = TestResult::from_i16(req.result)
             .ok_or_else(|| AppError::param_error("答案正确与否处理错误"))?;
-        add_list.push(HomeworkStudentTestAnswer {
+        add_list.push(TestAnswer {
             id: None,
             attempt_id: req_list.attempt_id,
             question_id: req.question_id,
             answer: req.answer,
-            result: test_result.as_i16(),
+            result: test_result as i16,
             note: req.note,
             remark: "".to_string(),
             created_at: None,

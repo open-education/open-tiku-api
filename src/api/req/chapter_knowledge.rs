@@ -1,18 +1,16 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateChapterKnowledgeReq {
-    #[serde(rename(deserialize = "chapterId"))]
     pub chapter_id: i32,
-    #[serde(rename(deserialize = "knowledgeId"))]
     pub knowledge_id: i32,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoveChapterKnowledgeReq {
     pub id: i32,
-    #[serde(rename(deserialize = "chapterId"))]
     pub chapter_id: i32,
-    #[serde(rename(deserialize = "knowledgeId"))]
     pub knowledge_id: i32,
 }

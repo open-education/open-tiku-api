@@ -79,7 +79,7 @@ impl QuestionRelation {
             "#,
         )
         .bind(id)
-        .bind(QuestionRelationType::Original.as_i16())
+        .bind(QuestionRelationType::Original as i16)
         .fetch_all(pool)
         .await
     }
@@ -97,7 +97,7 @@ impl QuestionRelation {
             "#,
         )
         .bind(id)
-        .bind(QuestionRelationType::Similar.as_i16())
+        .bind(QuestionRelationType::Similar as i16)
         .fetch_optional(pool)
         .await
     }
