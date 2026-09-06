@@ -39,7 +39,7 @@ impl Textbook {
         INSERT INTO textbook (
             id, parent_id, label, key, path_depth, sort_order, path_type, path
         ) VALUES (
-            COALESCE($1, DEFAULT), $2, $3, $4, $5, $6, $7, $8
+            COALESCE($1, nextval('textbook_id_seq')), $2, $3, $4, $5, $6, $7, $8
         )
         ON CONFLICT (id) DO UPDATE SET
             parent_id = EXCLUDED.parent_id,

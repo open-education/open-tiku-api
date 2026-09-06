@@ -31,7 +31,7 @@ impl UserIdentity {
             provider_email, last_login_time, login_count, role, status, remark
         )
         VALUES (
-            COALESCE($1, DEFAULT),
+            COALESCE($1, nextval('user_identity_id_seq')),
             $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
         )
         ON CONFLICT (id) DO UPDATE SET

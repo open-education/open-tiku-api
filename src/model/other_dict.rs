@@ -20,7 +20,7 @@ impl TextbookDict {
             r#"
         INSERT INTO textbook_dict (id, textbook_id, type_code, item_value, sort_order, is_select)
         VALUES (
-            COALESCE($1, DEFAULT),
+            COALESCE($1, nextval('textbook_dict_id_seq')),
             $2, $3, $4, $5, $6
         )
         ON CONFLICT (id) DO UPDATE SET
