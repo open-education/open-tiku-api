@@ -59,10 +59,10 @@ pub async fn get_list(
 pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictListResp, AppError> {
     let db = &app_state.db;
 
-    let rows = TextbookDict::find_by_textbook_id(db, req.textbook_id, req.codes)
+    let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], req.codes)
         .await
         .map_err(|e| {
-            error!("error finding unique textbook item: {}", e);
+            error!("find textbook dict err: {}", e);
             AppError::db_error("查询教材字典出错")
         })?;
 

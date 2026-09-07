@@ -12,7 +12,6 @@ use crate::service::question;
 use crate::util::error::AppError;
 use crate::util::markdown;
 use crate::util::markdown::RawQuestion;
-use sqlx::PgPool;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
@@ -34,23 +33,31 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         return Ok(());
     }
 
-    // 缓存题型类型列表
-    let mut question_type_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
-    // 缓存标签
-    let mut question_tag_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
+    // 得到所有的教材通用字典
+    let mut textbook_ids: Vec<i32> = waiting_task_list
+        .iter()
+        .map(|item| item.textbook_id)
+        .collect();
+    textbook_ids.sort_unstable();
+    textbook_ids.dedup();
+    let rows = TextbookDict::find_by_textbook_ids(db, &textbook_ids, None)
+        .await
+        .map_err(|e| {
+            error!("find textbook dict err: {}", e);
+            AppError::db_error("查询教材字典出错")
+        })?;
+
+    let mut map: HashMap<i32, HashMap<String, Vec<TextbookDict>>> = HashMap::new();
+    for item in rows.into_iter() {
+        map.entry(item.textbook_id)
+            .or_default()
+            .entry(item.type_code.clone())
+            .or_default()
+            .push(item);
+    }
 
     // 遍历待处理的任务列表
     for task_info in waiting_task_list {
-        let textbook_id = task_info.textbook_id;
-
-        // 获取题型类型列表
-        let question_type_list =
-            get_or_load_dict(db, textbook_id, "question_type", &mut question_type_cache).await;
-
-        // 获取标签类型列表
-        let question_tag_list =
-            get_or_load_dict(db, textbook_id, "question_tag", &mut question_tag_cache).await;
-
         // 修改任务为执行中, 后续的失败不回滚, 而是继续更新状态
         // 如果文件内容本身正常只是程序问题导致, 后续需要手动修改为待执行等待下一批次重新执行
         // 先更新状态为 Running（可允许失败时跳过该任务）
@@ -70,14 +77,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         // 处理一个任务, 一个任务的事务是独立的
         let task_name = task_info.name.clone();
         info!("Process single task info process start: {}", task_name);
-        if let Err(e) = single(
-            app_state,
-            task_info,
-            &question_type_list,
-            &question_tag_list,
-        )
-        .await
-        {
+        if let Err(e) = single(app_state, task_info, &map).await {
             error!("Process single task info err: {}", e.msg);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
             if let Err(e) = Task::update_by_id(db, &task_id, TaskStatus::Failed as i16, e.msg).await
@@ -99,39 +99,11 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
     Ok(())
 }
 
-// 获取题型列表和标签列表
-async fn get_or_load_dict(
-    db: &PgPool,
-    textbook_id: i32,
-    dict_type: &str,
-    cache: &mut HashMap<i32, Vec<TextbookDict>>,
-) -> Vec<TextbookDict> {
-    if let Some(list) = cache.get(&textbook_id) {
-        list.clone()
-    } else {
-        let list = match TextbookDict::find_by_textbook_and_type(db, textbook_id, dict_type).await {
-            Ok(list) if !list.is_empty() => list,
-            Ok(_) => vec![],
-            Err(e) => {
-                error!(
-                    "查询 textbook_id {} 的 {} 失败: {}",
-                    textbook_id, dict_type, e
-                );
-                vec![]
-            }
-        };
-        let cloned_list = list.clone();
-        cache.insert(textbook_id, list);
-        cloned_list
-    }
-}
-
 // 上传单个题目文件
 async fn single(
     app_state: &AppState,
     task_info: Task,
-    question_type_list: &[TextbookDict],
-    question_tag_list: &[TextbookDict],
+    map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
 ) -> Result<(), AppError> {
     // 记录结果日志
     let mut result: Vec<String> = vec![];
@@ -171,9 +143,8 @@ async fn single(
             None,
             QuestionRelationType::Base,
             &task_info,
-            question_type_list,
-            question_tag_list,
-        );
+            map,
+        )?;
         info!("Add parent question name: {} begin", simple_parent_title);
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
@@ -196,9 +167,8 @@ async fn single(
                 Some(parent.id),
                 QuestionRelationType::Similar,
                 &task_info,
-                question_type_list,
-                question_tag_list,
-            );
+                map,
+            )?;
             info!("Add child question name: {} begin", simple_child_title);
             children_req.push(child_req);
 
@@ -263,20 +233,24 @@ async fn single(
 // 根据题目类型列表获取对应的题目类型标识和选项内容
 fn get_question_type_and_options(
     raw: &RawQuestion,
-    question_type_list: &[TextbookDict],
-) -> (i32, Option<Json<Vec<QuestionOption>>>) {
-    // 1. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
-    let question_type_info = question_type_list
+    map: &HashMap<String, Vec<TextbookDict>>,
+) -> Result<(i32, Option<Json<Vec<QuestionOption>>>), AppError> {
+    let type_list: &[TextbookDict] = map
+        .get("question_type")
+        .ok_or_else(|| AppError::not_found("题目类型字典为空"))?;
+
+    // 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
+    let question_type_info = type_list
         .iter()
         .find(|item| item.item_value.contains(raw.question_type.as_str()))
-        .or_else(|| question_type_list.iter().find(|item| !item.is_select));
+        .or_else(|| type_list.iter().find(|item| !item.is_select));
 
-    // 3. 获取题型 ID，若未找到则 -1
+    // 获取题型 ID，若未找到则 -1
     let question_type_id = question_type_info
         .map(|item| item.id.unwrap_or(-1))
         .unwrap_or(-1);
 
-    // 4. 处理选择题选项
+    // 处理选择题选项
     let options = if let Some(info) = question_type_info {
         if info.is_select {
             let choices = markdown::get_choices(&raw.choices);
@@ -298,22 +272,17 @@ fn get_question_type_and_options(
         None
     };
 
-    (question_type_id, options)
+    Ok((question_type_id, options))
 }
 
-// 通过 markdown 文档文本内容转为请求体
-fn to_req(
-    raw: RawQuestion,
+fn get_tag_ids(
     parent_id: Option<i64>,
-    relation_type: QuestionRelationType,
-    task_info: &Task,
-    question_type_list: &[TextbookDict],
-    question_tag_list: &[TextbookDict],
-) -> CreateQuestionReq {
-    let (question_type_id, options) = get_question_type_and_options(&raw, question_type_list);
-
-    // 查找变式题标签
-    let question_tag_info = question_tag_list
+    map: &HashMap<String, Vec<TextbookDict>>,
+) -> Result<Option<Vec<i32>>, AppError> {
+    let tag_list: &[TextbookDict] = map
+        .get("question_tag")
+        .ok_or_else(|| AppError::not_found("题目标签字典为空"))?;
+    let question_tag_info = tag_list
         .iter()
         .find(|item| item.item_value.contains("变式题"));
     let question_tag_ids: Option<Vec<i32>> = if parent_id.is_some() {
@@ -322,17 +291,93 @@ fn to_req(
         None
     };
 
-    CreateQuestionReq {
+    Ok(question_tag_ids)
+}
+
+fn get_level_id(level: &str, map: &HashMap<String, Vec<TextbookDict>>) -> Result<i32, AppError> {
+    let level_list: &[TextbookDict] = map
+        .get("question_level")
+        .ok_or_else(|| AppError::not_found("分层体系字典为空"))?;
+
+    let matched_item = level_list
+        .iter()
+        .find(|item| level.starts_with(item.item_value.as_str()))
+        .ok_or_else(|| AppError::not_found("未匹配到对应的分层体系"))?;
+
+    Ok(matched_item.id.unwrap_or_default())
+}
+
+fn get_dict_ids(
+    req_list: &[String],
+    type_code: &str,
+    map: &HashMap<String, Vec<TextbookDict>>,
+    err_msg: &str,
+) -> Result<Vec<i32>, AppError> {
+    let list: &[TextbookDict] = map
+        .get(type_code)
+        .ok_or_else(|| AppError::not_found(err_msg))?;
+    let ids: Vec<i32> = list
+        .iter()
+        .filter(|item| req_list.iter().any(|val| item.item_value.contains(val)))
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
+
+    Ok(ids)
+}
+
+// 通过 markdown 文档文本内容转为请求体
+fn to_req(
+    raw: RawQuestion,
+    parent_id: Option<i64>,
+    relation_type: QuestionRelationType,
+    task_info: &Task,
+    map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
+) -> Result<CreateQuestionReq, AppError> {
+    let dict_map = map.get(&task_info.textbook_id).ok_or_else(|| {
+        error!("textbook_id: {} dict is empty", task_info.textbook_id);
+        AppError::not_found("教材通用字典不存在")
+    })?;
+
+    // 题目类型
+    let (question_type_id, options) = get_question_type_and_options(&raw, dict_map)?;
+    if question_type_id <= 0 {
+        return Err(AppError::business_error("解析后无法匹配上题目类型"));
+    }
+
+    // 题目标签
+    let question_tag_ids = get_tag_ids(parent_id, &dict_map)?;
+
+    // 核心素养
+    let dimension_ids: Vec<i32> = get_dict_ids(
+        &raw.dimensions,
+        "question_dimension",
+        &dict_map,
+        "核心素养字典为空",
+    )?;
+
+    // 适用场景
+    let scene_ids: Vec<i32> =
+        get_dict_ids(&raw.scenes, "question_scene", &dict_map, "适用场景字典为空")?;
+
+    // 常见错误
+    let mistake_tip_ids: Vec<i32> = get_dict_ids(
+        &raw.mistake_tips,
+        "question_mistake_tip",
+        &dict_map,
+        "常见错误字典为空",
+    )?;
+
+    let req = CreateQuestionReq {
         id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         relation_type: relation_type as i16,
         question_type_id,
         question_tag_ids,
-        question_dimension_ids: None,
-        level_id: 0,
-        scene_ids: None,
-        mistake_tip_ids: None,
+        question_dimension_ids: Some(dimension_ids),
+        level_id: get_level_id(&raw.level, &dict_map)?,
+        scene_ids: Some(scene_ids),
+        mistake_tip_ids: Some(mistake_tip_ids),
         author_id: Some(task_info.author_id),
         source: "".to_string(),
         original_name: "".to_string(),
@@ -357,7 +402,9 @@ fn to_req(
         steps: None,
         remark: None,
         remark_ext: Some("批量题目上传".to_string()),
-    }
+    };
+
+    Ok(req)
 }
 
 // 从markdown片段文本中解析出题目信息
@@ -387,7 +434,7 @@ pub async fn parse_question_snippet(
         "question_scene".to_string(),
         "question_mistake_tip".to_string(),
     ];
-    let rows = TextbookDict::find_by_textbook_id(db, req.textbook_id, Some(codes))
+    let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], Some(codes))
         .await
         .map_err(|e| {
             error!("error finding unique textbook item: {}", e);
@@ -399,63 +446,31 @@ pub async fn parse_question_snippet(
         map.entry(item.type_code.clone()).or_default().push(item);
     }
 
-    // 解析标签, 这里是无法确定标签的不能给
-    // let tag_list: &[TextbookDict] = map
-    //     .get("question_tag")
-    //     .ok_or_else(|| AppError::not_found("题目标签字典为空"))?;
-    // let question_tag_info = tag_list
-    //     .iter()
-    //     .find(|item| item.item_value.contains("变式题"));
-    // let question_tag_ids: Option<Vec<i32>> =
-    //     question_tag_info.map(|tag_info| vec![tag_info.id.unwrap_or_default()]);
-
     // 题目类型
-    let type_list: &[TextbookDict] = map
-        .get("question_type")
-        .ok_or_else(|| AppError::not_found("题目类型字典为空"))?;
-
-    let (question_type_id, options) = get_question_type_and_options(&raw, &type_list);
+    let (question_type_id, options) = get_question_type_and_options(&raw, &map)?;
     if question_type_id <= 0 {
         return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
 
     // 核心素养
-    let dimension_list: &[TextbookDict] = map
-        .get("question_dimension")
-        .ok_or_else(|| AppError::not_found("核心素养字典为空"))?;
-    let dimension_ids: Vec<i32> = dimension_list
-        .iter()
-        .filter(|item| {
-            raw.dimensions
-                .iter()
-                .any(|val| item.item_value.contains(val))
-        })
-        .map(|item| item.id.unwrap_or_default())
-        .collect();
+    let dimension_ids: Vec<i32> = get_dict_ids(
+        &raw.dimensions,
+        "question_dimension",
+        &map,
+        "核心素养字典为空",
+    )?;
 
     // 适用场景
-    let scene_list: &[TextbookDict] = map
-        .get("question_scene")
-        .ok_or_else(|| AppError::not_found("适用场景字典为空"))?;
-    let scene_ids: Vec<i32> = scene_list
-        .iter()
-        .filter(|item| raw.scenes.iter().any(|val| item.item_value.contains(val)))
-        .map(|item| item.id.unwrap_or_default())
-        .collect();
+    let scene_ids: Vec<i32> =
+        get_dict_ids(&raw.scenes, "question_scene", &map, "适用场景字典为空")?;
 
     // 常见错误
-    let mistake_tip_list: &[TextbookDict] = map
-        .get("question_mistake_tip")
-        .ok_or_else(|| AppError::not_found("常见错误字典为空"))?;
-    let mistake_tip_ids: Vec<i32> = mistake_tip_list
-        .iter()
-        .filter(|item| {
-            raw.mistake_tips
-                .iter()
-                .any(|val| item.item_value.contains(val))
-        })
-        .map(|item| item.id.unwrap_or_default())
-        .collect();
+    let mistake_tip_ids: Vec<i32> = get_dict_ids(
+        &raw.mistake_tips,
+        "question_mistake_tip",
+        &map,
+        "常见错误字典为空",
+    )?;
 
     Ok(CreateQuestionReq {
         id: None,

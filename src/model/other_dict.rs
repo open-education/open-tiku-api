@@ -87,21 +87,21 @@ impl TextbookDict {
         .await
     }
 
-    pub async fn find_by_textbook_id(
+    pub async fn find_by_textbook_ids(
         pool: &PgPool,
-        textbook_id: i32,
+        textbook_ids: &[i32],
         type_codes: Option<Vec<String>>,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             r#"
         SELECT id, textbook_id, type_code, item_value, sort_order, is_select
         FROM textbook_dict
-        WHERE textbook_id = $1 
+        WHERE textbook_id = ANY($1) 
           AND ($2 IS NULL OR type_code = ANY($2))
         ORDER BY sort_order
         "#,
         )
-        .bind(textbook_id)
+        .bind(textbook_ids)
         .bind(type_codes)
         .fetch_all(pool)
         .await
