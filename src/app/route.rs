@@ -59,7 +59,8 @@ pub fn question_cate(cfg: &mut web::ServiceConfig) {
 pub fn textbook_dict(cfg: &mut web::ServiceConfig) {
     cfg.service(other_dict::add)
         .service(other_dict::remove)
-        .service(other_dict::list);
+        .service(other_dict::list)
+        .service(other_dict::list_all);
 }
 
 pub fn task(cfg: &mut web::ServiceConfig) {

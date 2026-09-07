@@ -18,3 +18,5 @@ pub const LOGIN_TOKEN_EXPIRED_HOUR: i64 = 8;
 pub const RENEW_TOKEN_EXPIRED_HOUR: i64 = 4;
 // 允许的客户端学生账户登录时间误差/窗口期：60秒
 pub const STUDENT_LOGIN_TIME_WINDOW_MS: u64 = 60 * 1000;
+// 拆分母题变式题的标题等级
+pub const MARKDOWN_PREFIX_TITLE_LIST: [&str; 2] = ["#### ", "##### "];

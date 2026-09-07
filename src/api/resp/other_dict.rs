@@ -1,5 +1,6 @@
 use crate::model::other_dict::TextbookDict;
 use serde::Serialize;
+use std::collections::HashMap;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,4 +24,9 @@ impl From<TextbookDict> for TextbookDictResp {
             is_select: row.is_select,
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct DictListResp {
+    pub map: HashMap<String, Vec<TextbookDictResp>>,
 }

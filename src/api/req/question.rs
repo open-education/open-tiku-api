@@ -7,13 +7,15 @@ use sqlx::types::Json;
 #[serde(rename_all = "camelCase")]
 pub struct CreateQuestionReq {
     pub id: Option<i64>,
-    pub question_cate_id: i32,  // 题型主键
-    pub source_id: Option<i64>, // 变式题父主键
-    // 题目归属类型
-    pub relation_type: i16,
+    pub question_cate_id: i32,                    // 题型主键
+    pub source_id: Option<i64>,                   // 变式题父主键
+    pub relation_type: i16,                       // 题目归属类型
     pub question_type_id: i32,                    // 题型类型主键
     pub question_tag_ids: Option<Vec<i32>>,       // 题型标签主键
     pub question_dimension_ids: Option<Vec<i32>>, // 核心素养
+    pub level_id: i32,                            // 分层体系
+    pub scene_ids: Option<Vec<i32>>,              // 适用场景
+    pub mistake_tip_ids: Option<Vec<i32>>,        // 常见错误
     pub author_id: Option<i64>,                   // 作者, 内部逻辑生成
     pub source: String,                           // 来源
     pub original_name: String,                    // 原创者昵称
@@ -53,6 +55,9 @@ pub struct QuestionListReq {
     pub ids: Option<Vec<i64>>,
     pub title_val: Option<String>,
     pub tag_ids: Option<Vec<i32>>,
+    pub level_ids: Option<Vec<i32>>,
+    pub scene_ids: Option<Vec<i32>>,
+    pub mistake_tip_ids: Option<Vec<i32>>,
     pub page_no: i32,
     pub page_size: i32,
 }

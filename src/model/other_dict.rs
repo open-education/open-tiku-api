@@ -60,6 +60,13 @@ impl TextbookDict {
         .await
     }
 
+    pub async fn find_by_id(pool: &PgPool, id: i32) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM textbook_dict WHERE id = $1")
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+    }
+
     // 根据类型标识查询列表 (例如获取所有 'question_type')
     pub async fn find_by_textbook_and_type(
         pool: &PgPool,
@@ -76,6 +83,26 @@ impl TextbookDict {
         )
         .bind(textbook_id)
         .bind(type_code)
+        .fetch_all(pool)
+        .await
+    }
+
+    pub async fn find_by_textbook_id(
+        pool: &PgPool,
+        textbook_id: i32,
+        type_codes: Option<Vec<String>>,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
+            r#"
+        SELECT id, textbook_id, type_code, item_value, sort_order, is_select
+        FROM textbook_dict
+        WHERE textbook_id = $1 
+          AND ($2 IS NULL OR type_code = ANY($2))
+        ORDER BY sort_order
+        "#,
+        )
+        .bind(textbook_id)
+        .bind(type_codes)
         .fetch_all(pool)
         .await
     }

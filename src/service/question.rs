@@ -148,6 +148,9 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
         question_tag_ids: row.question_tag_ids.clone(),
         question_dimension_ids: row.question_dimension_ids.clone(),
         relation_type: row.relation_type,
+        level_id: row.level_id,
+        scene_ids: row.scene_ids.clone(),
+        mistake_tip_ids: row.mistake_tip_ids.clone(),
         author_id: row.author_id,
         author_name,
         source: row.source.clone(),
@@ -258,6 +261,9 @@ pub async fn list(
         tag_ids: req.tag_ids,
         dimension_ids: req.dimension_ids,
         author_id,
+        level_ids: req.level_ids,
+        scene_ids: req.scene_ids,
+        mistake_tip_ids: req.mistake_tip_ids,
     };
 
     // 查询总数

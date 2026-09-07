@@ -165,7 +165,7 @@ async fn single(
     // 一个文件作为一个事务单位
     for question_info in all_questions {
         // 母题
-        let simple_parent_title = question_info.parent.title.clone();
+        let simple_parent_title = question_info.parent.level.clone();
         let parent_req = to_req(
             question_info.parent,
             None,
@@ -190,7 +190,7 @@ async fn single(
         }
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
-            let simple_child_title = child.title.clone();
+            let simple_child_title = child.level.clone();
             let child_req = to_req(
                 child,
                 Some(parent.id),
@@ -330,6 +330,9 @@ fn to_req(
         question_type_id,
         question_tag_ids,
         question_dimension_ids: None,
+        level_id: 0,
+        scene_ids: None,
+        mistake_tip_ids: None,
         author_id: Some(task_info.author_id),
         source: "".to_string(),
         original_name: "".to_string(),
@@ -342,7 +345,7 @@ fn to_req(
         options,
         options_layout: Some(1),
         answer: Some(raw.answer),
-        knowledge: Some(raw.knowledge),
+        knowledge: None,
         analysis: Some(Json(Content {
             content: raw.analysis,
             images: None,
@@ -359,13 +362,11 @@ fn to_req(
 
 // 从markdown片段文本中解析出题目信息
 pub async fn parse_question_snippet(
+    app_state: &AppState,
     req: QuestionSnippetReq,
 ) -> Result<CreateQuestionReq, AppError> {
-    if req.type_list.is_empty() {
-        return Err(AppError::param_error("章节/考点信息不能为空"));
-    }
-    if req.tag_list.is_empty() {
-        return Err(AppError::param_error("题型不能为空"));
+    if req.textbook_id <= 0 {
+        return Err(AppError::param_error("教材标识不能为空"));
     }
     if req.content.is_empty() {
         return Err(AppError::param_error("接收内容不能为空"));
@@ -376,30 +377,85 @@ pub async fn parse_question_snippet(
         return Err(AppError::business_error("解析后无法查找到题目题干"));
     }
 
-    let question_tag_info = req
-        .tag_list
-        .iter()
-        .find(|item| item.item_value.contains("变式题"));
-    let question_tag_ids: Option<Vec<i32>> = question_tag_info.map(|tag_info| vec![tag_info.id]);
+    // 获取通用字典
+    let db = &app_state.db;
 
-    // 临时处理类型转化
-    let type_list: Vec<TextbookDict> = req
-        .type_list
-        .into_iter()
-        .map(|r| TextbookDict {
-            id: Some(r.id),
-            textbook_id: r.textbook_id,
-            type_code: r.type_code,
-            item_value: r.item_value,
-            sort_order: r.sort_order,
-            is_select: r.is_select,
-        })
-        .collect();
+    let codes: Vec<String> = vec![
+        "question_type".to_string(),
+        "question_tag".to_string(),
+        "question_dimension".to_string(),
+        "question_scene".to_string(),
+        "question_mistake_tip".to_string(),
+    ];
+    let rows = TextbookDict::find_by_textbook_id(db, req.textbook_id, Some(codes))
+        .await
+        .map_err(|e| {
+            error!("error finding unique textbook item: {}", e);
+            AppError::db_error("查询教材通用字典出错")
+        })?;
+
+    let mut map: HashMap<String, Vec<TextbookDict>> = HashMap::new();
+    for item in rows.into_iter() {
+        map.entry(item.type_code.clone()).or_default().push(item);
+    }
+
+    // 解析标签, 这里是无法确定标签的不能给
+    // let tag_list: &[TextbookDict] = map
+    //     .get("question_tag")
+    //     .ok_or_else(|| AppError::not_found("题目标签字典为空"))?;
+    // let question_tag_info = tag_list
+    //     .iter()
+    //     .find(|item| item.item_value.contains("变式题"));
+    // let question_tag_ids: Option<Vec<i32>> =
+    //     question_tag_info.map(|tag_info| vec![tag_info.id.unwrap_or_default()]);
+
+    // 题目类型
+    let type_list: &[TextbookDict] = map
+        .get("question_type")
+        .ok_or_else(|| AppError::not_found("题目类型字典为空"))?;
 
     let (question_type_id, options) = get_question_type_and_options(&raw, &type_list);
     if question_type_id <= 0 {
         return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
+
+    // 核心素养
+    let dimension_list: &[TextbookDict] = map
+        .get("question_dimension")
+        .ok_or_else(|| AppError::not_found("核心素养字典为空"))?;
+    let dimension_ids: Vec<i32> = dimension_list
+        .iter()
+        .filter(|item| {
+            raw.dimensions
+                .iter()
+                .any(|val| item.item_value.contains(val))
+        })
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
+
+    // 适用场景
+    let scene_list: &[TextbookDict] = map
+        .get("question_scene")
+        .ok_or_else(|| AppError::not_found("适用场景字典为空"))?;
+    let scene_ids: Vec<i32> = scene_list
+        .iter()
+        .filter(|item| raw.scenes.iter().any(|val| item.item_value.contains(val)))
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
+
+    // 常见错误
+    let mistake_tip_list: &[TextbookDict] = map
+        .get("question_mistake_tip")
+        .ok_or_else(|| AppError::not_found("常见错误字典为空"))?;
+    let mistake_tip_ids: Vec<i32> = mistake_tip_list
+        .iter()
+        .filter(|item| {
+            raw.mistake_tips
+                .iter()
+                .any(|val| item.item_value.contains(val))
+        })
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
 
     Ok(CreateQuestionReq {
         id: None,
@@ -407,8 +463,11 @@ pub async fn parse_question_snippet(
         source_id: None,
         relation_type: QuestionRelationType::Base as i16,
         question_type_id,
-        question_tag_ids,
-        question_dimension_ids: None,
+        question_tag_ids: None,
+        question_dimension_ids: Some(dimension_ids),
+        level_id: 0,
+        scene_ids: Some(scene_ids),
+        mistake_tip_ids: Some(mistake_tip_ids),
         author_id: None,
         source: "".to_string(),
         original_name: "".to_string(),
@@ -421,7 +480,7 @@ pub async fn parse_question_snippet(
         options,
         options_layout: Some(1),
         answer: Some(raw.answer),
-        knowledge: Some(raw.knowledge),
+        knowledge: Some(raw.knowledge.join(", ")),
         analysis: Some(Json(Content {
             content: raw.analysis,
             images: None,

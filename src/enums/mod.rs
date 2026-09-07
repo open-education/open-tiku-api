@@ -1,3 +1,4 @@
+pub mod dict;
 pub mod paper;
 pub mod question;
 pub mod student;

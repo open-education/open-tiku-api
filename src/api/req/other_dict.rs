@@ -10,3 +10,10 @@ pub struct CreateTextbookDictReq {
     pub sort_order: i32,
     pub is_select: bool,
 }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DictListReq {
+    pub textbook_id: i32,
+    pub codes: Option<Vec<String>>,
+}
