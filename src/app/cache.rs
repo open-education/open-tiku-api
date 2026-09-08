@@ -79,7 +79,7 @@ where
     }
 }
 
-// 通过左前缀匹批量删除缓存
+// 通过左前缀匹配批量删除缓存
 pub async fn delete_by_prefix(pool: &SqlitePool, prefix: &str) {
     // 对前缀中可能存在的特殊字符（如 % 和 _）进行转义处理
     // 防止用户传入的特殊字符被 SQLite 误当成通配符去模糊匹配中间的数据

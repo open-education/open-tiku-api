@@ -129,56 +129,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let type_code = TypeCode::from_str(&row.type_code)
         .ok_or_else(|| AppError::business_error("不支持的字典类型"))?;
     // 看该类型的字典是否关联了题目
-    let ext_id_req = match type_code {
-        TypeCode::QuestionType => ExtIdReq {
-            type_id: Some(row_id),
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionTag => ExtIdReq {
-            type_id: None,
-            tag_ids: Some(vec![row_id]),
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionDimension => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: Some(vec![row_id]),
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionLevel => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: Some(row_id),
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionScene => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: Some(vec![row_id]),
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionMistakeTip => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: Some(vec![row_id]),
-        },
-    };
+    let ext_id_req = ExtIdReq::from_type_code(type_code, row_id);
     let exist = Question::exists_by_ext_id(db, &ext_id_req)
         .await
         .map_err(|e| {
