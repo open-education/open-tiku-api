@@ -165,19 +165,12 @@ async fn single(
             continue;
         }
 
-        // 子题分层体系
-        let child_level: Option<String> = question_info
-            .children
-            .iter()
-            .next()
-            .map(|child| child.level.clone());
-        if let Some(c_level) = child_level {
-            info!("Add child question name: {} begin", c_level);
-            result.push(format!("添加 {}", c_level));
-        }
-
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
+            let child_level = child.level.clone();
+            info!("Add child question name: {} begin", child_level);
+            result.push(format!("添加 {}", child_level));
+
             let child_req = to_req(
                 child,
                 Some(parent.id),
