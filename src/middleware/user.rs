@@ -144,7 +144,7 @@ const PREFIX_LIST: &[&str] = &[
     // 文本工具
     "/text/question/snippet",
     // 文件读取
-    "/file/read/",
+    "/file/read/file/",
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析
