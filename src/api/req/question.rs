@@ -76,13 +76,6 @@ pub struct QuestionSimilarListReq {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OriginalReq {
-    pub id: i64,
-    pub relation_type: i16,
-}
-
-#[derive(Deserialize)]
 pub struct DeleteReq {
     pub id: i64,
 }

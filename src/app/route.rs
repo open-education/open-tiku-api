@@ -22,7 +22,6 @@ pub fn question(cfg: &mut web::ServiceConfig) {
         .service(question::info)
         .service(question::list)
         .service(question::similar)
-        .service(question::original)
         .service(question::delete);
 }
 
