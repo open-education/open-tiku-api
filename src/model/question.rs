@@ -104,27 +104,27 @@ pub struct ExtIdReq {
 impl ExtIdReq {
     pub fn from_type_code(type_code: TypeCode, row_id: i32) -> Self {
         match type_code {
-            TypeCode::QuestionType => Self {
+            TypeCode::Type => Self {
                 type_id: Some(row_id),
                 ..Default::default()
             },
-            TypeCode::QuestionTag => Self {
+            TypeCode::Tag => Self {
                 tag_ids: Some(vec![row_id]),
                 ..Default::default()
             },
-            TypeCode::QuestionDimension => Self {
+            TypeCode::Dimension => Self {
                 dimension_ids: Some(vec![row_id]),
                 ..Default::default()
             },
-            TypeCode::QuestionLevel => Self {
+            TypeCode::Level => Self {
                 level_id: Some(row_id),
                 ..Default::default()
             },
-            TypeCode::QuestionScene => Self {
+            TypeCode::Scene => Self {
                 scene_ids: Some(vec![row_id]),
                 ..Default::default()
             },
-            TypeCode::QuestionMistakeTip => Self {
+            TypeCode::MistakeTip => Self {
                 mistake_tip_ids: Some(vec![row_id]),
                 ..Default::default()
             },
@@ -432,7 +432,7 @@ impl Question {
                     .push_bind(Json(req.steps.clone().unwrap_or_default()))
                     .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()))
                     .push_bind(req.relation_type)
-                    .push_bind(&req.level_id)
+                    .push_bind(req.level_id)
                     .push_bind(Json(req.scene_ids.clone().unwrap_or_default()))
                     .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
             });
@@ -607,8 +607,7 @@ impl Question {
         qb.build_query_as::<Self>().fetch_all(pool).await
     }
 
-    // 根据 ID 删除记录
-    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
         let row = sqlx::query("DELETE FROM question WHERE id = $1")
             .bind(id)
             .execute(pool)

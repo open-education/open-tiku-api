@@ -375,25 +375,25 @@ fn to_req(
     }
 
     // 题目标签
-    let question_tag_ids = get_tag_ids(parent_id, &dict_map)?;
+    let question_tag_ids = get_tag_ids(parent_id, dict_map)?;
 
     // 核心素养
     let dimension_ids: Vec<i32> = get_dict_ids(
         &raw.dimensions,
         "question_dimension",
-        &dict_map,
+        dict_map,
         "核心素养字典为空",
     )?;
 
     // 适用场景
     let scene_ids: Vec<i32> =
-        get_dict_ids(&raw.scenes, "question_scene", &dict_map, "适用场景字典为空")?;
+        get_dict_ids(&raw.scenes, "question_scene", dict_map, "适用场景字典为空")?;
 
     // 常见错误
     let mistake_tip_ids: Vec<i32> = get_dict_ids(
         &raw.mistake_tips,
         "question_mistake_tip",
-        &dict_map,
+        dict_map,
         "常见错误字典为空",
     )?;
 
@@ -405,7 +405,7 @@ fn to_req(
         question_type_id,
         question_tag_ids,
         question_dimension_ids: Some(dimension_ids),
-        level_id: get_level_id(&raw.level, &dict_map)?,
+        level_id: get_level_id(&raw.level, dict_map)?,
         scene_ids: Some(scene_ids),
         mistake_tip_ids: Some(mistake_tip_ids),
         author_id: Some(task_info.author_id),

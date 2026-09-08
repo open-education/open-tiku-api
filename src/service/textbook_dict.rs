@@ -37,7 +37,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
         AppError::db_error("字典新增失败")
     })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_DICT_CACHE_PREFIX).await;
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_DICT_CACHE_PREFIX).await;
 
     Ok(id)
 }
@@ -147,7 +147,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         AppError::db_error("字典删除失败")
     })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_DICT_CACHE_PREFIX).await;
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_DICT_CACHE_PREFIX).await;
 
     Ok(del_rows > 0)
 }

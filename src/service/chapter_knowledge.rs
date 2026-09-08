@@ -55,7 +55,7 @@ pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result
         AppError::db_error("绑定失败")
     })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(row_id)
 }
@@ -111,7 +111,7 @@ pub async fn remove(
             AppError::db_error("删除失败")
         })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(res > 0)
 }
