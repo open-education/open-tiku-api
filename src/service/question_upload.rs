@@ -120,7 +120,7 @@ async fn single(
         AppError::internal_error("读取文件内容失败")
     })?;
 
-    result.push("读取文件\n".to_string());
+    result.push("读取文件".to_string());
 
     let all_questions = markdown::get_questions(&content)?;
     if all_questions.is_empty() {
@@ -136,8 +136,10 @@ async fn single(
 
     // 一个文件作为一个事务单位
     for question_info in all_questions {
-        // 母题
-        let simple_parent_title = question_info.parent.level.clone();
+        // 母题分层体系
+        let parent_level = question_info.parent.level.clone();
+        result.push(format!("添加 {}", parent_level));
+
         let parent_req = to_req(
             question_info.parent,
             None,
@@ -145,23 +147,35 @@ async fn single(
             &task_info,
             map,
         )?;
-        info!("Add parent question name: {} begin", simple_parent_title);
+        info!("Add parent question name: {} begin", parent_level);
+        // 母题标题
+        let p_title = parent_req.title.clone();
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
             .map_err(|err| {
                 error!("Insert parent of question err: {}", err);
                 AppError::db_error("母题添加失败")
             })?;
-
-        result.push(format!("添加 {}\n", simple_parent_title));
+        result.push(format!("添加 {}", p_title));
 
         // 变式题列表为空正常
         if question_info.children.is_empty() {
             continue;
         }
+
+        // 子题分层体系
+        let child_level: Option<String> = question_info
+            .children
+            .iter()
+            .next()
+            .map(|child| child.level.clone());
+        if let Some(c_level) = child_level {
+            info!("Add child question name: {} begin", c_level);
+            result.push(format!("添加 {}", c_level));
+        }
+
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
-            let simple_child_title = child.level.clone();
             let child_req = to_req(
                 child,
                 Some(parent.id),
@@ -169,10 +183,12 @@ async fn single(
                 &task_info,
                 map,
             )?;
-            info!("Add child question name: {} begin", simple_child_title);
+
+            // 子题标题
+            let c_title = child_req.title.clone();
             children_req.push(child_req);
 
-            result.push(format!("添加 {}\n", simple_child_title));
+            result.push(format!("添加 {}", c_title));
         }
 
         // 得到所有添加的变式题主键列表
@@ -183,6 +199,7 @@ async fn single(
                 AppError::db_error("批量添加变式题失败")
             })?;
         info!("Add all child question end");
+        result.push("变式题添加完成".to_string());
 
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64, i16)> = children_ids
@@ -199,9 +216,9 @@ async fn single(
             })?;
         info!("Add relation parent child question end");
 
-        result.push("关联母题和变式题\n".to_string());
+        result.push("关联母题和变式题完成".to_string());
 
-        info!("Add parent question name: {} end", simple_parent_title);
+        info!("Add parent question name: {} end", parent_level);
     }
 
     tx.commit().await.map_err(|e| {
@@ -209,7 +226,7 @@ async fn single(
         AppError::db_error("提交事务失败")
     })?;
 
-    result.push("文件处理完成\n".to_string());
+    result.push("文件处理完成".to_string());
 
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
@@ -232,7 +249,8 @@ async fn single(
 
 // 根据题目类型列表获取对应的题目类型标识和选项内容
 fn get_question_type_and_options(
-    raw: &RawQuestion,
+    question_type: &str,
+    choices: &[(char, String)],
     map: &HashMap<String, Vec<TextbookDict>>,
 ) -> Result<(i32, Option<Json<Vec<QuestionOption>>>), AppError> {
     let type_list: &[TextbookDict] = map
@@ -242,24 +260,23 @@ fn get_question_type_and_options(
     // 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
     let question_type_info = type_list
         .iter()
-        .find(|item| item.item_value.contains(raw.question_type.as_str()))
+        .find(|item| item.item_value.contains(question_type))
         .or_else(|| type_list.iter().find(|item| !item.is_select));
 
-    // 获取题型 ID，若未找到则 -1
+    // 获取题型 ID
     let question_type_id = question_type_info
-        .map(|item| item.id.unwrap_or(-1))
-        .unwrap_or(-1);
+        .map(|item| item.id.unwrap_or_default())
+        .ok_or_else(|| AppError::not_found("题目类型无法匹配到选项字典"))?;
 
     // 处理选择题选项
     let options = if let Some(info) = question_type_info {
         if info.is_select {
-            let choices = markdown::get_choices(&raw.choices);
             let opts: Vec<QuestionOption> = choices
-                .into_iter()
+                .iter()
                 .enumerate()
                 .map(|(idx, (label, content))| QuestionOption {
                     label: label.to_string(),
-                    content,
+                    content: content.to_string(),
                     images: None,
                     order: (idx + 1) as i32,
                 })
@@ -339,7 +356,8 @@ fn to_req(
     })?;
 
     // 题目类型
-    let (question_type_id, options) = get_question_type_and_options(&raw, dict_map)?;
+    let (question_type_id, options) =
+        get_question_type_and_options(&raw.question_type, &raw.choices, dict_map)?;
     if question_type_id <= 0 {
         return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
@@ -382,8 +400,8 @@ fn to_req(
         source: "".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,
-        title: raw.stem.clone(),
-        content_plain: Some(question::to_plain_text(&raw.stem)),
+        title: raw.title.clone(),
+        content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
         difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
         images: None,
@@ -419,8 +437,8 @@ pub async fn parse_question_snippet(
         return Err(AppError::param_error("接收内容不能为空"));
     }
 
-    let raw = markdown::get_question(req.content.as_str());
-    if raw.stem.is_empty() {
+    let raw = markdown::get_question(req.content.as_str())?;
+    if raw.title.is_empty() {
         return Err(AppError::business_error("解析后无法查找到题目题干"));
     }
 
@@ -447,7 +465,8 @@ pub async fn parse_question_snippet(
     }
 
     // 题目类型
-    let (question_type_id, options) = get_question_type_and_options(&raw, &map)?;
+    let (question_type_id, options) =
+        get_question_type_and_options(&raw.question_type, &raw.choices, &map)?;
     if question_type_id <= 0 {
         return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
@@ -487,8 +506,8 @@ pub async fn parse_question_snippet(
         source: "".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,
-        title: raw.stem.clone(),
-        content_plain: Some(question::to_plain_text(&raw.stem)),
+        title: raw.title.clone(),
+        content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
         difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
         images: None,

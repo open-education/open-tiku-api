@@ -9,7 +9,7 @@ pub const ALLOW_IMAGE_EXTENSION: [&str; 4] = ["jpg", "jpeg", "png", "gif"];
 /// 允许的其它文件扩展名
 pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
 /// 图片名称存储长度
-pub const IMAGE_NAME_LEN: usize = 10;
+pub const IMAGE_NAME_LEN: usize = 20;
 /// 临时 token 有效过期分钟数
 pub const TEMP_TOKEN_EXPIRED_MINUTE: i64 = 5;
 /// 登录 token 有效过期小时数
