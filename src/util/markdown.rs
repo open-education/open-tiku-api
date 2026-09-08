@@ -3,8 +3,6 @@ use crate::util::error::AppError;
 use pulldown_cmark::utils::TextMergeStream;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use regex::Regex;
-use rust_decimal::Decimal;
-use std::str::FromStr;
 use tracing::{debug, error, warn};
 
 // 从 markdown 文档中解析出题目结构和内容
@@ -318,23 +316,6 @@ fn parse_question(level: String, markdown: &str) -> Result<RawQuestion, AppError
     };
 
     Ok(raw)
-}
-
-// 解析出题目难度, 解析失败等均返回 1
-pub fn get_difficulty_level(val: &str) -> Decimal {
-    // 允许的分数集合使用 Decimal
-    const ALLOWED: [&str; 9] = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
-
-    // 解析为 Decimal
-    let num = Decimal::from_str(val.trim()).unwrap_or_else(|_| Decimal::from(1));
-
-    // 检查是否在允许列表中（通过字符串比较或转为字符串后比较）
-    let num_str = num.to_string();
-    if ALLOWED.contains(&num_str.as_str()) {
-        num
-    } else {
-        Decimal::from(1)
-    }
 }
 
 // 解析出选项列表

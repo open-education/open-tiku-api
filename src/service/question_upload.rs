@@ -12,9 +12,11 @@ use crate::service::question;
 use crate::util::error::AppError;
 use crate::util::markdown;
 use crate::util::markdown::RawQuestion;
+use rust_decimal::Decimal;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
+use std::str::FromStr;
 use tracing::{error, info};
 
 // 批量题目上传
@@ -342,6 +344,23 @@ fn get_dict_ids(
     Ok(ids)
 }
 
+// 解析出题目难度, 解析失败等均返回 1
+fn get_difficulty_level(val: &str) -> Decimal {
+    // 允许的分数集合使用 Decimal
+    const ALLOWED: [&str; 9] = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
+
+    // 解析为 Decimal
+    let num = Decimal::from_str(val.trim()).unwrap_or_else(|_| Decimal::from(1));
+
+    // 检查是否在允许列表中（通过字符串比较或转为字符串后比较）
+    let num_str = num.to_string();
+    if ALLOWED.contains(&num_str.as_str()) {
+        num
+    } else {
+        Decimal::from(1)
+    }
+}
+
 // 通过 markdown 文档文本内容转为请求体
 fn to_req(
     raw: RawQuestion,
@@ -397,18 +416,18 @@ fn to_req(
         scene_ids: Some(scene_ids),
         mistake_tip_ids: Some(mistake_tip_ids),
         author_id: Some(task_info.author_id),
-        source: "".to_string(),
+        source: "题目上传".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,
         title: raw.title.clone(),
         content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
-        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
         answer: Some(raw.answer),
-        knowledge: None,
+        knowledge: Some(raw.knowledge.join(", ")),
         analysis: Some(Json(Content {
             content: raw.analysis,
             images: None,
@@ -509,7 +528,7 @@ pub async fn parse_question_snippet(
         title: raw.title.clone(),
         content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
-        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
