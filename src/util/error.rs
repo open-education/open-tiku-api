@@ -43,4 +43,9 @@ impl AppError {
     pub fn not_found(msg: &str) -> Self {
         Self::new(404, msg)
     }
+
+    // 序列化反序列化相关的错误
+    pub fn serde_error(msg: &str) -> Self {
+        Self::new(7001, msg)
+    }
 }

@@ -1,7 +1,7 @@
 use crate::model::textbook::Textbook;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TextbookResp {
     pub id: i32,

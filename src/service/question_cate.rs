@@ -1,6 +1,8 @@
 use crate::api::req::question_cate::CreateQuestionCateReq;
 use crate::api::resp::question_cate::QuestionCateResp;
+use crate::app::cache;
 use crate::app::conf::AppState;
+use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use crate::util::error::AppError;
@@ -34,6 +36,8 @@ pub async fn add(app_state: &AppState, req: CreateQuestionCateReq) -> Result<i32
             AppError::db_error("题型添加失败")
         })?;
 
+    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
+
     Ok(row_id)
 }
 
@@ -54,6 +58,8 @@ pub async fn remove(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         error!("error deleting question: {}", err);
         AppError::db_error("题目删除失败")
     })?;
+
+    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(row > 0)
 }

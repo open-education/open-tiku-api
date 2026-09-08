@@ -3,7 +3,9 @@ use crate::model::question_cate::QuestionCate;
 
 use crate::api::req::chapter_knowledge::{CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq};
 use crate::api::resp::chapter_knowledge::ChapterKnowledgeResp;
+use crate::app::cache;
 use crate::app::conf::AppState;
+use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::util::error::AppError;
 use sqlx::PgPool;
 use tracing::error;
@@ -52,6 +54,8 @@ pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result
         error!("error adding chapter knowledge: {}", err);
         AppError::db_error("绑定失败")
     })?;
+
+    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(row_id)
 }
@@ -106,6 +110,8 @@ pub async fn remove(
             error!("error fetching chapter knowledge: {}", err);
             AppError::db_error("删除失败")
         })?;
+
+    cache::delete_by_prefix(&app_state.sqlite, &TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(res > 0)
 }
