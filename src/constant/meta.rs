@@ -9,7 +9,7 @@ pub const ALLOW_IMAGE_EXTENSION: [&str; 4] = ["jpg", "jpeg", "png", "gif"];
 /// 允许的其它文件扩展名
 pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
 /// 图片名称存储长度
-pub const IMAGE_NAME_LEN: usize = 10;
+pub const IMAGE_NAME_LEN: usize = 20;
 /// 临时 token 有效过期分钟数
 pub const TEMP_TOKEN_EXPIRED_MINUTE: i64 = 5;
 /// 登录 token 有效过期小时数
@@ -18,3 +18,7 @@ pub const LOGIN_TOKEN_EXPIRED_HOUR: i64 = 8;
 pub const RENEW_TOKEN_EXPIRED_HOUR: i64 = 4;
 // 允许的客户端学生账户登录时间误差/窗口期：60秒
 pub const STUDENT_LOGIN_TIME_WINDOW_MS: u64 = 60 * 1000;
+// 母题标签
+pub const MARKDOWN_BASE_TITLE_TAG: &str = "### 母题";
+// 拆分母题变式题的标题等级
+pub const MARKDOWN_PREFIX_TITLE_LIST: [&str; 2] = ["### ", "#### "];

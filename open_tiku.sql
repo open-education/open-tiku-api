@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS question
     question_type_id       INTEGER      NOT NULL,                                                     -- 题目类型ID (1:单选, 2:多选, 3:填空, 4:解答等)
     question_tag_ids       JSONB,                                                                     -- 题目标签IDs
     question_dimension_ids JSONB                 DEFAULT '[]'::jsonb,                                 -- 核心素养IDs
+    level_id               INTEGER      NOT NULL DEFAULT 0,                                           -- 分层体系
+    scene_ids              JSONB        NOT NULL DEFAULT '[]'::jsonb,                                 -- 适用场景
+    mistake_tip_ids        JSONB        NOT NULL DEFAULT '[]'::jsonb,                                 -- 常见错误
     relation_type          SMALLINT     NOT NULL DEFAULT 3,                                           -- 题目类型 1 变式题 2 课本原题 3 母题
     author_id              BIGINT       NOT NULL,                                                     -- 创作者标识
     source                 VARCHAR(500) NOT NULL DEFAULT '',                                          -- 题目来源

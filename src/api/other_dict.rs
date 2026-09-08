@@ -1,5 +1,5 @@
-use crate::api::req::other_dict::CreateTextbookDictReq;
-use crate::api::resp::other_dict::TextbookDictResp;
+use crate::api::req::other_dict::{CreateTextbookDictReq, DictListReq};
+use crate::api::resp::other_dict::{DictListResp, TextbookDictResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::textbook_dict;
@@ -24,6 +24,15 @@ pub async fn list(
 ) -> ApiResponse<Vec<TextbookDictResp>> {
     let path = path.into_inner();
     ApiResponse::response(textbook_dict::get_list(&app_state, path.0, path.1).await)
+}
+
+// 字典列表
+#[post("/list/all")]
+pub async fn list_all(
+    app_state: web::Data<AppState>,
+    req: web::Json<DictListReq>,
+) -> ApiResponse<DictListResp> {
+    ApiResponse::response(textbook_dict::list_all(&app_state, req.into_inner()).await)
 }
 
 // 字典删除

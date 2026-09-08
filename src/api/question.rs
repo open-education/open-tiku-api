@@ -1,5 +1,5 @@
 use crate::api::req::question::{
-    CreateQuestionReq, DeleteReq, OriginalReq, QuestionListReq, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
 use crate::api::resp::question::{QuestionInfoResp, QuestionListResp};
 use crate::app::conf::AppState;
@@ -44,15 +44,6 @@ pub async fn similar(
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::similar(&app_state, req.into_inner()).await)
-}
-
-// 课本原题标识
-#[post("/original")]
-pub async fn original(
-    app_state: web::Data<AppState>,
-    req: web::Json<OriginalReq>,
-) -> ApiResponse<QuestionInfoResp> {
-    ApiResponse::response(question::original(&app_state, req.into_inner()).await)
 }
 
 #[post("/delete")]

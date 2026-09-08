@@ -36,6 +36,9 @@ pub struct Question {
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养标识
+    pub level_id: i32,                                  // 分层体系
+    pub scene_ids: Option<Json<Vec<i32>>>,              // 适用场景
+    pub mistake_tip_ids: Option<Json<Vec<i32>>>,        // 常见错误
     pub relation_type: i16,                             // 题目类型
     pub author_id: i64,                                 // 作者
     pub source: String,                                 // 来源
@@ -82,6 +85,18 @@ pub struct CateAndTypeReq {
     pub tag_ids: Option<Vec<i32>>,
     pub dimension_ids: Option<Vec<i32>>,
     pub author_id: Option<i64>,
+    pub level_ids: Option<Vec<i32>>,
+    pub scene_ids: Option<Vec<i32>>,
+    pub mistake_tip_ids: Option<Vec<i32>>,
+}
+
+pub struct ExtIdReq {
+    pub type_id: Option<i32>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub dimension_ids: Option<Vec<i32>>,
+    pub level_id: Option<i32>,
+    pub scene_ids: Option<Vec<i32>>,
+    pub mistake_tip_ids: Option<Vec<i32>>,
 }
 
 // 变式题列表请求
@@ -105,12 +120,14 @@ impl Question {
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids, relation_type
+            steps, question_dimension_ids, relation_type,
+            level_id, scene_ids, mistake_tip_ids
         )
         VALUES (
             COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
             $6, $7, $8, $9, $10, $11,
-            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+            $25, $26, $27
         )
         ON CONFLICT (id) DO UPDATE SET
             question_cate_id = EXCLUDED.question_cate_id,
@@ -136,6 +153,9 @@ impl Question {
             steps = EXCLUDED.steps,
             question_dimension_ids = EXCLUDED.question_dimension_ids,
             relation_type = EXCLUDED.relation_type,
+            level_id = EXCLUDED.level_id,
+            scene_ids = EXCLUDED.scene_ids,
+            mistake_tip_ids = EXCLUDED.mistake_tip_ids,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
         "#,
@@ -164,6 +184,9 @@ impl Question {
         .bind(Json(req.steps.unwrap_or_default()))
         .bind(Json(req.question_dimension_ids.unwrap_or_default()))
         .bind(req.relation_type)
+        .bind(req.level_id)
+        .bind(Json(req.scene_ids))
+        .bind(Json(req.mistake_tip_ids))
         .fetch_one(pool)
         .await?;
 
@@ -184,10 +207,11 @@ impl Question {
             title, content_plain, comment, difficulty_level,
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids, relation_type
+            steps, question_dimension_ids, relation_type,
+            level_id, scene_ids, mistake_tip_ids
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
         RETURNING *
         "#,
         )
@@ -214,6 +238,9 @@ impl Question {
         .bind(Json(req.steps.unwrap_or_default()))
         .bind(Json(req.question_dimension_ids.unwrap_or_default()))
         .bind(req.relation_type)
+        .bind(req.level_id)
+        .bind(Json(req.scene_ids))
+        .bind(Json(req.mistake_tip_ids))
         .fetch_one(&mut **tx)
         .await
     }
@@ -242,7 +269,8 @@ impl Question {
                 title, content_plain, comment, difficulty_level,
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark,remark_ext,
-                steps, question_dimension_ids, relation_type
+                steps, question_dimension_ids, relation_type,
+                level_id, scene_ids, mistake_tip_ids
             )
             "#,
             );
@@ -269,7 +297,10 @@ impl Question {
                     .push_bind(&req.remark_ext)
                     .push_bind(Json(req.steps.clone().unwrap_or_default()))
                     .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()))
-                    .push_bind(req.relation_type);
+                    .push_bind(req.relation_type)
+                    .push_bind(&req.level_id)
+                    .push_bind(Json(req.scene_ids.clone().unwrap_or_default()))
+                    .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
             });
 
             // 添加 RETURNING id 子句
@@ -319,6 +350,9 @@ impl Question {
               AND ($6 IS NULL OR question_tag_ids @> $7)
               AND ($8 IS NULL OR question_dimension_ids @> $9)
               AND ($10 IS NULL OR author_id = $10)
+              AND ($11 IS NULL OR level_id = ANY($11))
+              AND ($12 IS NULL OR scene_ids @> $13)
+              AND ($14 IS NULL OR mistake_tip_ids @> $15)
             "#,
         )
         .bind(&req.cate_ids)
@@ -331,6 +365,11 @@ impl Question {
         .bind(req.dimension_ids.as_ref().map(|_| true))
         .bind(req.dimension_ids.as_ref().map(Json))
         .bind(req.author_id)
+        .bind(&req.level_ids)
+        .bind(req.scene_ids.as_ref().map(|_| true))
+        .bind(req.scene_ids.as_ref().map(Json))
+        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
+        .bind(req.mistake_tip_ids.as_ref().map(Json))
         .fetch_one(pool)
         .await
     }
@@ -354,8 +393,11 @@ impl Question {
               AND ($6 IS NULL OR question_tag_ids @> $7)
               AND ($8 IS NULL OR question_dimension_ids @> $9)
               AND ($10 IS NULL OR author_id = $10)
+              AND ($11 IS NULL OR level_id = ANY($11))
+              AND ($12 IS NULL OR scene_ids @> $13)
+              AND ($14 IS NULL OR mistake_tip_ids @> $15)
             ORDER BY id DESC
-            LIMIT $11 OFFSET $12
+            LIMIT $16 OFFSET $17
             "#,
         )
         .bind(&req.cate_ids)
@@ -368,9 +410,44 @@ impl Question {
         .bind(req.dimension_ids.as_ref().map(|_| true))
         .bind(req.dimension_ids.as_ref().map(Json))
         .bind(req.author_id)
+        .bind(&req.level_ids)
+        .bind(req.scene_ids.as_ref().map(|_| true))
+        .bind(req.scene_ids.as_ref().map(Json))
+        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
+        .bind(req.mistake_tip_ids.as_ref().map(Json))
         .bind(limit)
         .bind(offset)
         .fetch_all(pool)
+        .await
+    }
+
+    // 题目标签下是否存在题目
+    pub async fn exists_by_ext_id(pool: &PgPool, req: &ExtIdReq) -> Result<bool, sqlx::Error> {
+        sqlx::query_scalar::<_, bool>(
+            r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM question
+            WHERE ($1 IS NULL OR question_type_id = $1)
+              AND ($2 IS NULL OR question_tag_ids @> $3::jsonb)
+              AND ($4 IS NULL OR question_dimension_ids @> $5::jsonb)
+              AND ($6 IS NULL OR level_id = $6)
+              AND ($7 IS NULL OR scene_ids @> $8::jsonb)
+              AND ($9 IS NULL OR mistake_tip_ids @> $10::jsonb)
+        )
+        "#,
+        )
+        .bind(req.type_id)
+        .bind(req.tag_ids.as_ref().map(|_| true))
+        .bind(req.tag_ids.as_ref().map(Json))
+        .bind(req.dimension_ids.as_ref().map(|_| true))
+        .bind(req.dimension_ids.as_ref().map(Json))
+        .bind(req.level_id)
+        .bind(req.scene_ids.as_ref().map(|_| true))
+        .bind(req.scene_ids.as_ref().map(Json))
+        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
+        .bind(req.mistake_tip_ids.as_ref().map(Json))
+        .fetch_one(pool)
         .await
     }
 

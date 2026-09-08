@@ -13,6 +13,9 @@ pub struct QuestionBaseResp {
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
     pub relation_type: i16,                             // 题目类型
+    pub level_id: i32,                                  // 分层体系
+    pub scene_ids: Option<Json<Vec<i32>>>,              // 适用场景
+    pub mistake_tip_ids: Option<Json<Vec<i32>>>,        // 常见错误
     pub author_id: i64,                                 // 作者, 内部逻辑生成
     pub author_name: String,                            // 作者昵称
     pub source: String,

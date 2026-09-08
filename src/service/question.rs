@@ -1,5 +1,5 @@
 use crate::api::req::question::{
-    CreateQuestionReq, DeleteReq, OriginalReq, QuestionListReq, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
 use crate::api::resp::question::{
     QuestionBaseResp, QuestionExtraInfoResp, QuestionInfoResp, QuestionListResp,
@@ -148,6 +148,9 @@ fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> Qu
         question_tag_ids: row.question_tag_ids.clone(),
         question_dimension_ids: row.question_dimension_ids.clone(),
         relation_type: row.relation_type,
+        level_id: row.level_id,
+        scene_ids: row.scene_ids.clone(),
+        mistake_tip_ids: row.mistake_tip_ids.clone(),
         author_id: row.author_id,
         author_name,
         source: row.source.clone(),
@@ -258,6 +261,9 @@ pub async fn list(
         tag_ids: req.tag_ids,
         dimension_ids: req.dimension_ids,
         author_id,
+        level_ids: req.level_ids,
+        scene_ids: req.scene_ids,
+        mistake_tip_ids: req.mistake_tip_ids,
     };
 
     // 查询总数
@@ -395,53 +401,6 @@ pub async fn similar(
         req.page_size,
         total,
     ))
-}
-
-// 课本原题
-pub async fn original(
-    app_state: &AppState,
-    req: OriginalReq,
-) -> Result<QuestionInfoResp, AppError> {
-    let relation_type = QuestionRelationType::from_i16(req.relation_type)
-        .ok_or_else(|| AppError::param_error("不受支持的类型查询"))?;
-
-    let db = &app_state.db;
-
-    // 查找母题标识
-    let base_id: i64 = match relation_type {
-        QuestionRelationType::Similar => QuestionRelation::find_base_by_similar_id(db, req.id)
-            .await
-            .map_err(|err| {
-                error!("question similar child id err: {:?}", err);
-                AppError::db_error("查询变式题关联的母题失败")
-            })?
-            .ok_or_else(|| AppError::business_error("该变式题没有关联母题"))?,
-        QuestionRelationType::Original => {
-            return Err(AppError::param_error("该题目本身已是课本原题"));
-        }
-        QuestionRelationType::Base => req.id,
-    };
-
-    // 通过母题查找课本原题
-    let origin_ids = QuestionRelation::find_original_by_base_id(db, base_id)
-        .await
-        .map_err(|err| {
-            error!("question original child id err: {:?}", err);
-            AppError::db_error("通过母题查找课本原题失败")
-        })?;
-    if origin_ids.is_empty() {
-        return Err(AppError::business_error(
-            "当前题目关联的母题没有维护课本原题",
-        ));
-    }
-    if origin_ids.len() > 1 {
-        return Err(AppError::business_error(
-            "当前题目关联的母题维护了多个课本原题",
-        ));
-    }
-
-    // 返回课本原题明细
-    info(app_state, origin_ids[0]).await
 }
 
 // 删除题目

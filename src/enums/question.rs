@@ -30,7 +30,7 @@ pub enum QuestionStatus {
 #[repr(i16)]
 pub enum QuestionRelationType {
     Similar = 1,  // 变式题
-    Original = 2, // 课本原题
+    Original = 2, // 课本原题, 暂时不需要了
     Base = 3,     // 母题
 }
 

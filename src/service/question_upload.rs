@@ -12,10 +12,11 @@ use crate::service::question;
 use crate::util::error::AppError;
 use crate::util::markdown;
 use crate::util::markdown::RawQuestion;
-use sqlx::PgPool;
+use rust_decimal::Decimal;
 use sqlx::types::Json;
 use std::collections::HashMap;
 use std::fs;
+use std::str::FromStr;
 use tracing::{error, info};
 
 // 批量题目上传
@@ -34,23 +35,31 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         return Ok(());
     }
 
-    // 缓存题型类型列表
-    let mut question_type_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
-    // 缓存标签
-    let mut question_tag_cache: HashMap<i32, Vec<TextbookDict>> = HashMap::new();
+    // 得到所有的教材通用字典
+    let mut textbook_ids: Vec<i32> = waiting_task_list
+        .iter()
+        .map(|item| item.textbook_id)
+        .collect();
+    textbook_ids.sort_unstable();
+    textbook_ids.dedup();
+    let rows = TextbookDict::find_by_textbook_ids(db, &textbook_ids, None)
+        .await
+        .map_err(|e| {
+            error!("find textbook dict err: {}", e);
+            AppError::db_error("查询教材字典出错")
+        })?;
+
+    let mut map: HashMap<i32, HashMap<String, Vec<TextbookDict>>> = HashMap::new();
+    for item in rows.into_iter() {
+        map.entry(item.textbook_id)
+            .or_default()
+            .entry(item.type_code.clone())
+            .or_default()
+            .push(item);
+    }
 
     // 遍历待处理的任务列表
     for task_info in waiting_task_list {
-        let textbook_id = task_info.textbook_id;
-
-        // 获取题型类型列表
-        let question_type_list =
-            get_or_load_dict(db, textbook_id, "question_type", &mut question_type_cache).await;
-
-        // 获取标签类型列表
-        let question_tag_list =
-            get_or_load_dict(db, textbook_id, "question_tag", &mut question_tag_cache).await;
-
         // 修改任务为执行中, 后续的失败不回滚, 而是继续更新状态
         // 如果文件内容本身正常只是程序问题导致, 后续需要手动修改为待执行等待下一批次重新执行
         // 先更新状态为 Running（可允许失败时跳过该任务）
@@ -70,14 +79,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         // 处理一个任务, 一个任务的事务是独立的
         let task_name = task_info.name.clone();
         info!("Process single task info process start: {}", task_name);
-        if let Err(e) = single(
-            app_state,
-            task_info,
-            &question_type_list,
-            &question_tag_list,
-        )
-        .await
-        {
+        if let Err(e) = single(app_state, task_info, &map).await {
             error!("Process single task info err: {}", e.msg);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
             if let Err(e) = Task::update_by_id(db, &task_id, TaskStatus::Failed as i16, e.msg).await
@@ -99,39 +101,11 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
     Ok(())
 }
 
-// 获取题型列表和标签列表
-async fn get_or_load_dict(
-    db: &PgPool,
-    textbook_id: i32,
-    dict_type: &str,
-    cache: &mut HashMap<i32, Vec<TextbookDict>>,
-) -> Vec<TextbookDict> {
-    if let Some(list) = cache.get(&textbook_id) {
-        list.clone()
-    } else {
-        let list = match TextbookDict::find_by_textbook_and_type(db, textbook_id, dict_type).await {
-            Ok(list) if !list.is_empty() => list,
-            Ok(_) => vec![],
-            Err(e) => {
-                error!(
-                    "查询 textbook_id {} 的 {} 失败: {}",
-                    textbook_id, dict_type, e
-                );
-                vec![]
-            }
-        };
-        let cloned_list = list.clone();
-        cache.insert(textbook_id, list);
-        cloned_list
-    }
-}
-
 // 上传单个题目文件
 async fn single(
     app_state: &AppState,
     task_info: Task,
-    question_type_list: &[TextbookDict],
-    question_tag_list: &[TextbookDict],
+    map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
 ) -> Result<(), AppError> {
     // 记录结果日志
     let mut result: Vec<String> = vec![];
@@ -148,7 +122,7 @@ async fn single(
         AppError::internal_error("读取文件内容失败")
     })?;
 
-    result.push("读取文件\n".to_string());
+    result.push("读取文件".to_string());
 
     let all_questions = markdown::get_questions(&content)?;
     if all_questions.is_empty() {
@@ -164,45 +138,52 @@ async fn single(
 
     // 一个文件作为一个事务单位
     for question_info in all_questions {
-        // 母题
-        let simple_parent_title = question_info.parent.title.clone();
+        // 母题分层体系
+        let parent_level = question_info.parent.level.clone();
+        result.push(format!("添加 {}", parent_level));
+
         let parent_req = to_req(
             question_info.parent,
             None,
             QuestionRelationType::Base,
             &task_info,
-            question_type_list,
-            question_tag_list,
-        );
-        info!("Add parent question name: {} begin", simple_parent_title);
+            map,
+        )?;
+        info!("Add parent question name: {} begin", parent_level);
+        // 母题标题
+        let p_title = parent_req.title.clone();
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
             .map_err(|err| {
                 error!("Insert parent of question err: {}", err);
                 AppError::db_error("母题添加失败")
             })?;
-
-        result.push(format!("添加 {}\n", simple_parent_title));
+        result.push(format!("添加 {}", p_title));
 
         // 变式题列表为空正常
         if question_info.children.is_empty() {
             continue;
         }
+
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
-            let simple_child_title = child.title.clone();
+            let child_level = child.level.clone();
+            info!("Add child question name: {} begin", child_level);
+            result.push(format!("添加 {}", child_level));
+
             let child_req = to_req(
                 child,
                 Some(parent.id),
                 QuestionRelationType::Similar,
                 &task_info,
-                question_type_list,
-                question_tag_list,
-            );
-            info!("Add child question name: {} begin", simple_child_title);
+                map,
+            )?;
+
+            // 子题标题
+            let c_title = child_req.title.clone();
             children_req.push(child_req);
 
-            result.push(format!("添加 {}\n", simple_child_title));
+            result.push(format!("添加 {}", c_title));
         }
 
         // 得到所有添加的变式题主键列表
@@ -213,6 +194,7 @@ async fn single(
                 AppError::db_error("批量添加变式题失败")
             })?;
         info!("Add all child question end");
+        result.push("变式题添加完成".to_string());
 
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64, i16)> = children_ids
@@ -229,9 +211,9 @@ async fn single(
             })?;
         info!("Add relation parent child question end");
 
-        result.push("关联母题和变式题\n".to_string());
+        result.push("关联母题和变式题完成".to_string());
 
-        info!("Add parent question name: {} end", simple_parent_title);
+        info!("Add parent question name: {} end", parent_level);
     }
 
     tx.commit().await.map_err(|e| {
@@ -239,7 +221,7 @@ async fn single(
         AppError::db_error("提交事务失败")
     })?;
 
-    result.push("文件处理完成\n".to_string());
+    result.push("文件处理完成".to_string());
 
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
@@ -262,30 +244,34 @@ async fn single(
 
 // 根据题目类型列表获取对应的题目类型标识和选项内容
 fn get_question_type_and_options(
-    raw: &RawQuestion,
-    question_type_list: &[TextbookDict],
-) -> (i32, Option<Json<Vec<QuestionOption>>>) {
-    // 1. 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
-    let question_type_info = question_type_list
+    question_type: &str,
+    choices: &[(char, String)],
+    map: &HashMap<String, Vec<TextbookDict>>,
+) -> Result<(i32, Option<Json<Vec<QuestionOption>>>), AppError> {
+    let type_list: &[TextbookDict] = map
+        .get("question_type")
+        .ok_or_else(|| AppError::not_found("题目类型字典为空"))?;
+
+    // 查找匹配的题型记录：优先包含匹配，否则取第一个非选择题
+    let question_type_info = type_list
         .iter()
-        .find(|item| item.item_value.contains(raw.question_type.as_str()))
-        .or_else(|| question_type_list.iter().find(|item| !item.is_select));
+        .find(|item| item.item_value.contains(question_type))
+        .or_else(|| type_list.iter().find(|item| !item.is_select));
 
-    // 3. 获取题型 ID，若未找到则 -1
+    // 获取题型 ID
     let question_type_id = question_type_info
-        .map(|item| item.id.unwrap_or(-1))
-        .unwrap_or(-1);
+        .map(|item| item.id.unwrap_or_default())
+        .ok_or_else(|| AppError::not_found("题目类型无法匹配到选项字典"))?;
 
-    // 4. 处理选择题选项
+    // 处理选择题选项
     let options = if let Some(info) = question_type_info {
         if info.is_select {
-            let choices = markdown::get_choices(&raw.choices);
             let opts: Vec<QuestionOption> = choices
-                .into_iter()
+                .iter()
                 .enumerate()
                 .map(|(idx, (label, content))| QuestionOption {
                     label: label.to_string(),
-                    content,
+                    content: content.to_string(),
                     images: None,
                     order: (idx + 1) as i32,
                 })
@@ -298,22 +284,17 @@ fn get_question_type_and_options(
         None
     };
 
-    (question_type_id, options)
+    Ok((question_type_id, options))
 }
 
-// 通过 markdown 文档文本内容转为请求体
-fn to_req(
-    raw: RawQuestion,
+fn get_tag_ids(
     parent_id: Option<i64>,
-    relation_type: QuestionRelationType,
-    task_info: &Task,
-    question_type_list: &[TextbookDict],
-    question_tag_list: &[TextbookDict],
-) -> CreateQuestionReq {
-    let (question_type_id, options) = get_question_type_and_options(&raw, question_type_list);
-
-    // 查找变式题标签
-    let question_tag_info = question_tag_list
+    map: &HashMap<String, Vec<TextbookDict>>,
+) -> Result<Option<Vec<i32>>, AppError> {
+    let tag_list: &[TextbookDict] = map
+        .get("question_tag")
+        .ok_or_else(|| AppError::not_found("题目标签字典为空"))?;
+    let question_tag_info = tag_list
         .iter()
         .find(|item| item.item_value.contains("变式题"));
     let question_tag_ids: Option<Vec<i32>> = if parent_id.is_some() {
@@ -322,27 +303,124 @@ fn to_req(
         None
     };
 
-    CreateQuestionReq {
+    Ok(question_tag_ids)
+}
+
+fn get_level_id(level: &str, map: &HashMap<String, Vec<TextbookDict>>) -> Result<i32, AppError> {
+    let level_list: &[TextbookDict] = map
+        .get("question_level")
+        .ok_or_else(|| AppError::not_found("分层体系字典为空"))?;
+
+    let matched_item = level_list
+        .iter()
+        .find(|item| level.starts_with(item.item_value.as_str()))
+        .ok_or_else(|| AppError::not_found("未匹配到对应的分层体系"))?;
+
+    Ok(matched_item.id.unwrap_or_default())
+}
+
+fn get_dict_ids(
+    req_list: &[String],
+    type_code: &str,
+    map: &HashMap<String, Vec<TextbookDict>>,
+    err_msg: &str,
+) -> Result<Vec<i32>, AppError> {
+    let list: &[TextbookDict] = map
+        .get(type_code)
+        .ok_or_else(|| AppError::not_found(err_msg))?;
+    let ids: Vec<i32> = list
+        .iter()
+        .filter(|item| req_list.iter().any(|val| item.item_value.contains(val)))
+        .map(|item| item.id.unwrap_or_default())
+        .collect();
+
+    Ok(ids)
+}
+
+// 解析出题目难度, 解析失败等均返回 1
+fn get_difficulty_level(val: &str) -> Decimal {
+    // 允许的分数集合使用 Decimal
+    const ALLOWED: [&str; 9] = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
+
+    // 解析为 Decimal
+    let num = Decimal::from_str(val.trim()).unwrap_or_else(|_| Decimal::from(1));
+
+    // 检查是否在允许列表中（通过字符串比较或转为字符串后比较）
+    let num_str = num.to_string();
+    if ALLOWED.contains(&num_str.as_str()) {
+        num
+    } else {
+        Decimal::from(1)
+    }
+}
+
+// 通过 markdown 文档文本内容转为请求体
+fn to_req(
+    raw: RawQuestion,
+    parent_id: Option<i64>,
+    relation_type: QuestionRelationType,
+    task_info: &Task,
+    map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
+) -> Result<CreateQuestionReq, AppError> {
+    let dict_map = map.get(&task_info.textbook_id).ok_or_else(|| {
+        error!("textbook_id: {} dict is empty", task_info.textbook_id);
+        AppError::not_found("教材通用字典不存在")
+    })?;
+
+    // 题目类型
+    let (question_type_id, options) =
+        get_question_type_and_options(&raw.question_type, &raw.choices, dict_map)?;
+    if question_type_id <= 0 {
+        return Err(AppError::business_error("解析后无法匹配上题目类型"));
+    }
+
+    // 题目标签
+    let question_tag_ids = get_tag_ids(parent_id, &dict_map)?;
+
+    // 核心素养
+    let dimension_ids: Vec<i32> = get_dict_ids(
+        &raw.dimensions,
+        "question_dimension",
+        &dict_map,
+        "核心素养字典为空",
+    )?;
+
+    // 适用场景
+    let scene_ids: Vec<i32> =
+        get_dict_ids(&raw.scenes, "question_scene", &dict_map, "适用场景字典为空")?;
+
+    // 常见错误
+    let mistake_tip_ids: Vec<i32> = get_dict_ids(
+        &raw.mistake_tips,
+        "question_mistake_tip",
+        &dict_map,
+        "常见错误字典为空",
+    )?;
+
+    let req = CreateQuestionReq {
         id: None,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         relation_type: relation_type as i16,
         question_type_id,
         question_tag_ids,
-        question_dimension_ids: None,
+        question_dimension_ids: Some(dimension_ids),
+        level_id: get_level_id(&raw.level, &dict_map)?,
+        scene_ids: Some(scene_ids),
+        mistake_tip_ids: Some(mistake_tip_ids),
         author_id: Some(task_info.author_id),
-        source: "".to_string(),
+        source: "题目上传".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,
-        title: raw.stem.clone(),
-        content_plain: Some(question::to_plain_text(&raw.stem)),
+        title: raw.title.clone(),
+        content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
-        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
         answer: Some(raw.answer),
-        knowledge: Some(raw.knowledge),
+        knowledge: Some(raw.knowledge.join(", ")),
         analysis: Some(Json(Content {
             content: raw.analysis,
             images: None,
@@ -354,52 +432,76 @@ fn to_req(
         steps: None,
         remark: None,
         remark_ext: Some("批量题目上传".to_string()),
-    }
+    };
+
+    Ok(req)
 }
 
 // 从markdown片段文本中解析出题目信息
 pub async fn parse_question_snippet(
+    app_state: &AppState,
     req: QuestionSnippetReq,
 ) -> Result<CreateQuestionReq, AppError> {
-    if req.type_list.is_empty() {
-        return Err(AppError::param_error("章节/考点信息不能为空"));
-    }
-    if req.tag_list.is_empty() {
-        return Err(AppError::param_error("题型不能为空"));
+    if req.textbook_id <= 0 {
+        return Err(AppError::param_error("教材标识不能为空"));
     }
     if req.content.is_empty() {
         return Err(AppError::param_error("接收内容不能为空"));
     }
 
-    let raw = markdown::get_question(req.content.as_str());
-    if raw.stem.is_empty() {
+    let raw = markdown::get_question(req.content.as_str())?;
+    if raw.title.is_empty() {
         return Err(AppError::business_error("解析后无法查找到题目题干"));
     }
 
-    let question_tag_info = req
-        .tag_list
-        .iter()
-        .find(|item| item.item_value.contains("变式题"));
-    let question_tag_ids: Option<Vec<i32>> = question_tag_info.map(|tag_info| vec![tag_info.id]);
+    // 获取通用字典
+    let db = &app_state.db;
 
-    // 临时处理类型转化
-    let type_list: Vec<TextbookDict> = req
-        .type_list
-        .into_iter()
-        .map(|r| TextbookDict {
-            id: Some(r.id),
-            textbook_id: r.textbook_id,
-            type_code: r.type_code,
-            item_value: r.item_value,
-            sort_order: r.sort_order,
-            is_select: r.is_select,
-        })
-        .collect();
+    let codes: Vec<String> = vec![
+        "question_type".to_string(),
+        "question_tag".to_string(),
+        "question_dimension".to_string(),
+        "question_scene".to_string(),
+        "question_mistake_tip".to_string(),
+    ];
+    let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], Some(codes))
+        .await
+        .map_err(|e| {
+            error!("error finding unique textbook item: {}", e);
+            AppError::db_error("查询教材通用字典出错")
+        })?;
 
-    let (question_type_id, options) = get_question_type_and_options(&raw, &type_list);
+    let mut map: HashMap<String, Vec<TextbookDict>> = HashMap::new();
+    for item in rows.into_iter() {
+        map.entry(item.type_code.clone()).or_default().push(item);
+    }
+
+    // 题目类型
+    let (question_type_id, options) =
+        get_question_type_and_options(&raw.question_type, &raw.choices, &map)?;
     if question_type_id <= 0 {
         return Err(AppError::business_error("解析后无法匹配上题目类型"));
     }
+
+    // 核心素养
+    let dimension_ids: Vec<i32> = get_dict_ids(
+        &raw.dimensions,
+        "question_dimension",
+        &map,
+        "核心素养字典为空",
+    )?;
+
+    // 适用场景
+    let scene_ids: Vec<i32> =
+        get_dict_ids(&raw.scenes, "question_scene", &map, "适用场景字典为空")?;
+
+    // 常见错误
+    let mistake_tip_ids: Vec<i32> = get_dict_ids(
+        &raw.mistake_tips,
+        "question_mistake_tip",
+        &map,
+        "常见错误字典为空",
+    )?;
 
     Ok(CreateQuestionReq {
         id: None,
@@ -407,21 +509,24 @@ pub async fn parse_question_snippet(
         source_id: None,
         relation_type: QuestionRelationType::Base as i16,
         question_type_id,
-        question_tag_ids,
-        question_dimension_ids: None,
+        question_tag_ids: None,
+        question_dimension_ids: Some(dimension_ids),
+        level_id: 0,
+        scene_ids: Some(scene_ids),
+        mistake_tip_ids: Some(mistake_tip_ids),
         author_id: None,
         source: "".to_string(),
         original_name: "".to_string(),
         status: QuestionStatus::Draft as i16,
-        title: raw.stem.clone(),
-        content_plain: Some(question::to_plain_text(&raw.stem)),
+        title: raw.title.clone(),
+        content_plain: Some(question::to_plain_text(&raw.title)),
         comment: None,
-        difficulty_level: markdown::get_difficulty_level(&raw.difficulty_level),
+        difficulty_level: get_difficulty_level(&raw.difficulty_level),
         images: None,
         options,
         options_layout: Some(1),
         answer: Some(raw.answer),
-        knowledge: Some(raw.knowledge),
+        knowledge: Some(raw.knowledge.join(", ")),
         analysis: Some(Json(Content {
             content: raw.analysis,
             images: None,
