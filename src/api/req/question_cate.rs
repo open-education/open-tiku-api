@@ -8,3 +8,8 @@ pub struct CreateQuestionCateReq {
     pub label: String,
     pub sort_order: i32,
 }
+
+#[derive(Deserialize)]
+pub struct QuestionCateListReq {
+    pub ids: Vec<i32>,
+}

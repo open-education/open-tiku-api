@@ -1,8 +1,9 @@
-use crate::api::req::question_cate::CreateQuestionCateReq;
+use crate::api::req::question_cate::{CreateQuestionCateReq, QuestionCateListReq};
 use crate::api::resp::question_cate::{QuestionCateListResp, QuestionCateResp};
 use crate::api::resp::textbook::TextbookResp;
 use crate::app::conf::AppState;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
+use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question::Question;
 use crate::model::question_cate::QuestionCate;
 use crate::service::textbook;
@@ -122,43 +123,88 @@ async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, Textbo
     Ok(seven_map)
 }
 
-pub async fn list_all(app_state: &AppState, id: i32) -> Result<QuestionCateListResp, AppError> {
+pub async fn list_all(
+    app_state: &AppState,
+    req: QuestionCateListReq,
+) -> Result<QuestionCateListResp, AppError> {
+    if req.ids.is_empty() {
+        return Err(AppError::param_error("题型不能为空"));
+    }
+
     let db = &app_state.db;
 
     // 题型分类信息本身不做缓存
-    let row = QuestionCate::find_by_id(db, id)
+    let rows = QuestionCate::find_by_ids(db, &req.ids)
         .await
         .map_err(|err| {
-            error!("find question cate id: {} row error: {}", id, err);
+            error!("find question cate ids: {:?} row error: {}", req.ids, err);
             AppError::db_error("查询题型分类出错")
-        })?
-        .ok_or_else(|| AppError::not_found("题型分类不存在"))?;
+        })?;
+    if rows.is_empty() {
+        return Err(AppError::not_found("题型分类不存在"));
+    }
+    // 得到关联 related_id 列表
+    let mut related_ids: Vec<i32> = rows.iter().map(|item| item.related_id).collect();
+    related_ids.sort_unstable();
+    related_ids.dedup();
+    let ck_rows = ChapterKnowledge::find_by_ids(db, &related_ids)
+        .await
+        .map_err(|err| {
+            error!(
+                "find question cate and chapter knowledge ids: {:?} row error: {}",
+                related_ids, err
+            );
+            AppError::db_error("获取题型菜单关联关系出错")
+        })?;
+    if ck_rows.is_empty() {
+        return Err(AppError::not_found("题型菜单关联为空"));
+    }
+    let ck_map: HashMap<i32, &ChapterKnowledge> = ck_rows.iter().map(|ck| (ck.id, ck)).collect();
 
     // 获取扁平的7层菜单信息
     let seven_map = get_seven_level_map(app_state).await?;
 
-    // 放 1-7 级节点的 map
-    let mut response_map: HashMap<i32, TextbookResp> = HashMap::new();
+    let mut info_map: HashMap<i32, QuestionCateResp> = HashMap::with_capacity(rows.len());
+    let mut parent_map: HashMap<i32, TextbookResp> = HashMap::new();
 
-    // 从第 8 层的 parent_id（即第 7 层）开始往上追溯
-    let mut current_parent_id = Some(row.id);
+    // 遍历每一行题型 双线展开并剪枝
+    for row in rows {
+        let info: QuestionCateResp = row.into();
+        let info_id = info.id;
+        let related_id = info.related_id;
 
-    // 最多循环 7 次 把 7 到 1 层的节点全部精准抓取出来
-    while let Some(pid) = current_parent_id {
-        if let Some(node) = seven_map.get(&pid) {
-            response_map.insert(pid, node.clone());
-            current_parent_id = node.parent_id;
-        } else {
-            if response_map.is_empty() {
-                return Err(AppError::business_error("该题型关联的教材节点维护不完整"));
+        // 塞入第 8 层的题型字典
+        info_map.insert(info_id, info);
+
+        // 如果在关联表里找不到对应的关系 说明这行题型数据非法 直接跳过, 不影响前端展示题目本身
+        let ck_info = match ck_map.get(&related_id) {
+            Some(ck) => ck,
+            None => continue,
+        };
+
+        for &start_pid in &[ck_info.chapter_id, ck_info.knowledge_id] {
+            let mut current_parent_id = Some(start_pid);
+
+            while let Some(pid) = current_parent_id {
+                // 剪枝拦截 如果 parent_map 里有了 说明前人或另一条线的前期节点已经走过了
+                if parent_map.contains_key(&pid) {
+                    break;
+                }
+
+                if let Some(node) = seven_map.get(&pid) {
+                    // 显式解引用并克隆，安全存入 parent_map
+                    parent_map.insert(pid, (*node).clone());
+                    current_parent_id = node.parent_id;
+                } else {
+                    break;
+                }
             }
-            break;
         }
     }
 
-    let resp: QuestionCateListResp = QuestionCateListResp {
-        info: row.into(),
-        map: response_map,
+    let resp = QuestionCateListResp {
+        info_map,
+        parent_map,
     };
 
     Ok(resp)

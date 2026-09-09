@@ -163,7 +163,7 @@ pub async fn list_children(
     }
 
     // 查询中间关系表
-    let ck_rows = ChapterKnowledge::find_by_ids(db, relation_ids)
+    let ck_rows = ChapterKnowledge::find_by_ck_ids(db, &relation_ids)
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
@@ -320,7 +320,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         && path_depth == 7
     {
         // 检查该菜单是否关联过
-        let chapters = ChapterKnowledge::find_by_chapter_or_knowledge_id(db, info.id)
+        let chapters = ChapterKnowledge::find_by_ck_id(db, info.id)
             .await
             .map_err(|e| {
                 error!("Error searching textbook: {:?}", e);

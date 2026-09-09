@@ -28,6 +28,6 @@ impl From<QuestionCate> for QuestionCateResp {
 // 题型父级菜单信息
 #[derive(Serialize, Deserialize)]
 pub struct QuestionCateListResp {
-    pub info: QuestionCateResp,
-    pub map: HashMap<i32, TextbookResp>,
+    pub info_map: HashMap<i32, QuestionCateResp>,
+    pub parent_map: HashMap<i32, TextbookResp>,
 }

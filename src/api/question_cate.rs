@@ -1,4 +1,4 @@
-use crate::api::req::question_cate::CreateQuestionCateReq;
+use crate::api::req::question_cate::{CreateQuestionCateReq, QuestionCateListReq};
 use crate::api::resp::question_cate::{QuestionCateListResp, QuestionCateResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
@@ -27,12 +27,12 @@ pub async fn list(
 }
 
 // 根据题型标识 question_cate_id 获取所有的父级菜单列表
-#[get("/list/cache/{cate_id}/all")]
+#[post("/list/all")]
 pub async fn list_all(
     app_state: web::Data<AppState>,
-    path: web::Path<(i32,)>,
+    req: web::Json<QuestionCateListReq>,
 ) -> ApiResponse<QuestionCateListResp> {
-    ApiResponse::response(question_cate::list_all(&app_state, path.into_inner().0).await)
+    ApiResponse::response(question_cate::list_all(&app_state, req.into_inner()).await)
 }
 
 // 删除题型
