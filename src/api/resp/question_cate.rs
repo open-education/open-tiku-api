@@ -1,7 +1,9 @@
+use crate::api::resp::textbook::TextbookResp;
 use crate::model::question_cate::QuestionCate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionCateResp {
     pub id: i32,
@@ -21,4 +23,11 @@ impl From<QuestionCate> for QuestionCateResp {
             sort_order: row.sort_order,
         }
     }
+}
+
+// 题型父级菜单信息
+#[derive(Serialize, Deserialize)]
+pub struct QuestionCateListResp {
+    pub info: QuestionCateResp,
+    pub map: HashMap<i32, TextbookResp>,
 }

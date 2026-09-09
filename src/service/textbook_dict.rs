@@ -1,11 +1,11 @@
 use crate::api::req::other_dict::{CreateTextbookDictReq, DictListReq};
 use crate::api::resp::other_dict::{DictListResp, TextbookDictResp};
-use crate::app::cache;
 use crate::app::conf::AppState;
 use crate::constant::cache::TEXTBOOK_DICT_CACHE_PREFIX;
 use crate::enums::dict::TypeCode;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{ExtIdReq, Question};
+use crate::util::cache;
 use crate::util::error::AppError;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -17,6 +17,8 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
 
     TypeCode::from_str(&req.type_code)
         .ok_or_else(|| AppError::param_error("不受支持的字典类型"))?;
+
+    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, req.textbook_id);
 
     // 新增时需要判重
     if req.id.is_none() {
@@ -37,7 +39,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
         AppError::db_error("字典新增失败")
     })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_DICT_CACHE_PREFIX).await;
+    cache::delete_by_prefix(&app_state.sqlite, &cache_key_prefix).await;
 
     Ok(id)
 }
@@ -71,7 +73,10 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
         .as_ref()
         .map(|v| format!("{:x}", md5::compute(v.join(",")))[..10].to_string())
         .unwrap_or_default();
-    let cache_key = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, short_md5);
+    let cache_key = format!(
+        "{}:all:{}:{}",
+        TEXTBOOK_DICT_CACHE_PREFIX, req.textbook_id, short_md5
+    );
     match cache::get::<DictListResp>(&app_state.sqlite, &cache_key).await {
         Ok(resp) => return Ok(resp),
         Err(err) => {
@@ -147,7 +152,8 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         AppError::db_error("字典删除失败")
     })?;
 
-    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_DICT_CACHE_PREFIX).await;
+    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, row.textbook_id);
+    cache::delete_by_prefix(&app_state.sqlite, &cache_key_prefix).await;
 
     Ok(del_rows > 0)
 }

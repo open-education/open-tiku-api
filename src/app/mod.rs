@@ -1,4 +1,3 @@
-pub mod cache;
 pub mod conf;
 pub mod cron;
 pub mod log;

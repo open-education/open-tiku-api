@@ -1,12 +1,12 @@
 use crate::api::req::textbook::CreateTextbookReq;
 use crate::api::resp::textbook::TextbookResp;
-use crate::app::cache;
 use crate::app::conf::AppState;
 use crate::constant;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
+use crate::util::cache;
 use crate::util::error::AppError;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -74,7 +74,10 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
     match cache::get::<Vec<TextbookResp>>(&app_state.sqlite, &cache_key).await {
         Ok(resp) => return Ok(resp),
         Err(err) => {
-            error!("Get textbook list all cache key: {}, msg: {}", cache_key, err.msg);
+            error!(
+                "Get textbook list all cache key: {}, msg: {}",
+                cache_key, err.msg
+            );
         }
     }
 

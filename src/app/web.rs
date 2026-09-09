@@ -1,7 +1,8 @@
+use crate::app::conf;
 use crate::app::log::init_logger;
 use crate::app::route;
-use crate::app::{cache, conf};
 use crate::middleware::user::auth;
+use crate::util::cache;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer, web};
 use tracing_actix_web::TracingLogger;

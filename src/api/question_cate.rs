@@ -1,5 +1,5 @@
 use crate::api::req::question_cate::CreateQuestionCateReq;
-use crate::api::resp::question_cate::QuestionCateResp;
+use crate::api::resp::question_cate::{QuestionCateListResp, QuestionCateResp};
 use crate::app::conf::AppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::question_cate;
@@ -24,6 +24,15 @@ pub async fn list(
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<Vec<QuestionCateResp>> {
     ApiResponse::response(question_cate::list(&app_state, path.into_inner().0).await)
+}
+
+// 根据题型标识 question_cate_id 获取所有的父级菜单列表
+#[get("/list/cache/{cate_id}/all")]
+pub async fn list_all(
+    app_state: web::Data<AppState>,
+    path: web::Path<(i32,)>,
+) -> ApiResponse<QuestionCateListResp> {
+    ApiResponse::response(question_cate::list_all(&app_state, path.into_inner().0).await)
 }
 
 // 删除题型
