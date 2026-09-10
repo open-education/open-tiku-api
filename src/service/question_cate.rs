@@ -20,7 +20,7 @@ pub async fn list(
 ) -> Result<Vec<QuestionCateResp>, AppError> {
     let db = &app_state.db;
 
-    let rows = QuestionCate::find_all_by_related_ids(db, vec![related_id])
+    let rows = QuestionCate::find_all_by_related_ids(db, &[related_id])
         .await
         .map_err(|err| {
             error!("error finding question cat: {}", err);

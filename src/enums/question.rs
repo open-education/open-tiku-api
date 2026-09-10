@@ -18,12 +18,24 @@ impl QuestionPageSource {
 }
 
 // 审核状态枚举
-#[repr(i16)]
+#[derive(PartialEq, Eq)]
 pub enum QuestionStatus {
     Draft = 0,     // 0: 草稿
     Pending = 1,   // 1: 待审核
     Published = 2, // 2: 已发布
     Rejected = 3,  // 3: 被拒绝
+}
+
+impl QuestionStatus {
+    pub fn from_i16(code: i16) -> Option<Self> {
+        match code {
+            0 => Some(QuestionStatus::Draft),
+            1 => Some(QuestionStatus::Pending),
+            2 => Some(QuestionStatus::Published),
+            3 => Some(QuestionStatus::Rejected),
+            _ => None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq)]

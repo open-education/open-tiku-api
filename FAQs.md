@@ -83,8 +83,9 @@ rust 的部分代码编译器不会自动优化, 需要使用扫描工具分析�
 ### 2.1 静态代码扫描 Clippy
 
 ```bash
-cargo clippy -- -W clippy::perf
+cargo clippy -- -W clippy::perf -W clippy::pedantic
 ```
 
 Clippy 是 Rust 官方自带的静态分析 (Linting)神兵利器. 它内部专门有一个 perf (性能)分类, 里面集成了数百条规则,
-专门用来阻止你写出像"多余的 let 阻断优化", "不必要的 .clone ()"这样的低性能代码
+专门用来阻止你写出像"多余的 let 阻断优化", "不必要的 .clone ()"这样的低性能代码, 会把所有隐藏的, 低效的 API 陷阱全部以警告
+(Warning)甚至错误的形式当场揪出来

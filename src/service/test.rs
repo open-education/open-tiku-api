@@ -6,9 +6,9 @@ use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::middleware::user::StudentUserInfo;
 use crate::model::homework::Homework;
 use crate::model::homework_student::HomeworkStudent;
+use crate::model::paper::Paper;
 use crate::model::test_answer::TestAnswer;
 use crate::model::test_attempt::TestAttempt;
-use crate::model::paper::Paper;
 use crate::service::class_student::get_student_by_user_id;
 use crate::util::error::AppError;
 use crate::util::local::{to_local_date, to_local_datetime};
@@ -39,7 +39,7 @@ pub async fn list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
         return Ok(ListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
@@ -92,7 +92,7 @@ pub async fn list(
 
     // 试卷完成情况信息记录
 
-    let mut resp: Vec<InfoResp> = Vec::new();
+    let mut resp: Vec<InfoResp> = Vec::with_capacity(rows.len());
     for item in rows.into_iter() {
         // 获取对应的试卷标识
         let (paper_id, deadline) = if let Some(hc) = homework_id_class_map.get(&item.homework_id) {
@@ -166,17 +166,13 @@ pub async fn attempt_latest(
 
         // 如果没有记录 或者已有记录都已完成 需要开启新一轮
         None => {
-            let max_no = TestAttempt::find_max_attempt_number(
-                db,
-                hcs.homework_id,
-                hcs.student_id,
-            )
-            .await
-            .map_err(|e| {
-                error!("test latest max attempt number error: {}", e);
-                AppError::db_error("获取做题记录批次失败")
-            })?
-            .unwrap_or(0);
+            let max_no = TestAttempt::find_max_attempt_number(db, hcs.homework_id, hcs.student_id)
+                .await
+                .map_err(|e| {
+                    error!("test latest max attempt number error: {}", e);
+                    AppError::db_error("获取做题记录批次失败")
+                })?
+                .unwrap_or(0);
 
             // 开启新一轮做题, 批次号在历史最大值基础上 + 1
             TestAttempt {
@@ -198,23 +194,20 @@ pub async fn attempt_latest(
 
     // 首次保存进行中的做题记录
     if hsta.id.is_none() {
-        let id = TestAttempt::save(db, &hsta)
-            .await
-            .map_err(|e| {
-                error!("save test latest attempt row error: {}", e);
-                AppError::db_error("记录最新的做题记录失败")
-            })?;
+        let id = TestAttempt::save(db, &hsta).await.map_err(|e| {
+            error!("save test latest attempt row error: {}", e);
+            AppError::db_error("记录最新的做题记录失败")
+        })?;
         hsta.id = Some(id);
     }
 
     // 获取做题答案明细记录
-    let answers =
-        TestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
-            .await
-            .map_err(|e| {
-                error!("get test latest answer row error: {}", e);
-                AppError::db_error("获取答案明细出错")
-            })?;
+    let answers = TestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
+        .await
+        .map_err(|e| {
+            error!("get test latest answer row error: {}", e);
+            AppError::db_error("获取答案明细出错")
+        })?;
 
     let mut resp: AttemptInfoResp = hsta.into();
     resp.answers = answers.into_iter().map(Into::into).collect();
@@ -311,25 +304,19 @@ pub async fn attempts(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
         return Ok(AttemptListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
         });
     }
 
-    let rows = TestAttempt::list(
-        db,
-        hcs.homework_id,
-        hcs.student_id,
-        req.page_size,
-        offset,
-    )
-    .await
-    .map_err(|e| {
-        error!("get attempts list row error: {}", e);
-        AppError::db_error("作业做题记录列表查询出错")
-    })?;
+    let rows = TestAttempt::list(db, hcs.homework_id, hcs.student_id, req.page_size, offset)
+        .await
+        .map_err(|e| {
+            error!("get attempts list row error: {}", e);
+            AppError::db_error("作业做题记录列表查询出错")
+        })?;
 
     let attempt_ids: Vec<i64> = rows
         .iter()
@@ -410,12 +397,10 @@ pub async fn answer_add(
 
     // 得分暂时计算意义不大, 因此已交卷需要更新尝试做题记录表
     if test_status == TestStatus::Done {
-        let row = TestAttempt::done_by_id(&mut tx, a_id)
-            .await
-            .map_err(|e| {
-                error!("save test attempt add error: {}", e);
-                AppError::db_error("更新做题记录完成状态失败")
-            })?;
+        let row = TestAttempt::done_by_id(&mut tx, a_id).await.map_err(|e| {
+            error!("save test attempt add error: {}", e);
+            AppError::db_error("更新做题记录完成状态失败")
+        })?;
         info!("save test attempt id: {}, row: {}", a_id, row);
     }
     // 提交事务
@@ -439,7 +424,7 @@ fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<TestAnswer>, AppError
             answer: req.answer,
             result: test_result as i16,
             note: req.note,
-            remark: "".to_string(),
+            remark: String::new(),
             created_at: None,
             updated_at: None,
         })

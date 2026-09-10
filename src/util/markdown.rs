@@ -419,7 +419,7 @@ pub fn get_questions(content: &str) -> Result<Vec<Question>, AppError> {
 
 // 将一段 markdown 片段尝试解析出一个题目
 pub fn get_question(content: &str) -> Result<RawQuestion, AppError> {
-    parse_question("".to_string(), content)
+    parse_question(String::new(), content)
 }
 
 #[cfg(test)]

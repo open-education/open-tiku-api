@@ -204,18 +204,18 @@ fn build_paper_meta_from_request(
     Paper {
         id: req.id,
         related_id: req.related_id,
-        related_name: req.related_name.clone(),
+        related_name: req.related_name.to_owned(),
         paper_type: req.paper_type,
-        tag: req.tag.clone(),
-        year: req.year.clone(),
-        grade: req.grade.clone(),
-        semester: req.semester.clone(),
-        title: req.title.clone(),
+        tag: req.tag.to_owned(),
+        year: req.year.to_owned(),
+        grade: req.grade.to_owned(),
+        semester: req.semester.to_owned(),
+        title: req.title.to_owned(),
         score: req.score,
-        source: req.source.clone(),
-        remark: req.remark.clone(),
+        source: req.source.to_owned(),
+        remark: req.remark.to_owned(),
         author_id: user_info.user_id,
-        author_name: user_info.username.clone().unwrap_or_default(),
+        author_name: user_info.username.to_owned().unwrap_or_default(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
         status: PaperStatus::from_i16(req.status) as i16,
@@ -246,9 +246,9 @@ fn build_top_groups_and_questions(
         paper_groups.push(PaperGroup {
             id: group_id,
             paper_id,
-            gen_id: group.gen_id.clone(),
-            type_name: group.type_name.clone(),
-            sub_title: group.sub_title.clone(),
+            gen_id: group.gen_id.to_owned(),
+            type_name: group.type_name.to_owned(),
+            sub_title: group.sub_title.to_owned(),
         });
 
         // 构建该题型下的所有题目
@@ -257,14 +257,14 @@ fn build_top_groups_and_questions(
                 id: 0,
                 paper_id,
                 group_id,
-                gen_id: question.gen_id.clone(),
+                gen_id: question.gen_id.to_owned(),
                 order_num: question.order_num,
-                stem: question.stem.clone(),
-                images: question.images.clone(),
-                options: question.options.clone(),
+                stem: question.stem.to_owned(),
+                images: question.images.to_owned(),
+                options: question.options.to_owned(),
                 options_layout: question.options_layout,
-                answer: question.answer.clone(),
-                analysis: question.analysis.clone(),
+                answer: question.answer.to_owned(),
+                analysis: question.analysis.to_owned(),
                 score: question.score,
             });
         }
@@ -507,7 +507,7 @@ pub async fn preview(
     let status = PaperStatus::Draft as i16;
 
     let paper_id = 1;
-    let mut groups: Vec<GenPaperGroupResp> = vec![];
+    let mut groups: Vec<GenPaperGroupResp> = Vec::new();
 
     // todo 难度等级不知道怎么实现
 
@@ -548,16 +548,16 @@ pub async fn preview(
         let user_ids: Vec<i64> = user_ids_set.into_iter().collect();
         let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
 
-        let mut questions: Vec<GenPaperQuestionResp> = vec![];
+        let mut questions: Vec<GenPaperQuestionResp> = Vec::with_capacity(rows.len());
         for (index, row) in rows.into_iter().enumerate() {
             let author_name = user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string());
+                .unwrap_or_else(|| String::new());
             let approve_name = user_map
                 .get(&row.approve_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string());
+                .unwrap_or_else(|| String::new());
 
             questions.push(GenPaperQuestionResp {
                 common: CommonPaperGenQuestionResp {

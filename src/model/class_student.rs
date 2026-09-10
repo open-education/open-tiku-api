@@ -40,10 +40,10 @@ impl ClassStudent {
 
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"SELECT id, class_id, user_id, account, password, status, remark,
+            r"SELECT id, class_id, user_id, account, password, status, remark,
          last_login_time, login_count, created_at, updated_at
          FROM class_student
-         WHERE id = $1"#,
+         WHERE id = $1",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -52,10 +52,10 @@ impl ClassStudent {
 
     pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"SELECT id, class_id, user_id, account, password, status, remark,
+            r"SELECT id, class_id, user_id, account, password, status, remark,
          last_login_time, login_count, created_at, updated_at
          FROM class_student
-         WHERE id = ANY($1)"#,
+         WHERE id = ANY($1)",
         )
         .bind(ids)
         .fetch_all(pool)
@@ -64,7 +64,7 @@ impl ClassStudent {
 
     pub async fn update_by_id(pool: &PgPool, req: &Self) -> Result<u64, sqlx::Error> {
         let row = sqlx::query::<_>(
-            r#"
+            r"
             UPDATE class_student
             SET
                 account = $1,
@@ -75,7 +75,7 @@ impl ClassStudent {
                 login_count = $6,
                 updated_at = NOW()
             WHERE id = $7
-            "#,
+            ",
         )
         .bind(req.account.clone())
         .bind(req.password.clone())
@@ -92,10 +92,10 @@ impl ClassStudent {
 
     pub async fn find_by_class_ids(
         pool: &PgPool,
-        class_ids: Vec<i64>,
+        class_ids: &[i64],
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT
             id, class_id, user_id, account, password,
             status, remark, last_login_time, login_count,
@@ -103,7 +103,7 @@ impl ClassStudent {
         FROM class_student
         WHERE class_id = ANY($1)
         ORDER BY id DESC
-        "#,
+        ",
         )
         .bind(class_ids)
         .fetch_all(pool)
@@ -115,14 +115,14 @@ impl ClassStudent {
         account: &str,
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT
             id, class_id, user_id, account, password,
             status, remark, last_login_time, login_count,
             created_at, updated_at
         FROM class_student
         WHERE account = $1
-        "#,
+        ",
         )
         .bind(account)
         .fetch_optional(pool)
@@ -131,14 +131,14 @@ impl ClassStudent {
 
     pub async fn find_by_user_id(pool: &PgPool, user_id: i64) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT
             id, class_id, user_id, account, password,
             status, remark, last_login_time, login_count,
             created_at, updated_at
         FROM class_student
         WHERE user_id = $1
-        "#,
+        ",
         )
         .bind(user_id)
         .fetch_optional(pool)
@@ -150,14 +150,14 @@ impl ClassStudent {
         user_ids: Vec<i64>,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT
             id, class_id, user_id, account, password,
             status, remark, last_login_time, login_count,
             created_at, updated_at
         FROM class_student
         WHERE user_id = ANY($1)
-        "#,
+        ",
         )
         .bind(user_ids)
         .fetch_all(pool)
@@ -169,11 +169,11 @@ impl ClassStudent {
         accounts: &[String],
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT id, class_id, user_id, account, password, status, remark, created_at, updated_at
             FROM class_student
             WHERE account = ANY($1)
-            "#,
+            ",
         )
         .bind(accounts)
         .fetch_all(pool)

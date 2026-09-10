@@ -58,7 +58,7 @@ async fn get_access_token(
     if let Some(error_code) = resp.error {
         let msg = resp
             .error_description
-            .unwrap_or_else(|| format!("获取 Access token 失败: {}", error_code));
+            .unwrap_or_else(|| format!("获取 Access token 失败: {error_code}"));
         return Err(error::ErrorBadRequest(msg));
     }
 
@@ -80,7 +80,7 @@ pub struct GithubUser {
 async fn get_user(client: &Client, access_token: &str) -> actix_web::Result<GithubUser, Error> {
     let resp: GithubUser = client
         .get("https://api.github.com/user")
-        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Authorization", format!("Bearer {access_token}"))
         .header("User-Agent", "MyActixApp/1.0")
         .send()
         .await

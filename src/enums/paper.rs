@@ -17,7 +17,7 @@ impl PaperPageSource {
     }
 }
 
-#[repr(i16)]
+#[derive(PartialEq, Eq)]
 pub enum PaperStatus {
     Draft = 1,     // 1: 草稿
     Pending = 2,   // 2: 待审核

@@ -109,7 +109,7 @@ impl From<TestAttempt> for AttemptInfoResp {
             created_at: to_local_datetime(row.created_at),
             updated_at: to_local_datetime(row.updated_at),
             completed_at: to_local_datetime(row.completed_at),
-            answers: vec![],
+            answers: Vec::new(),
         }
     }
 }

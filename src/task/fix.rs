@@ -12,9 +12,7 @@ use tracing::error;
 pub async fn path(conf: &AppState) {
     // 限制获取数据的最大层级
     let safe_depth = constant::textbook::MAX_DEPTH;
-    let rows = if let Ok(rows) = Textbook::find_all_by_depth(&conf.db, safe_depth).await {
-        rows
-    } else {
+    let Ok(rows) = Textbook::find_all_by_depth(&conf.db, safe_depth).await else {
         error!("Error searching textbook");
         return;
     };

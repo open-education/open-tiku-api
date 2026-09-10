@@ -62,7 +62,7 @@ pub async fn add(
 
     // 记录账户和登录密码
     let (add_list, account_to_map) = build_student_req(
-        app_state.config.login.student_pepper.clone(),
+        &app_state.config.login.student_pepper,
         req.class_id,
         accounts,
     )
@@ -109,7 +109,7 @@ async fn check_class_info(
     user_id: i64,
     check_email: bool,
 ) -> Result<Class, AppError> {
-    let class_list = check_class_list_info(db, vec![class_id], user_id, check_email).await?;
+    let class_list = check_class_list_info(db, &[class_id], user_id, check_email).await?;
 
     let class = class_list
         .into_iter()
@@ -122,7 +122,7 @@ async fn check_class_info(
 // 检查班级列表信息
 pub async fn check_class_list_info(
     db: &PgPool,
-    class_ids: Vec<i64>,
+    class_ids: &[i64],
     user_id: i64,
     check_email: bool,
 ) -> Result<Vec<Class>, AppError> {
@@ -169,7 +169,7 @@ async fn check_student_accounts(db: &PgPool, accounts: &[String]) -> Result<(), 
 
 // 构建班级学生账户
 async fn build_student_req(
-    pepper: String,
+    pepper: &str,
     class_id: i64,
     accounts: Vec<String>,
 ) -> Result<(Vec<ClassStudent>, HashMap<String, String>), AppError> {
@@ -180,7 +180,7 @@ async fn build_student_req(
     let tasks: Vec<_> = accounts
         .into_iter()
         .map(|account| {
-            let pepper = pepper.clone();
+            let pepper = pepper.to_owned();
             let permit = semaphore.clone().acquire_owned(); // 异步获取许可
             task::spawn_blocking(move || {
                 // 此处为阻塞的哈希计算
@@ -194,10 +194,10 @@ async fn build_student_req(
                     id: 0,
                     class_id,
                     user_id: snowflake::generate_id(),
-                    account: account.clone(),
+                    account: account.to_owned(),
                     password: hashed,
                     status: StudentStatus::Active as i16,
-                    remark: "".to_string(),
+                    remark: String::new(),
                     last_login_time: None,
                     login_count: 0,
                     created_at: None,
@@ -276,9 +276,9 @@ pub async fn list(
 
     let db = &app_state.db;
 
-    check_class_list_info(db, req.class_ids.clone(), user_info.0.user_id, false).await?;
+    check_class_list_info(db, &req.class_ids, user_info.0.user_id, false).await?;
 
-    let rows = ClassStudent::find_by_class_ids(db, req.class_ids)
+    let rows = ClassStudent::find_by_class_ids(db, &req.class_ids)
         .await
         .map_err(|err| {
             error!("Select class err: {}", err);
@@ -309,7 +309,7 @@ pub async fn edit(
 ) -> Result<bool, AppError> {
     validate_student_edit_req(&req)?;
 
-    let account = req.account.clone().trim().to_string();
+    let account = req.account.to_owned().trim().to_owned();
 
     let db = &app_state.db;
 
@@ -330,8 +330,8 @@ pub async fn edit(
         id: student.id,
         class_id: req.class_id,
         user_id: student.user_id,
-        account: account.clone(),
-        password: student.password.clone(),
+        account: account.to_owned(),
+        password: student.password.to_owned(),
         status: StudentStatus::from_i16(req.status) as i16,
         remark: req.remark,
         last_login_time: student.last_login_time,
@@ -341,7 +341,7 @@ pub async fn edit(
     };
 
     // 生成密码
-    let mut password: String = "".to_string();
+    let mut password: String = String::new();
     if req.reset_pwd {
         password = generate_random_password();
         let hashed =
@@ -369,7 +369,7 @@ pub async fn edit(
     if req.reset_pwd {
         let mut account_to_map: HashMap<String, String> = HashMap::new();
         account_to_map
-            .entry(req.account.clone())
+            .entry(req.account.to_owned())
             .or_insert(password);
         send_account_email(app_state, &class_row, account_to_map).await?;
     }

@@ -76,23 +76,18 @@ pub struct SmtpEmailConfig {
 // 应用配置文件
 // #[serde(rename = "server")] 对应 toml 中的 [server]
 #[derive(Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct AppConfig {
-    #[serde(rename = "server")]
     pub server: ServerConfig,
 
-    #[serde(rename = "database")]
     pub database: DatabaseConfig,
 
-    #[serde(rename = "sqlite")]
     pub sqlite: SqliteConfig,
 
-    #[serde(rename = "meta")]
     pub meta: MetaConfig,
 
-    #[serde(rename = "login")]
     pub login: LoginConfig,
 
-    #[serde(rename = "smtp")]
     pub smtp: SmtpEmailConfig,
 }
 

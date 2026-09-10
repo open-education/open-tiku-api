@@ -28,7 +28,7 @@ impl From<Task> for TaskInfoResp {
             task_type: row.task_type,
             name: row.name,
             url: row.url,
-            author: "".to_string(),
+            author: String::new(),
             status: row.status,
             status_desc: TaskStatus::desc(row.status).to_string(),
             email: row.email,

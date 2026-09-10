@@ -22,12 +22,12 @@ impl QuestionRelation {
         question_type: i16,
     ) -> Result<i64, sqlx::Error> {
         let id = sqlx::query(
-            r#"
+            r"
             INSERT INTO question_relation (question_id, child_id, question_type)
             VALUES ($1, $2, $3)
             ON CONFLICT (question_id, child_id) DO NOTHING
             RETURNING id
-            "#,
+            ",
         )
         .bind(question_id)
         .bind(child_id)
@@ -72,11 +72,11 @@ impl QuestionRelation {
     // 通过母题标识查找变式题标识
     pub async fn find_original_by_base_id(pool: &PgPool, id: i64) -> Result<Vec<i64>, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT child_id
             FROM question_relation
             WHERE question_id = $1 AND question_type = $2
-            "#,
+            ",
         )
         .bind(id)
         .bind(QuestionRelationType::Original as i16)
@@ -90,11 +90,11 @@ impl QuestionRelation {
         id: i64,
     ) -> Result<Option<i64>, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT question_id
             FROM question_relation
             WHERE child_id = $1 AND question_type = $2
-            "#,
+            ",
         )
         .bind(id)
         .bind(QuestionRelationType::Similar as i16)

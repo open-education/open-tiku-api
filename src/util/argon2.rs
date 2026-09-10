@@ -73,7 +73,7 @@ pub fn verify_password(
     hashed: &str,
 ) -> Result<bool, argon2::password_hash::Error> {
     let parsed_hash = PasswordHash::new(hashed)?;
-    let password_with_pepper = format!("{}{}", password, pepper);
+    let password_with_pepper = format!("{password}{pepper}");
     let argon2 = Argon2::default();
     Ok(argon2
         .verify_password(password_with_pepper.as_bytes(), &parsed_hash)

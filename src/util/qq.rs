@@ -71,7 +71,7 @@ async fn get_access_token(
     if let Some(error_code) = resp.error.filter(|&code| code != 0) {
         let msg = resp
             .error_description
-            .unwrap_or_else(|| format!("获取 Access token 失败: {}", error_code));
+            .unwrap_or_else(|| format!("获取 Access token 失败: {error_code}"));
         return Err(error::ErrorBadRequest(msg));
     }
 
@@ -114,7 +114,7 @@ async fn get_openid(client: &Client, access_token: &str) -> actix_web::Result<St
     if let Some(error_code) = resp.error.filter(|&code| code != 0) {
         let msg = resp
             .error_description
-            .unwrap_or_else(|| format!("获取 用户OpenID 失败: {}", error_code));
+            .unwrap_or_else(|| format!("获取 用户OpenID 失败: {error_code}"));
         return Err(error::ErrorBadRequest(msg));
     }
 

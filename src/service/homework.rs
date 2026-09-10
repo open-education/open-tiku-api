@@ -25,10 +25,12 @@ pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppErr
         .map_err(|err| {
             error!("Get paper_id: {} batch no err: {}", paper_id, err);
             AppError::db_error("获取试卷批次号错误")
-        })?
-        .unwrap_or(0);
-
-    Ok(max_batch_no + 1)
+        })?;
+    if let Some(max) = max_batch_no {
+        Ok(max + 1)
+    } else {
+        Ok(1)
+    }
 }
 
 pub async fn add(
@@ -58,7 +60,7 @@ pub async fn add(
 
     // 校验班级信息是否合法
     let class_ids: Vec<i64> = req.class_map.keys().copied().collect();
-    check_class_list_info(db, class_ids, teacher_user_info.0.user_id, true).await?;
+    check_class_list_info(db, &class_ids, teacher_user_info.0.user_id, true).await?;
 
     // 生成批量入库信息, homework_id 为提前生成
     let (class_list, class_students) = build_homework_add_req(req, teacher_user_info.0.user_id)?;
@@ -104,9 +106,12 @@ fn build_homework_add_req(
     req: HomeworkAddReq,
     author_id: i64,
 ) -> Result<(Vec<Homework>, Vec<HomeworkStudent>), AppError> {
-    let mut class_list: Vec<Homework> = vec![];
-    let mut class_students: Vec<HomeworkStudent> = vec![];
+    let mut class_list: Vec<Homework> = Vec::with_capacity(req.class_map.len());
+    let total_students: usize = req.class_map.values().map(|ids| ids.len()).sum();
+    let mut class_students: Vec<HomeworkStudent> = Vec::with_capacity(total_students);
+
     let deadline = get_datetime(&req.deadline)?;
+
     for (class_id, student_ids) in req.class_map.iter() {
         // 班级信息不能为空
         if student_ids.is_empty() {
@@ -132,9 +137,9 @@ fn build_homework_add_req(
             paper_id: req.paper_id,
             class_id: *class_id,
             author_id,
-            title: req.title.clone(),
+            title: req.title.to_owned(),
             deadline,
-            remark: req.remark.clone().unwrap_or_default(),
+            remark: req.remark.to_owned().unwrap_or_default(),
             created_at: None,
         })
     }
@@ -186,7 +191,7 @@ pub async fn list(
 
     if rows.is_empty() {
         return Ok(HomeworkListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
@@ -197,7 +202,7 @@ pub async fn list(
     let mut class_ids: Vec<i64> = rows.iter().map(|row| row.class_id).collect();
     class_ids.sort_unstable();
     class_ids.dedup();
-    let classes = Class::find_by_ids(db, class_ids).await.map_err(|e| {
+    let classes = Class::find_by_ids(db, &class_ids).await.map_err(|e| {
         error!("List homework class error: {}", e);
         AppError::db_error("获取班级信息失败")
     })?;
@@ -219,8 +224,7 @@ pub async fn list(
             AppError::db_error("班级作业布置学生列表查询错误")
         })?;
 
-    let mut student_map: HashMap<i64, Vec<&HomeworkStudent>> =
-        HashMap::with_capacity(rows.len());
+    let mut student_map: HashMap<i64, Vec<&HomeworkStudent>> = HashMap::with_capacity(rows.len());
     for student in &students {
         student_map
             .entry(student.homework_id)
@@ -251,7 +255,7 @@ pub async fn list(
     for item in rows {
         // 班级信息
         let class_info = if let Some(class_row) = class_map.get(&item.class_id) {
-            (**class_row).clone().into()
+            (**class_row).to_owned().into()
         } else {
             error!("Homework class id not found: {}", item.class_id);
             ClassInfoResp::default()
@@ -263,7 +267,7 @@ pub async fn list(
         if let Some(student_list) = student_map.remove(&item.homework_id) {
             for info in student_list {
                 if let Some(account_info) = account_map.get(&info.student_id) {
-                    account_list.push((*account_info).clone().into());
+                    account_list.push((*account_info).to_owned().into());
                 } else {
                     error!("Homework class student_id not found: {}", info.student_id);
                 }

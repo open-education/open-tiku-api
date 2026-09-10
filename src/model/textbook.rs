@@ -35,7 +35,7 @@ impl Textbook {
 
     pub async fn save(pool: &PgPool, data: CreateTextbookReq) -> Result<i32, sqlx::Error> {
         let id = sqlx::query(
-            r#"
+            r"
         INSERT INTO textbook (
             id, parent_id, label, key, path_depth, sort_order, path_type, path
         ) VALUES (
@@ -50,7 +50,7 @@ impl Textbook {
             path_type = EXCLUDED.path_type,
             path = EXCLUDED.path
         RETURNING id
-        "#,
+        ",
         )
         .bind(data.id) // Option<i64>
         .bind(data.parent_id)
@@ -118,13 +118,13 @@ impl Textbook {
         id: Option<i32>,
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT * FROM textbook
         WHERE parent_id IS NOT DISTINCT FROM $1
           AND label = $2
           AND ($3 IS NULL OR id <> $3)
         LIMIT 1
-        "#,
+        ",
         )
         .bind(parent_id)
         .bind(label)
@@ -150,7 +150,7 @@ impl Textbook {
     ) -> Result<Vec<Self>, sqlx::Error> {
         // 使用 WITH RECURSIVE 进行递归查询
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
         WITH RECURSIVE tree AS (
             -- 锚点部分：选择起始节点（你想从哪个 parent_id 开始找）
             SELECT id, parent_id, label, key, path_depth, sort_order, path_type, path
@@ -165,7 +165,7 @@ impl Textbook {
             INNER JOIN tree ON t.parent_id = tree.id
         )
         SELECT * FROM tree ORDER BY path_depth, sort_order;
-        "#,
+        ",
         )
         .bind(root_id)
         .fetch_all(pool)
