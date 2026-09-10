@@ -1,6 +1,7 @@
 use crate::api::req::task::{TaskAddReq, TaskListReq};
 use crate::api::resp::task::{TaskInfoResp, TaskListResp};
 use crate::app::conf::AppState;
+use crate::enums::task::TaskType;
 use crate::middleware::user::UserInfo;
 use crate::model::task::Task;
 use crate::service::user::get_user_map;
@@ -14,6 +15,8 @@ pub async fn add(
     req: TaskAddReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
+    TaskType::from_i16(req.task_type).ok_or_else(|| AppError::param_error("不受支持的任务类型"))?;
+
     let db = &app_state.db;
 
     let row_id = Task::insert(db, req, user_info.user_id)

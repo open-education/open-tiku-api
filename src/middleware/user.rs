@@ -145,6 +145,8 @@ const PREFIX_LIST: &[&str] = &[
     "/text/question/snippet",
     // 文件读取
     "/file/read/file/",
+    // 题型父菜单列表
+    "/question-cate/list/all",
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析

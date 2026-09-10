@@ -2,6 +2,7 @@ use crate::app::conf;
 use crate::app::log::init_logger;
 use crate::app::route;
 use crate::middleware::user::auth;
+use crate::util::cache;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer, web};
 use tracing_actix_web::TracingLogger;
@@ -12,6 +13,11 @@ pub async fn run_web() -> std::io::Result<()> {
     Box::leak(Box::new(guard));
 
     let app_state = conf::init(false).await;
+
+    // 初始化 cache
+    cache::init(&app_state.sqlite)
+        .await
+        .expect("cache init error");
 
     let addr = format!(
         "{}:{}",

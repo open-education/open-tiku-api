@@ -8,6 +8,7 @@ use sqlx::{FromRow, PgPool};
 pub struct Task {
     pub id: i64,
     pub question_cate_id: i64,
+    pub task_type: i16,
     pub name: String,
     pub url: String,
     pub email: String,

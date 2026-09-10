@@ -1,6 +1,6 @@
-# 开放题库服务端接口
+# 开放题库服务端
 
-该项目是 *开放题库* 前端 api 实时接口服务.
+该项目是 **开放题库** 前端 api 实时接口服务.
 
 ## 环境说明
 
@@ -96,6 +96,11 @@ zhangguangxun@VM-0-4-debian:~/open-tiku-api$
 ```bash
 sh deploy.sh start -v v0.0.1-beta
 ```
+
+项目如下实现只适合单服务部署, 如果要部署多服务需要改进下面的实现方式
+
+- [snowflake](./src/util/snowflake.rs) 用户 id 生成器
+- [cache](./src/util/cache.rs) Sqlite 缓存
 
 ### 公私钥生成
 

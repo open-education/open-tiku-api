@@ -1,4 +1,5 @@
 use crate::api::req::question::CreateQuestionReq;
+use crate::enums::dict::TypeCode;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -90,6 +91,7 @@ pub struct CateAndTypeReq {
     pub mistake_tip_ids: Option<Vec<i32>>,
 }
 
+#[derive(Default)]
 pub struct ExtIdReq {
     pub type_id: Option<i32>,
     pub tag_ids: Option<Vec<i32>>,
@@ -97,6 +99,37 @@ pub struct ExtIdReq {
     pub level_id: Option<i32>,
     pub scene_ids: Option<Vec<i32>>,
     pub mistake_tip_ids: Option<Vec<i32>>,
+}
+
+impl ExtIdReq {
+    pub fn from_type_code(type_code: TypeCode, row_id: i32) -> Self {
+        match type_code {
+            TypeCode::Type => Self {
+                type_id: Some(row_id),
+                ..Default::default()
+            },
+            TypeCode::Tag => Self {
+                tag_ids: Some(vec![row_id]),
+                ..Default::default()
+            },
+            TypeCode::Dimension => Self {
+                dimension_ids: Some(vec![row_id]),
+                ..Default::default()
+            },
+            TypeCode::Level => Self {
+                level_id: Some(row_id),
+                ..Default::default()
+            },
+            TypeCode::Scene => Self {
+                scene_ids: Some(vec![row_id]),
+                ..Default::default()
+            },
+            TypeCode::MistakeTip => Self {
+                mistake_tip_ids: Some(vec![row_id]),
+                ..Default::default()
+            },
+        }
+    }
 }
 
 // 变式题列表请求
@@ -107,6 +140,107 @@ pub struct SimilarReq {
     pub type_id: Option<i32>,
     pub tag_ids: Option<Vec<i32>>,
     pub dimension_ids: Option<Vec<i32>>,
+}
+
+trait QueryBuilderExt<'a> {
+    fn push_cate_and_type_where(self, req: &'a CateAndTypeReq) -> Self;
+    fn push_similar_where(self, req: &'a SimilarReq) -> Self;
+    fn push_ext_filters(
+        self,
+        cate_ids: &'a [i32],
+        type_id: i16,
+        tag_ids: Option<&'a [i16]>,
+        dimension_ids: Option<&'a [i16]>,
+    ) -> Self;
+}
+
+// 为 sqlx::QueryBuilder 实现这个 Trait
+impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
+    fn push_cate_and_type_where(mut self, req: &'a CateAndTypeReq) -> Self {
+        self.push(" WHERE question_cate_id = ANY(")
+            .push_bind(&req.cate_ids)
+            .push(")");
+        self.push(" AND status = ").push_bind(req.status);
+
+        if let Some(type_id) = req.type_id {
+            self.push(" AND question_type_id = ").push_bind(type_id);
+        }
+        if let Some(ref ids) = req.ids {
+            self.push(" AND id = ANY(").push_bind(ids).push(")");
+        }
+        if let Some(ref title_val) = req.title_val {
+            self.push(" AND content_plain LIKE ")
+                .push_bind(format!("%{}%", title_val));
+        }
+        if let Some(ref tag_ids) = req.tag_ids {
+            self.push(" AND question_tag_ids @> ")
+                .push_bind(Json(tag_ids));
+        }
+        if let Some(ref dimension_ids) = req.dimension_ids {
+            self.push(" AND question_dimension_ids @> ")
+                .push_bind(Json(dimension_ids));
+        }
+        if let Some(author_id) = req.author_id {
+            self.push(" AND author_id = ").push_bind(author_id);
+        }
+        if let Some(ref level_ids) = req.level_ids {
+            self.push(" AND level_id = ANY(")
+                .push_bind(level_ids)
+                .push(")");
+        }
+        if let Some(ref scene_ids) = req.scene_ids {
+            self.push(" AND scene_ids @> ").push_bind(Json(scene_ids));
+        }
+        if let Some(ref mistake_tip_ids) = req.mistake_tip_ids {
+            self.push(" AND mistake_tip_ids @> ")
+                .push_bind(Json(mistake_tip_ids));
+        }
+        self
+    }
+
+    fn push_similar_where(mut self, req: &'a SimilarReq) -> Self {
+        self.push(" WHERE qs.question_id = ")
+            .push_bind(req.question_id);
+        self.push(" AND q.status = ").push_bind(req.status);
+        self.push(" AND q.question_cate_id = ")
+            .push_bind(req.cate_id);
+        self.push(" AND qs.question_type = 1");
+        if let Some(type_id) = req.type_id {
+            self.push(" AND q.question_type_id = ").push_bind(type_id);
+        }
+        if let Some(ref tag_ids) = req.tag_ids {
+            self.push(" AND q.question_tag_ids @> ")
+                .push_bind(Json(tag_ids));
+        }
+        if let Some(ref dimension_ids) = req.dimension_ids {
+            self.push(" AND q.question_dimension_ids @> ")
+                .push_bind(Json(dimension_ids));
+        }
+        self
+    }
+
+    fn push_ext_filters(
+        mut self,
+        cate_ids: &'a [i32],
+        type_id: i16,
+        tag_ids: Option<&'a [i16]>,
+        dimension_ids: Option<&'a [i16]>,
+    ) -> Self {
+        self.push(" WHERE question_cate_id = ANY(")
+            .push_bind(cate_ids)
+            .push(")");
+        self.push(" AND status = 2");
+        self.push(" AND question_type_id = ").push_bind(type_id);
+
+        if let Some(tags) = tag_ids {
+            self.push(" AND question_tag_ids @> ").push_bind(Json(tags));
+        }
+        if let Some(dimensions) = dimension_ids {
+            self.push(" AND question_dimension_ids @> ")
+                .push_bind(Json(dimensions));
+        }
+        self
+    }
 }
 
 impl Question {
@@ -298,7 +432,7 @@ impl Question {
                     .push_bind(Json(req.steps.clone().unwrap_or_default()))
                     .push_bind(Json(req.question_dimension_ids.clone().unwrap_or_default()))
                     .push_bind(req.relation_type)
-                    .push_bind(&req.level_id)
+                    .push_bind(req.level_id)
                     .push_bind(Json(req.scene_ids.clone().unwrap_or_default()))
                     .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
             });
@@ -339,39 +473,12 @@ impl Question {
         pool: &PgPool,
         req: &CateAndTypeReq,
     ) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(
-            r#"
-            SELECT COUNT(*) FROM question
-            WHERE question_cate_id = ANY($1)
-              AND status = $2
-              AND ($3 IS NULL OR question_type_id = $3)
-              AND ($4 IS NULL OR id = ANY($4))
-              AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
-              AND ($6 IS NULL OR question_tag_ids @> $7)
-              AND ($8 IS NULL OR question_dimension_ids @> $9)
-              AND ($10 IS NULL OR author_id = $10)
-              AND ($11 IS NULL OR level_id = ANY($11))
-              AND ($12 IS NULL OR scene_ids @> $13)
-              AND ($14 IS NULL OR mistake_tip_ids @> $15)
-            "#,
-        )
-        .bind(&req.cate_ids)
-        .bind(req.status)
-        .bind(req.type_id)
-        .bind(&req.ids)
-        .bind(&req.title_val)
-        .bind(req.tag_ids.as_ref().map(|_| true))
-        .bind(req.tag_ids.as_ref().map(Json))
-        .bind(req.dimension_ids.as_ref().map(|_| true))
-        .bind(req.dimension_ids.as_ref().map(Json))
-        .bind(req.author_id)
-        .bind(&req.level_ids)
-        .bind(req.scene_ids.as_ref().map(|_| true))
-        .bind(req.scene_ids.as_ref().map(Json))
-        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
-        .bind(req.mistake_tip_ids.as_ref().map(Json))
-        .fetch_one(pool)
-        .await
+        let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM question ");
+
+        // 使用扩展方法
+        qb = qb.push_cate_and_type_where(req);
+
+        qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
     // 题型下题目列表
@@ -381,74 +488,43 @@ impl Question {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
-            r#"
-            SELECT *
-            FROM question
-            WHERE question_cate_id = ANY($1)
-              AND status = $2
-              AND ($3 IS NULL OR question_type_id = $3)
-              AND ($4 IS NULL OR id = ANY($4))
-              AND ($5 IS NULL OR content_plain LIKE '%' || $5 || '%')
-              AND ($6 IS NULL OR question_tag_ids @> $7)
-              AND ($8 IS NULL OR question_dimension_ids @> $9)
-              AND ($10 IS NULL OR author_id = $10)
-              AND ($11 IS NULL OR level_id = ANY($11))
-              AND ($12 IS NULL OR scene_ids @> $13)
-              AND ($14 IS NULL OR mistake_tip_ids @> $15)
-            ORDER BY id DESC
-            LIMIT $16 OFFSET $17
-            "#,
-        )
-        .bind(&req.cate_ids)
-        .bind(req.status)
-        .bind(req.type_id)
-        .bind(&req.ids)
-        .bind(&req.title_val)
-        .bind(req.tag_ids.as_ref().map(|_| true))
-        .bind(req.tag_ids.as_ref().map(Json))
-        .bind(req.dimension_ids.as_ref().map(|_| true))
-        .bind(req.dimension_ids.as_ref().map(Json))
-        .bind(req.author_id)
-        .bind(&req.level_ids)
-        .bind(req.scene_ids.as_ref().map(|_| true))
-        .bind(req.scene_ids.as_ref().map(Json))
-        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
-        .bind(req.mistake_tip_ids.as_ref().map(Json))
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
+        let mut qb = QueryBuilder::new("SELECT * FROM question ");
+
+        // 使用扩展方法
+        qb = qb.push_cate_and_type_where(req);
+
+        qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit);
+        qb.push(" OFFSET ").push_bind(offset);
+
+        qb.build_query_as::<Self>().fetch_all(pool).await
     }
 
-    // 题目标签下是否存在题目
     pub async fn exists_by_ext_id(pool: &PgPool, req: &ExtIdReq) -> Result<bool, sqlx::Error> {
-        sqlx::query_scalar::<_, bool>(
-            r#"
-        SELECT EXISTS (
-            SELECT 1
-            FROM question
-            WHERE ($1 IS NULL OR question_type_id = $1)
-              AND ($2 IS NULL OR question_tag_ids @> $3::jsonb)
-              AND ($4 IS NULL OR question_dimension_ids @> $5::jsonb)
-              AND ($6 IS NULL OR level_id = $6)
-              AND ($7 IS NULL OR scene_ids @> $8::jsonb)
-              AND ($9 IS NULL OR mistake_tip_ids @> $10::jsonb)
-        )
-        "#,
-        )
-        .bind(req.type_id)
-        .bind(req.tag_ids.as_ref().map(|_| true))
-        .bind(req.tag_ids.as_ref().map(Json))
-        .bind(req.dimension_ids.as_ref().map(|_| true))
-        .bind(req.dimension_ids.as_ref().map(Json))
-        .bind(req.level_id)
-        .bind(req.scene_ids.as_ref().map(|_| true))
-        .bind(req.scene_ids.as_ref().map(Json))
-        .bind(req.mistake_tip_ids.as_ref().map(|_| true))
-        .bind(req.mistake_tip_ids.as_ref().map(Json))
-        .fetch_one(pool)
-        .await
+        // 初始化 QueryBuilder
+        let mut qb = QueryBuilder::new("SELECT EXISTS (SELECT 1 FROM question WHERE ");
+
+        // 通过 req 访问字段 动态拼接 SQL
+        if let Some(type_id) = req.type_id {
+            qb.push("question_type_id = ").push_bind(type_id);
+        } else if let Some(ref tag_ids) = req.tag_ids {
+            qb.push("question_tag_ids @> ").push_bind(Json(tag_ids));
+        } else if let Some(ref dimension_ids) = req.dimension_ids {
+            qb.push("question_dimension_ids @> ")
+                .push_bind(Json(dimension_ids));
+        } else if let Some(level_id) = req.level_id {
+            qb.push("level_id = ").push_bind(level_id);
+        } else if let Some(ref scene_ids) = req.scene_ids {
+            qb.push("scene_ids @> ").push_bind(Json(scene_ids));
+        } else if let Some(ref mistake_tip_ids) = req.mistake_tip_ids {
+            qb.push("mistake_tip_ids @> ")
+                .push_bind(Json(mistake_tip_ids));
+        } else {
+            return Ok(false);
+        }
+
+        qb.push(")");
+
+        qb.build_query_scalar::<bool>().fetch_one(pool).await
     }
 
     // 题型下是否存在题目
@@ -502,30 +578,13 @@ impl Question {
         pool: &PgPool,
         req: &SimilarReq,
     ) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(
-            r#"
-            SELECT COUNT(q.id)
-            FROM question q
-            INNER JOIN question_relation qs ON q.id = qs.child_id
-            WHERE qs.question_id = $1
-              AND q.status = $2
-              AND q.question_cate_id = $3
-              AND qs.question_type = 1
-              AND ($4 IS NULL OR q.question_type_id = $4)
-              AND ($5 IS NULL OR q.question_tag_ids @> $6)
-              AND ($7 IS NULL OR q.question_dimension_ids @> $8)
-            "#,
-        )
-        .bind(req.question_id)
-        .bind(req.status)
-        .bind(req.cate_id)
-        .bind(req.type_id)
-        .bind(req.tag_ids.as_ref().map(|_| true))
-        .bind(req.tag_ids.as_ref().map(Json))
-        .bind(req.dimension_ids.as_ref().map(|_| true))
-        .bind(req.dimension_ids.as_ref().map(Json))
-        .fetch_one(pool)
-        .await
+        let mut qb = QueryBuilder::new(
+            "SELECT COUNT(q.id) FROM question q INNER JOIN question_relation qs ON q.id = qs.child_id",
+        );
+
+        qb = qb.push_similar_where(req);
+
+        qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
     // 母题下面变式题列表
@@ -535,38 +594,20 @@ impl Question {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
-            r#"
-            SELECT q.*
-            FROM question q
-            INNER JOIN question_relation qs ON q.id = qs.child_id
-            WHERE qs.question_id = $1
-              AND q.status = $2
-              AND q.question_cate_id = $3
-              AND qs.question_type = 1
-              AND ($4 IS NULL OR q.question_type_id = $4)
-              AND ($5 IS NULL OR q.question_tag_ids @> $6)
-              AND ($7 IS NULL OR q.question_dimension_ids @> $8)
-            ORDER BY qs.id ASC
-            LIMIT $9 OFFSET $10
-            "#,
-        )
-        .bind(req.question_id)
-        .bind(req.status)
-        .bind(req.cate_id)
-        .bind(req.type_id)
-        .bind(req.tag_ids.as_ref().map(|_| true))
-        .bind(req.tag_ids.as_ref().map(Json))
-        .bind(req.dimension_ids.as_ref().map(|_| true))
-        .bind(req.dimension_ids.as_ref().map(Json))
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
+        let mut qb = QueryBuilder::new(
+            "SELECT q.* FROM question q INNER JOIN question_relation qs ON q.id = qs.child_id",
+        );
+
+        qb = qb.push_similar_where(req);
+
+        qb.push(" ORDER BY qs.id ASC ");
+        qb.push(" LIMIT ").push_bind(limit);
+        qb.push(" OFFSET ").push_bind(offset);
+
+        qb.build_query_as::<Self>().fetch_all(pool).await
     }
 
-    // 根据 ID 删除记录
-    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
         let row = sqlx::query("DELETE FROM question WHERE id = $1")
             .bind(id)
             .execute(pool)
@@ -583,27 +624,17 @@ impl Question {
         dimension_ids: Option<Vec<i16>>,
         limit: i16,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
-            r#"
-            SELECT *
-            FROM question
-            WHERE question_cate_id = ANY($1)
-              AND status = 2
-              AND question_type_id = $2
-              AND ($3 IS NULL OR question_tag_ids @> $4)
-              AND ($5 IS NULL OR question_dimension_ids @> $6)
-            ORDER BY RANDOM()
-            LIMIT $7
-            "#,
-        )
-        .bind(cate_ids)
-        .bind(type_id)
-        .bind(tag_ids.as_ref().map(|_| true))
-        .bind(tag_ids.map(Json))
-        .bind(dimension_ids.as_ref().map(|_| true))
-        .bind(dimension_ids.map(Json))
-        .bind(limit)
-        .fetch_all(pool)
-        .await
+        let mut qb = QueryBuilder::new("SELECT * FROM question ");
+
+        qb = qb.push_ext_filters(
+            &cate_ids,
+            type_id,
+            tag_ids.as_deref(),
+            dimension_ids.as_deref(),
+        );
+
+        qb.push(" ORDER BY RANDOM() LIMIT ").push_bind(limit);
+
+        qb.build_query_as::<Self>().fetch_all(pool).await
     }
 }

@@ -1,8 +1,8 @@
 use crate::model::other_dict::TextbookDict;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TextbookDictResp {
     pub id: i32,
@@ -26,7 +26,7 @@ impl From<TextbookDict> for TextbookDictResp {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DictListResp {
     pub map: HashMap<String, Vec<TextbookDictResp>>,
 }

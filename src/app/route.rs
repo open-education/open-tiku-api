@@ -50,6 +50,7 @@ pub fn chapter_knowledge(cfg: &mut web::ServiceConfig) {
 // 教材题型
 pub fn question_cate(cfg: &mut web::ServiceConfig) {
     cfg.service(question_cate::list)
+        .service(question_cate::list_all)
         .service(question_cate::add)
         .service(question_cate::remove);
 }

@@ -424,7 +424,7 @@ pub async fn delete(
         return Err(AppError::permission_denied("只允许删除自己的题目"));
     }
 
-    let rows = Question::delete(db, req.id).await.map_err(|err| {
+    let rows = Question::delete_by_id(db, req.id).await.map_err(|err| {
         error!("question delete by id err: {:?}", err);
         AppError::db_error("题目删除失败")
     })?;

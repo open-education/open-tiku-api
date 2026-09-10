@@ -1,11 +1,14 @@
 use crate::api::req::other_dict::{CreateTextbookDictReq, DictListReq};
 use crate::api::resp::other_dict::{DictListResp, TextbookDictResp};
 use crate::app::conf::AppState;
+use crate::constant::cache::TEXTBOOK_DICT_CACHE_PREFIX;
 use crate::enums::dict::TypeCode;
 use crate::model::other_dict::TextbookDict;
 use crate::model::question::{ExtIdReq, Question};
+use crate::util::cache;
 use crate::util::error::AppError;
 use std::collections::HashMap;
+use std::time::Duration;
 use tracing::error;
 
 // 添加字典
@@ -14,6 +17,8 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
 
     TypeCode::from_str(&req.type_code)
         .ok_or_else(|| AppError::param_error("不受支持的字典类型"))?;
+
+    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, req.textbook_id);
 
     // 新增时需要判重
     if req.id.is_none() {
@@ -33,6 +38,8 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
         error!("error adding unique textbook item: {}", e);
         AppError::db_error("字典新增失败")
     })?;
+
+    cache::delete_by_prefix(&app_state.sqlite, &cache_key_prefix).await;
 
     Ok(id)
 }
@@ -57,9 +64,32 @@ pub async fn get_list(
 }
 
 pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictListResp, AppError> {
+    let codes = req.codes.map(|mut v| {
+        v.sort();
+        v
+    });
+
+    let short_md5 = codes
+        .as_ref()
+        .map(|v| format!("{:x}", md5::compute(v.join(",")))[..10].to_string())
+        .unwrap_or_default();
+    let cache_key = format!(
+        "{}:all:{}:{}",
+        TEXTBOOK_DICT_CACHE_PREFIX, req.textbook_id, short_md5
+    );
+    match cache::get::<DictListResp>(&app_state.sqlite, &cache_key).await {
+        Ok(resp) => return Ok(resp),
+        Err(err) => {
+            error!(
+                "Get textbook dict list all cache key: {}, msg: {}",
+                cache_key, err.msg
+            );
+        }
+    }
+
     let db = &app_state.db;
 
-    let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], req.codes)
+    let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], codes)
         .await
         .map_err(|e| {
             error!("find textbook dict err: {}", e);
@@ -72,8 +102,17 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
             .or_default()
             .push(item.into());
     }
+    let resp = DictListResp { map };
 
-    Ok(DictListResp { map })
+    cache::set::<DictListResp>(
+        &app_state.sqlite,
+        &cache_key,
+        &resp,
+        Duration::from_hours(24),
+    )
+    .await;
+
+    Ok(resp)
 }
 
 // 删除字典
@@ -95,56 +134,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let type_code = TypeCode::from_str(&row.type_code)
         .ok_or_else(|| AppError::business_error("不支持的字典类型"))?;
     // 看该类型的字典是否关联了题目
-    let ext_id_req = match type_code {
-        TypeCode::QuestionType => ExtIdReq {
-            type_id: Some(row_id),
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionTag => ExtIdReq {
-            type_id: None,
-            tag_ids: Some(vec![row_id]),
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionDimension => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: Some(vec![row_id]),
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionLevel => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: Some(row_id),
-            scene_ids: None,
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionScene => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: Some(vec![row_id]),
-            mistake_tip_ids: None,
-        },
-        TypeCode::QuestionMistakeTip => ExtIdReq {
-            type_id: None,
-            tag_ids: None,
-            dimension_ids: None,
-            level_id: None,
-            scene_ids: None,
-            mistake_tip_ids: Some(vec![row_id]),
-        },
-    };
+    let ext_id_req = ExtIdReq::from_type_code(type_code, row_id);
     let exist = Question::exists_by_ext_id(db, &ext_id_req)
         .await
         .map_err(|e| {
@@ -161,6 +151,9 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         error!("error deleting unique textbook item: {}", e);
         AppError::db_error("字典删除失败")
     })?;
+
+    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, row.textbook_id);
+    cache::delete_by_prefix(&app_state.sqlite, &cache_key_prefix).await;
 
     Ok(del_rows > 0)
 }

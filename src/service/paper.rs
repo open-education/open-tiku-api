@@ -185,10 +185,10 @@ fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
     }
 
     // 草稿中和待审核支持编辑
-    if !match PaperStatus::from_i16(req.status) {
-        PaperStatus::Draft | PaperStatus::Pending => true,
-        _ => false,
-    } {
+    if !matches!(
+        PaperStatus::from_i16(req.status),
+        PaperStatus::Draft | PaperStatus::Pending
+    ) {
         return Err(AppError::business_error("试卷状态不支持编辑"));
     }
 

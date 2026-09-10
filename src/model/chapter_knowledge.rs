@@ -40,13 +40,20 @@ impl ChapterKnowledge {
     }
 
     // 通过章节小节或者知识点小类获取所有的关联关系
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i32>) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn find_by_ck_ids(pool: &PgPool, ids: &[i32]) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             "SELECT * FROM chapter_knowledge WHERE knowledge_id = ANY($1) OR chapter_id = ANY($1)",
         )
         .bind(ids)
         .fetch_all(pool)
         .await
+    }
+
+    pub async fn find_by_ids(pool: &PgPool, ids: &[i32]) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM chapter_knowledge WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await
     }
 
     // 查看是否已关联
@@ -65,7 +72,7 @@ impl ChapterKnowledge {
     }
 
     // 通过章节或者知识点查找关联信息
-    pub async fn find_by_chapter_or_knowledge_id(
+    pub async fn find_by_ck_id(
         pool: &PgPool,
         chapter_or_knowledge_id: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {

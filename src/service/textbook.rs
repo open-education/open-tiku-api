@@ -2,12 +2,15 @@ use crate::api::req::textbook::CreateTextbookReq;
 use crate::api::resp::textbook::TextbookResp;
 use crate::app::conf::AppState;
 use crate::constant;
+use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
+use crate::util::cache;
 use crate::util::error::AppError;
 use sqlx::PgPool;
 use std::collections::HashMap;
+use std::time::Duration;
 use tracing::error;
 
 // 根据深度和父级关系将列表组合为有层级关系的列表
@@ -67,6 +70,17 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
     // 限制获取数据的最大层级
     let safe_depth = depth.min(constant::textbook::MAX_DEPTH);
 
+    let cache_key = format!("{}:all:{}", TEXTBOOK_CACHE_PREFIX, depth);
+    match cache::get::<Vec<TextbookResp>>(&app_state.sqlite, &cache_key).await {
+        Ok(resp) => return Ok(resp),
+        Err(err) => {
+            error!(
+                "Get textbook list all cache key: {}, msg: {}",
+                cache_key, err.msg
+            );
+        }
+    }
+
     let rows = Textbook::find_all_by_depth(&app_state.db, safe_depth)
         .await
         .map_err(|e| {
@@ -74,11 +88,21 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
             AppError::db_error("导航查询失败")
         })?;
 
-    // 1. 建立父子索引映射
+    // 建立父子索引映射
     let map: HashMap<i32, Vec<Textbook>> = to_level_map(rows);
 
-    // 2. 从根节点（parent_id=0 是根）递归构建
-    Ok(get_levels_by_parent_id(&map, 0, safe_depth))
+    // 从根节点（parent_id=0 是根）递归构建
+    let resp = get_levels_by_parent_id(&map, 0, safe_depth);
+
+    cache::set::<Vec<TextbookResp>>(
+        &app_state.sqlite,
+        &cache_key,
+        &resp,
+        Duration::from_hours(24),
+    )
+    .await;
+
+    Ok(resp)
 }
 
 // 根据父级标识获取子菜单列表
@@ -101,6 +125,17 @@ pub async fn list_children(
     app_state: &AppState,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, AppError> {
+    let cache_key = format!("{}:children:{}", TEXTBOOK_CACHE_PREFIX, parent_id);
+    match cache::get::<Vec<TextbookResp>>(&app_state.sqlite, &cache_key).await {
+        Ok(resp) => return Ok(resp),
+        Err(err) => {
+            error!(
+                "Get textbook list children cache key: {}, msg: {}",
+                cache_key, err.msg
+            );
+        }
+    }
+
     let db = &app_state.db;
 
     // 获取原始列表
@@ -128,7 +163,7 @@ pub async fn list_children(
     }
 
     // 查询中间关系表
-    let ck_rows = ChapterKnowledge::find_by_ids(db, relation_ids)
+    let ck_rows = ChapterKnowledge::find_by_ck_ids(db, &relation_ids)
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
@@ -164,6 +199,14 @@ pub async fn list_children(
 
     // 回填数据
     fill_question_cate(&relation_map, &question_id_map, &mut resp);
+
+    cache::set::<Vec<TextbookResp>>(
+        &app_state.sqlite,
+        &cache_key,
+        &resp,
+        Duration::from_hours(24),
+    )
+    .await;
 
     Ok(resp)
 }
@@ -240,6 +283,8 @@ pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, Ap
         AppError::db_error("菜单添加失败")
     })?;
 
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_CACHE_PREFIX).await;
+
     Ok(row_id)
 }
 
@@ -275,7 +320,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         && path_depth == 7
     {
         // 检查该菜单是否关联过
-        let chapters = ChapterKnowledge::find_by_chapter_or_knowledge_id(db, info.id)
+        let chapters = ChapterKnowledge::find_by_ck_id(db, info.id)
             .await
             .map_err(|e| {
                 error!("Error searching textbook: {:?}", e);
@@ -292,6 +337,8 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         error!("Error deleting textbook: {:?}", e);
         AppError::db_error("菜单删除失败")
     })?;
+
+    cache::delete_by_prefix(&app_state.sqlite, TEXTBOOK_CACHE_PREFIX).await;
 
     Ok(row > 0)
 }

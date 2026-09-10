@@ -12,8 +12,15 @@ port = 8082
 # 数据库连接信息
 [database]
 url = "postgres://tiku_rw:123456@localhost/open_tiku_test"
+# nproc 打印出当前系统可用的 CPU 总线程数(逻辑核心数), 一般最大配置这个数值
 web_max_connections = 2
+# crontab 任务最少可以配置 1个
 task_max_connections = 2
+
+# 缓存服务
+[sqlite]
+# 数据文件存放绝对路径
+db_path = "sqlite:///var/www/meta/cache/open_tiku_api_sqlite.db"
 
 # 图片等资源存储路径
 [meta]
@@ -28,7 +35,7 @@ oauth_state_secret = ""
 # 生成学生账户密码的 胡椒 值
 student_pepper = ""
 # 学生登录密码解密私钥文件绝对路径
-student_private_key_pem=""
+student_private_key_pem = ""
 
 # GitHub 登录认证配置, 固定配置的, 需要登录 GitHub 去获取
 [login.github]
