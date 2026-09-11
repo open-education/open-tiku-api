@@ -98,7 +98,7 @@ async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, Textbo
     let depth: u32 = 7;
     let seven_resp: Vec<TextbookResp> = textbook::list_all(app_state, depth).await?;
 
-    let cache_key = format!("{}:seven:level:{}", TEXTBOOK_CACHE_PREFIX, depth);
+    let cache_key = format!("{TEXTBOOK_CACHE_PREFIX}:seven:level:{depth}");
     match cache::get::<HashMap<i32, TextbookResp>>(&app_state.sqlite, &cache_key).await {
         Ok(resp) => return Ok(resp),
         Err(err) => {

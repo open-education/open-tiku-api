@@ -57,7 +57,7 @@ pub fn generate_random_password() -> String {
 pub fn hash_password(pepper: &str, password: &str) -> Result<String, argon2::password_hash::Error> {
     // SaltString::generate 内部使用 OsRng（系统安全随机数源）
     let salt = SaltString::generate(OsRng);
-    let password_with_pepper = format!("{}{}", password, pepper);
+    let password_with_pepper = format!("{password}{pepper}");
 
     // 使用 Argon2id 默认参数（内存 19 MiB，迭代 3 次，并行 1）
     let argon2 = Argon2::default();

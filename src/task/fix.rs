@@ -35,7 +35,7 @@ pub async fn path(conf: &AppState) {
 /// 递归为节点及其子节点补齐 path 字段
 fn fix_node_path(node: &mut TextbookResp, parent_path: &str) {
     // 设置当前节点的 path 为父路径（不包含当前节点）
-    node.path = parent_path.to_owned();
+    parent_path.clone_into(&mut node.path);
 
     // 如果有子节点，递归处理
     if let Some(children) = &mut node.children {

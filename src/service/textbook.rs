@@ -110,7 +110,7 @@ pub async fn list_level(
     app_state: &AppState,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, AppError> {
-    let rows = Textbook::find_list_by_parent_id(&app_state.db, parent_id as i32)
+    let rows = Textbook::find_list_by_parent_id(&app_state.db, parent_id.cast_signed())
         .await
         .map_err(|e| {
             error!("Error searching textbook: {e}");
@@ -125,7 +125,7 @@ pub async fn list_children(
     app_state: &AppState,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, AppError> {
-    let cache_key = format!("{}:children:{}", TEXTBOOK_CACHE_PREFIX, parent_id);
+    let cache_key = format!("{TEXTBOOK_CACHE_PREFIX}:children:{parent_id}");
     match cache::get::<Vec<TextbookResp>>(&app_state.sqlite, &cache_key).await {
         Ok(resp) => return Ok(resp),
         Err(err) => {
@@ -139,7 +139,7 @@ pub async fn list_children(
     let db = &app_state.db;
 
     // 获取原始列表
-    let children_rows = Textbook::find_all_by_parent_id(db, parent_id as i32)
+    let children_rows = Textbook::find_all_by_parent_id(db, parent_id.cast_signed())
         .await
         .map_err(|e| {
             error!("Error searching textbook: {e}");
@@ -156,7 +156,8 @@ pub async fn list_children(
     // 建立父子索引映射
     let map: HashMap<i32, Vec<Textbook>> = to_level_map(children_rows);
 
-    let mut resp = get_levels_by_parent_id(&map, parent_id as i32, constant::textbook::MAX_DEPTH);
+    let mut resp =
+        get_levels_by_parent_id(&map, parent_id.cast_signed(), constant::textbook::MAX_DEPTH);
 
     if relation_ids.is_empty() {
         return Ok(resp);
@@ -291,7 +292,7 @@ async fn check_parent_and_label_is_exists(
         Ok(())
     } else {
         Err(AppError::business_error(
-            format!("当前层级名称已存在: {}", label).as_str(),
+            format!("当前层级名称已存在: {label}").as_str(),
         ))
     }
 }
