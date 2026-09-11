@@ -9,7 +9,7 @@ pub async fn get_user_session_by_token(db: &PgPool, token: &str) -> Result<UserS
     let session = UserSession::find_by_token(db, token)
         .await
         .map_err(|err| {
-            error!("Query user session err: {}", err);
+            error!("Query user session err: {err}");
             AppError::db_error("非法的 token")
         })?
         .ok_or_else(|| AppError::not_found("token 不存在"))?;
@@ -18,7 +18,7 @@ pub async fn get_user_session_by_token(db: &PgPool, token: &str) -> Result<UserS
         let _ = UserSession::delete_by_id(db, session.id.unwrap())
             .await
             .map_err(|err| {
-                error!("Wrap delete user session err: {}", err);
+                error!("Wrap delete user session err: {err}");
                 AppError::db_error("删除过期 token 错误")
             })?;
 

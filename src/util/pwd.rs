@@ -13,12 +13,12 @@ use tracing::{error, warn};
 // 获取用户明文密码
 pub fn get_pwd(password: &str, absolute_path: &str) -> Result<String, AppError> {
     let private_key_content = load_private_key(absolute_path).map_err(|err| {
-        error!("Get private key error: {}", err);
+        error!("Get private key error: {err}");
         AppError::param_error("私钥文件读取失败")
     })?;
 
     let d_pwd = decrypt_pwd(password, &private_key_content).map_err(|err| {
-        error!("Decrypt error: {}", err);
+        error!("Decrypt error: {err}");
         AppError::param_error("密码解密失败")
     })?;
 
@@ -30,7 +30,7 @@ fn load_private_key(absolute_path: &str) -> Result<String, Box<dyn std::error::E
     // 校验路径是否存在，方便精准排查问题
     let path = Path::new(absolute_path);
     if !path.exists() {
-        error!("Load private key file:  {} not exist", absolute_path);
+        error!("Load private key file:  {absolute_path} not exist");
         return Err(format!("私钥文件不存在，请检查路径: {absolute_path}").into());
     }
 
@@ -67,7 +67,7 @@ fn decrypt_pwd(
 fn verify_and_get_pwd(d_pwd: &str) -> Result<String, AppError> {
     let parts: Vec<&str> = d_pwd.split('|').collect();
     if parts.len() != 3 {
-        error!("Verify d_pwd format err: {}", d_pwd);
+        error!("Verify d_pwd format err: {d_pwd}");
         return Err(AppError::param_error("密码格式生成错误"));
     }
 
@@ -77,20 +77,20 @@ fn verify_and_get_pwd(d_pwd: &str) -> Result<String, AppError> {
 
     // 校验时间戳
     let client_time = timestamp.parse::<u64>().map_err(|err| {
-        error!("Verify pwd timestamp error: {}", err);
+        error!("Verify pwd timestamp error: {err}");
         AppError::param_error("密码时间戳生成错误")
     })?;
     let server_time = u64::try_from(
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| {
-                error!("Verify pwd SystemTime now error: {}", e);
+                error!("Verify pwd SystemTime now error: {e}");
                 AppError::param_error("时间获取错误")
             })?
             .as_millis(),
     )
     .map_err(|err| {
-        error!("Verify pwd server time error: {}", err);
+        error!("Verify pwd server time error: {err}");
         AppError::internal_error("服务时间获取错误")
     })?;
 
@@ -104,7 +104,7 @@ fn verify_and_get_pwd(d_pwd: &str) -> Result<String, AppError> {
     // nonce 字段是为了防止加密后的密文泄露被重放, 所以该值设置为登录时间窗口内仅使用一次即废弃, 但是目前没有 redis 等类似的缓存中间件
     // 内存存储又会增加维护和清理负担, 故暂时保留该字段并为做校验, 所以登录时间窗口内能被重放
 
-    warn!("Verify d_pwd nonce is missing: {}", nonce);
+    warn!("Verify d_pwd nonce is missing: {nonce}");
 
-    Ok(password.to_string())
+    Ok(password.to_owned())
 }

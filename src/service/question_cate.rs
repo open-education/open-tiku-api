@@ -23,7 +23,7 @@ pub async fn list(
     let rows = QuestionCate::find_all_by_related_ids(db, &[related_id])
         .await
         .map_err(|err| {
-            error!("error finding question cat: {}", err);
+            error!("error finding question cat: {err}");
             AppError::db_error("题型查询失败")
         })?;
 
@@ -103,8 +103,8 @@ async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, Textbo
         Ok(resp) => return Ok(resp),
         Err(err) => {
             error!(
-                "Get question cate seven list all cache key: {}, msg: {}",
-                cache_key, err.msg
+                "Get question cate seven list all cache key: {cache_key}, msg: {}",
+                err.msg
             );
         }
     }
@@ -137,7 +137,7 @@ pub async fn list_all(
     let rows = QuestionCate::find_by_ids(db, &req.ids)
         .await
         .map_err(|err| {
-            error!("find question cate ids: {:?} row error: {}", req.ids, err);
+            error!("find question cate ids: {:?} row error: {err}", req.ids);
             AppError::db_error("查询题型分类出错")
         })?;
     if rows.is_empty() {
@@ -151,8 +151,8 @@ pub async fn list_all(
         .await
         .map_err(|err| {
             error!(
-                "find question cate and chapter knowledge ids: {:?} row error: {}",
-                related_ids, err
+                "find question cate and chapter knowledge ids: {:?} row error: {err}",
+                related_ids
             );
             AppError::db_error("获取题型菜单关联关系出错")
         })?;
@@ -214,7 +214,7 @@ pub async fn add(app_state: &AppState, req: CreateQuestionCateReq) -> Result<i32
     let row_id = QuestionCate::save(&app_state.db, req)
         .await
         .map_err(|err| {
-            error!("error adding question: {}", err);
+            error!("error adding question: {err}");
             AppError::db_error("题型添加失败")
         })?;
 
@@ -237,7 +237,7 @@ pub async fn remove(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     }
 
     let row = QuestionCate::delete(db, id).await.map_err(|err| {
-        error!("error deleting question: {}", err);
+        error!("error deleting question: {err}");
         AppError::db_error("题目删除失败")
     })?;
 

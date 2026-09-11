@@ -61,7 +61,7 @@ fn generate_safe_filename(original_name: &str) -> String {
 /// 保存文件
 async fn save_file(field: &mut actix_multipart::Field, file_path: &str) -> Result<usize, AppError> {
     let mut file = tokio::fs::File::create(file_path).await.map_err(|err| {
-        error!("file create file path: {} err: {}", file_path, err);
+        error!("file create file path: {file_path} err: {err}");
         AppError::internal_error("文件创建失败")
     })?;
     let mut file_size = 0;
@@ -82,12 +82,12 @@ async fn save_file(field: &mut actix_multipart::Field, file_path: &str) -> Resul
                 tokio::io::AsyncWriteExt::write_all(&mut file, &chunk)
                     .await
                     .map_err(|err| {
-                        error!("file write error: {}", err);
+                        error!("file write error: {err}");
                         AppError::internal_error("文件写入失败")
                     })?;
             }
             Err(e) => {
-                error!("upload file save error: {:?}", e);
+                error!("upload file save error: {e}");
                 return Err(AppError::internal_error("文件保存失败"));
             }
         }
@@ -103,8 +103,7 @@ pub async fn upload_file(
     is_image: &bool,
 ) -> Result<UploadFileResp, AppError> {
     let upload_path = format!(
-        "{}/{}",
-        meta_path,
+        "{meta_path}/{}",
         if *is_image {
             meta::IMAGE_NAME
         } else {
@@ -112,7 +111,7 @@ pub async fn upload_file(
         }
     );
     std::fs::create_dir_all(&upload_path).map_err(|err| {
-        error!("create_dir_all: {}, err: {}", upload_path, err);
+        error!("create_dir_all: {upload_path}, err: {err}");
         AppError::internal_error("上传文件目录创建失败")
     })?;
 
@@ -122,7 +121,7 @@ pub async fn upload_file(
         .await
         .ok_or_else(|| AppError::param_error("没有文件需要上传"))?
         .map_err(|e| {
-            error!("upload file err: {}", e);
+            error!("upload file err: {e}");
             AppError::internal_error("文件上传失败")
         })?;
 

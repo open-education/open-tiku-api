@@ -9,9 +9,9 @@ pub fn read_file(
     filename: &str,
 ) -> actix_web::Result<HttpResponse> {
     let file_path = if is_image {
-        format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename)
+        format!("{meta_path}/{}/{filename}", meta::IMAGE_NAME)
     } else {
-        format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
+        format!("{meta_path}/{}/{filename}", meta::FILE_NAME)
     };
 
     // 安全检查
@@ -48,9 +48,9 @@ fn get_content_type(filename: &str) -> &'static str {
 
 pub async fn delete_file(meta_path: &str, is_image: bool, filename: &str) -> Result<bool, Error> {
     let file_path = if is_image {
-        format!("{}/{}/{}", meta_path, meta::IMAGE_NAME, filename)
+        format!("{meta_path}/{}/{filename}", meta::IMAGE_NAME)
     } else {
-        format!("{}/{}/{}", meta_path, meta::FILE_NAME, filename)
+        format!("{meta_path}/{}/{filename}", meta::FILE_NAME)
     };
     tokio::fs::remove_file(file_path).await?;
     Ok(true)

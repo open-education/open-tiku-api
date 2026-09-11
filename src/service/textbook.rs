@@ -58,7 +58,7 @@ pub fn get_levels_by_parent_id(
 pub fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
     let mut map: HashMap<i32, Vec<Textbook>> = HashMap::with_capacity(rows.len());
     for row in rows {
-        let parent_id = row.parent_id.unwrap_or(0);
+        let parent_id = row.parent_id.unwrap_or_default();
         // 使用 entry API 更优雅地处理“不存在则创建，存在则修改”
         map.entry(parent_id).or_default().push(row);
     }
@@ -70,13 +70,13 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
     // 限制获取数据的最大层级
     let safe_depth = depth.min(constant::textbook::MAX_DEPTH);
 
-    let cache_key = format!("{}:all:{}", TEXTBOOK_CACHE_PREFIX, depth);
+    let cache_key = format!("{TEXTBOOK_CACHE_PREFIX}:all:{depth}");
     match cache::get::<Vec<TextbookResp>>(&app_state.sqlite, &cache_key).await {
         Ok(resp) => return Ok(resp),
         Err(err) => {
             error!(
-                "Get textbook list all cache key: {}, msg: {}",
-                cache_key, err.msg
+                "Get textbook list all cache key: {cache_key}, msg: {}",
+                err.msg
             );
         }
     }
@@ -84,7 +84,7 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
     let rows = Textbook::find_all_by_depth(&app_state.db, safe_depth)
         .await
         .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
+            error!("Error searching textbook: {e}");
             AppError::db_error("导航查询失败")
         })?;
 
@@ -113,7 +113,7 @@ pub async fn list_level(
     let rows = Textbook::find_list_by_parent_id(&app_state.db, parent_id as i32)
         .await
         .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
+            error!("Error searching textbook: {e}");
             AppError::db_error("导航菜单查询失败")
         })?;
 
@@ -130,8 +130,8 @@ pub async fn list_children(
         Ok(resp) => return Ok(resp),
         Err(err) => {
             error!(
-                "Get textbook list children cache key: {}, msg: {}",
-                cache_key, err.msg
+                "Get textbook list children cache key: {cache_key}, msg: {}",
+                err.msg
             );
         }
     }
@@ -142,7 +142,7 @@ pub async fn list_children(
     let children_rows = Textbook::find_all_by_parent_id(db, parent_id as i32)
         .await
         .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
+            error!("Error searching textbook: {e}");
             AppError::db_error("菜单列表查询失败")
         })?;
 
@@ -166,7 +166,7 @@ pub async fn list_children(
     let ck_rows = ChapterKnowledge::find_by_ck_ids(db, &relation_ids)
         .await
         .map_err(|e| {
-            error!("DB Error: {:?}", e);
+            error!("DB Error: {e}");
             AppError::db_error("考点章节绑定关系查询失败")
         })?;
 
@@ -188,7 +188,7 @@ pub async fn list_children(
     let q_rows = QuestionCate::find_all_by_related_ids(db, &bridge_ids)
         .await
         .map_err(|e| {
-            error!("DB Error: {:?}", e);
+            error!("DB Error: {e}");
             AppError::db_error("题型查询失败")
         })?;
 
@@ -283,7 +283,7 @@ async fn check_parent_and_label_is_exists(
     let row = Textbook::find_one_by_parent_and_label(pool, parent_id, label, id)
         .await
         .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
+            error!("Error searching textbook: {e}");
             AppError::db_error("菜单名称查询查询失败")
         })?;
 
@@ -303,7 +303,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, Ap
     check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), req.id).await?;
 
     let row_id = Textbook::save(db, req).await.map_err(|e| {
-        error!("Error inserting textbook: {:?}", e);
+        error!("Error inserting textbook: {e}");
         AppError::db_error("菜单添加失败")
     })?;
 
@@ -315,7 +315,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, Ap
 // 详情
 pub async fn info(app_state: &AppState, id: i32) -> Result<TextbookResp, AppError> {
     let row = Textbook::find_by_id(&app_state.db, id).await.map_err(|e| {
-        error!("Error searching textbook: {:?}", e);
+        error!("Error searching textbook: {e}");
         AppError::not_found("数据不存在")
     })?;
 
@@ -332,7 +332,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let row = Textbook::find_one_by_parent_id(db, info.id)
         .await
         .map_err(|e| {
-            error!("Error searching textbook: {:?}", e);
+            error!("Error searching textbook: {e}");
             AppError::db_error("菜单查询失败")
         })?;
     if row.is_some() {
@@ -347,7 +347,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
         let chapters = ChapterKnowledge::find_by_ck_id(db, info.id)
             .await
             .map_err(|e| {
-                error!("Error searching textbook: {:?}", e);
+                error!("Error searching textbook: {e}");
                 AppError::db_error("章节考点查询失败")
             })?;
         if !chapters.is_empty() {
@@ -358,7 +358,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     }
 
     let row = Textbook::delete_by_id(db, id).await.map_err(|e| {
-        error!("Error deleting textbook: {:?}", e);
+        error!("Error deleting textbook: {e}");
         AppError::db_error("菜单删除失败")
     })?;
 

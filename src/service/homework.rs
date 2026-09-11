@@ -23,7 +23,7 @@ pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppErr
     let max_batch_no = Homework::find_max_batch_no(&app_state.db, paper_id)
         .await
         .map_err(|err| {
-            error!("Get paper_id: {} batch no err: {}", paper_id, err);
+            error!("Get paper_id: {paper_id} batch no err: {err}");
             AppError::db_error("获取试卷批次号错误")
         })?;
     if let Some(max) = max_batch_no {
@@ -67,35 +67,29 @@ pub async fn add(
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
-        error!("Failed to homework add begin transaction: {}", e);
+        error!("Failed to homework add begin transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
     let class_rows = Homework::batch_insert(&mut tx, &class_list)
         .await
         .map_err(|e| {
-            error!("Failed to add homework class to transaction: {}", e);
+            error!("Failed to add homework class to transaction: {e}");
             AppError::db_error("布置作业写入班级信息失败")
         })?;
-    info!(
-        "Added homework class to transaction class_rows: {}",
-        class_rows
-    );
+    info!("Added homework class to transaction class_rows: {class_rows}");
 
     let class_students_rows = HomeworkStudent::batch_insert(&mut tx, &class_students)
         .await
         .map_err(|e| {
-            error!("Failed to add homework class to transaction: {}", e);
+            error!("Failed to add homework class to transaction: {e}");
             AppError::db_error("布置作业写入班级学生信息失败")
         })?;
-    info!(
-        "Added homework class to transaction class_students_rows: {}",
-        class_students_rows
-    );
+    info!("Added homework class to transaction class_students_rows: {class_students_rows}");
 
     // 提交事务
     tx.commit().await.map_err(|e| {
-        error!("Failed to homework add commit transaction: {}", e);
+        error!("Failed to homework add commit transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 
@@ -159,7 +153,7 @@ pub async fn list(
     let total = Homework::count(db, user_id, req.paper_id, req.batch_no)
         .await
         .map_err(|e| {
-            error!("Count homework class error: {}", e);
+            error!("Count homework class error: {e}");
             AppError::db_error("班级作业布置计数查询错误")
         })?;
 
@@ -167,7 +161,7 @@ pub async fn list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 || total == 0 {
         return Ok(HomeworkListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
@@ -185,7 +179,7 @@ pub async fn list(
     )
     .await
     .map_err(|e| {
-        error!("List homework class error: {}", e);
+        error!("List homework class error: {e}");
         AppError::db_error("班级作业布置列表查询失败")
     })?;
 
@@ -203,7 +197,7 @@ pub async fn list(
     class_ids.sort_unstable();
     class_ids.dedup();
     let classes = Class::find_by_ids(db, &class_ids).await.map_err(|e| {
-        error!("List homework class error: {}", e);
+        error!("List homework class error: {e}");
         AppError::db_error("获取班级信息失败")
     })?;
     let class_map: HashMap<i64, &Class> = classes
@@ -220,7 +214,7 @@ pub async fn list(
     let students = HomeworkStudent::find_by_homework_ids(db, homework_ids)
         .await
         .map_err(|e| {
-            error!("List homework class students error: {}", e);
+            error!("List homework class students error: {e}");
             AppError::db_error("班级作业布置学生列表查询错误")
         })?;
 
@@ -241,7 +235,7 @@ pub async fn list(
     let accounts = ClassStudent::find_by_ids(db, student_ids)
         .await
         .map_err(|e| {
-            error!("List class student error: {}", e);
+            error!("List class student error: {e}");
             AppError::db_error("学生账户信息列表查询失败")
         })?;
 
@@ -262,7 +256,7 @@ pub async fn list(
         };
 
         // 学生账户信息
-        let mut account_list: Vec<ClassStudentResp> = vec![];
+        let mut account_list: Vec<ClassStudentResp> = Vec::new();
 
         if let Some(student_list) = student_map.remove(&item.homework_id) {
             for info in student_list {

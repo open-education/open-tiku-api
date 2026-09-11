@@ -18,7 +18,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
     TypeCode::from_str(&req.type_code)
         .ok_or_else(|| AppError::param_error("不受支持的字典类型"))?;
 
-    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, req.textbook_id);
+    let cache_key_prefix = format!("{TEXTBOOK_DICT_CACHE_PREFIX}:all:{}", req.textbook_id);
 
     // 新增时需要判重
     if req.id.is_none() {
@@ -26,7 +26,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
             TextbookDict::find_by_unique(db, req.textbook_id, &req.type_code, &req.item_value)
                 .await
                 .map_err(|e| {
-                    error!("error finding unique textbook item: {}", e);
+                    error!("error finding unique textbook item: {e}");
                     AppError::db_error("字典查询失败")
                 })?;
         if res.is_some() {
@@ -35,7 +35,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
     }
 
     let id = TextbookDict::save(db, req).await.map_err(|e| {
-        error!("error adding unique textbook item: {}", e);
+        error!("error adding unique textbook item: {e}");
         AppError::db_error("字典新增失败")
     })?;
 
@@ -55,7 +55,7 @@ pub async fn get_list(
     let rows = TextbookDict::find_by_textbook_and_type(db, textbook_id, &type_code)
         .await
         .map_err(|e| {
-            error!("error finding unique textbook item: {}", e);
+            error!("error finding unique textbook item: {e}");
             AppError::db_error("字典列表查询失败")
         })?;
     let res: Vec<TextbookDictResp> = rows.into_iter().map(Into::into).collect();
@@ -81,8 +81,8 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
         Ok(resp) => return Ok(resp),
         Err(err) => {
             error!(
-                "Get textbook dict list all cache key: {}, msg: {}",
-                cache_key, err.msg
+                "Get textbook dict list all cache key: {cache_key}, msg: {}",
+                err.msg
             );
         }
     }
@@ -92,7 +92,7 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
     let rows = TextbookDict::find_by_textbook_ids(db, &[req.textbook_id], codes)
         .await
         .map_err(|e| {
-            error!("find textbook dict err: {}", e);
+            error!("find textbook dict err: {e}");
             AppError::db_error("查询教材字典出错")
         })?;
 
@@ -122,7 +122,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let row = TextbookDict::find_by_id(db, id)
         .await
         .map_err(|e| {
-            error!("error deleting unique textbook item: {}", e);
+            error!("error deleting unique textbook item: {e}");
             AppError::db_error("字典查询出错")
         })?
         .ok_or_else(|| AppError::not_found("字典不存在"))?;
@@ -138,7 +138,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let exist = Question::exists_by_ext_id(db, &ext_id_req)
         .await
         .map_err(|e| {
-            error!("error finding unique textbook item: {}", e);
+            error!("error finding unique textbook item: {e}");
             AppError::db_error("检查题目是否存在出错")
         })?;
     if exist {
@@ -148,11 +148,11 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     }
 
     let del_rows = TextbookDict::delete(db, id).await.map_err(|e| {
-        error!("error deleting unique textbook item: {}", e);
+        error!("error deleting unique textbook item: {e}");
         AppError::db_error("字典删除失败")
     })?;
 
-    let cache_key_prefix = format!("{}:all:{}", TEXTBOOK_DICT_CACHE_PREFIX, row.textbook_id);
+    let cache_key_prefix = format!("{TEXTBOOK_DICT_CACHE_PREFIX}:all:{}", row.textbook_id);
     cache::delete_by_prefix(&app_state.sqlite, &cache_key_prefix).await;
 
     Ok(del_rows > 0)

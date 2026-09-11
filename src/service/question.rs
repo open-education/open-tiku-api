@@ -63,7 +63,7 @@ pub async fn add(
     // 只允许编辑自己的题目, 实际上题目应该可以公开编辑, 但是这个要引入版本控制, 即记录谁做了什么
     if req_id > 0 {
         let has_question = Question::find_by_id(db, req_id).await.map_err(|err| {
-            error!("Failed to find question (id: {}): {}", req_id, err);
+            error!("Failed to find question (id: {req_id}): {err}");
             AppError::db_error("题目查询失败")
         })?;
 
@@ -87,10 +87,7 @@ pub async fn add(
         let similar = QuestionRelation::find_base_by_similar_id(db, source_id)
             .await
             .map_err(|err| {
-                error!(
-                    "Failed to find similar by child_id ({}): {}",
-                    source_id, err
-                );
+                error!("Failed to find similar by child_id ({source_id}): {err}");
                 AppError::db_error("变式题关系查询失败")
             })?;
 
@@ -103,10 +100,7 @@ pub async fn add(
         let child_ids = QuestionRelation::find_original_by_base_id(db, req_id)
             .await
             .map_err(|err| {
-                error!(
-                    "Failed to find original child ids (req_id: {}): {}",
-                    req_id, err
-                );
+                error!("Failed to find original child ids (req_id: {req_id}): {err}");
                 AppError::db_error("母题查找变式题失败")
             })?;
         if child_ids.len() > 1 {
@@ -122,7 +116,7 @@ pub async fn add(
     req.content_plain = Some(to_plain_text(req.title.as_str()));
 
     let id = Question::simple_save(db, req).await.map_err(|e| {
-        error!("question add err: {:?}", e);
+        error!("question add err: {e}");
         AppError::db_error("题目添加失败")
     })?;
 
@@ -131,7 +125,7 @@ pub async fn add(
         let _ = QuestionRelation::insert(db, source_id, id, relation_type as i16)
             .await
             .map_err(|e| {
-                error!("question add err: {:?}", e);
+                error!("question add err: {e}");
                 AppError::db_error("题目关联关系关联失败")
             })?;
     }
@@ -196,7 +190,7 @@ pub fn to_info_resp(row: &Question, author_name: String, approve_name: String) -
 pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, AppError> {
     let db = &app_state.db;
     let row = Question::find_by_id(db, id).await.map_err(|err| {
-        error!("question get by id err: {:?}", err);
+        error!("question get by id err: {err}");
         AppError::db_error("查询失败")
     })?;
 
@@ -270,7 +264,7 @@ pub async fn list(
     let total = Question::count_by_cate_and_type(db, &query_req)
         .await
         .map_err(|e| {
-            error!("question count by id err: {:?}", e);
+            error!("question count by id err: {e}");
             AppError::db_error("题目计数查询失败")
         })?;
 
@@ -278,7 +272,7 @@ pub async fn list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
         return Ok(QuestionListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
@@ -289,7 +283,7 @@ pub async fn list(
     let list_data = Question::list_by_cate_and_type(db, &query_req, req.page_size, offset)
         .await
         .map_err(|e| {
-            error!("question list by id err: {:?}", e);
+            error!("question list by id err: {e}");
             AppError::db_error("题目列表查询失败")
         })?;
 
@@ -366,7 +360,7 @@ pub async fn similar(
     let total = Question::count_similar_by_params(db, &query_req)
         .await
         .map_err(|e| {
-            error!("question similar count by id err: {:?}", e);
+            error!("question similar count by id err: {e}");
             AppError::db_error("变式题计数查询失败")
         })?;
 
@@ -386,7 +380,7 @@ pub async fn similar(
     let list_data = Question::list_similar_by_params(db, &query_req, req.page_size, offset)
         .await
         .map_err(|e| {
-            error!("question similar list by id err: {:?}", e);
+            error!("question similar list by id err: {e}");
             AppError::db_error("变式题列表查询失败")
         })?;
 
@@ -417,7 +411,7 @@ pub async fn delete(
 
     // 只允许删除自己的题目
     let has_question = Question::find_by_id(db, req.id).await.map_err(|err| {
-        error!("Failed to find question: {}", err);
+        error!("Failed to find question: {err}");
         AppError::db_error("题目查询错误")
     })?;
     if has_question.author_id != user_info.user_id {
@@ -425,7 +419,7 @@ pub async fn delete(
     }
 
     let rows = Question::delete_by_id(db, req.id).await.map_err(|err| {
-        error!("question delete by id err: {:?}", err);
+        error!("question delete by id err: {err}");
         AppError::db_error("题目删除失败")
     })?;
 

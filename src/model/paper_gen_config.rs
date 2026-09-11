@@ -35,7 +35,7 @@ pub struct PaperGenConfig {
 impl PaperGenConfig {
     pub async fn tx_insert(
         tx: &mut Transaction<'_, Postgres>,
-        conf: &Self,
+        conf: Self,
     ) -> Result<i64, sqlx::Error> {
         let id = sqlx::query(
             r"
@@ -54,14 +54,14 @@ impl PaperGenConfig {
             ",
         )
         .bind(conf.paper_id)
-        .bind(&conf.question_cate_ids)
-        .bind(&conf.question_tag_ids)
-        .bind(&conf.question_dimension_ids)
-        .bind(&conf.question_type_info)
-        .bind(&conf.difficulty_level_info)
-        .bind(&conf.level_ids)
-        .bind(&conf.scene_ids)
-        .bind(&conf.mistake_tip_ids)
+        .bind(conf.question_cate_ids)
+        .bind(conf.question_tag_ids)
+        .bind(conf.question_dimension_ids)
+        .bind(conf.question_type_info)
+        .bind(conf.difficulty_level_info)
+        .bind(conf.level_ids)
+        .bind(conf.scene_ids)
+        .bind(conf.mistake_tip_ids)
         .map(|row: sqlx::postgres::PgRow| {
             use sqlx::Row;
             row.get::<i64, _>("id")

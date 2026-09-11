@@ -56,13 +56,13 @@ async fn get_access_token(
         .send()
         .await
         .map_err(|e| {
-            error!("Request QQ access_token failed: {}", e);
+            error!("Request QQ access_token failed: {e}");
             error::ErrorInternalServerError("Failed to request access token")
         })?
         .json()
         .await
         .map_err(|e| {
-            error!("Parse QQ access_token response failed: {}", e);
+            error!("Parse QQ access_token response failed: {e}");
             error::ErrorInternalServerError("Failed to parse access token response")
         })?;
 
@@ -99,13 +99,13 @@ async fn get_openid(client: &Client, access_token: &str) -> actix_web::Result<St
         .send()
         .await
         .map_err(|e| {
-            error!("Request QQ open id failed: {}", e);
+            error!("Request QQ open id failed: {e}");
             error::ErrorInternalServerError("Failed to request open id")
         })?
         .json()
         .await
         .map_err(|e| {
-            error!("Parse QQ open id response failed: {}", e);
+            error!("Parse QQ open id response failed: {e}");
             error::ErrorInternalServerError("Failed to parse open id response")
         })?;
 
@@ -150,13 +150,13 @@ async fn get_user(
         .send()
         .await
         .map_err(|e| {
-            error!("Request QQ user failed: {}", e);
+            error!("Request QQ user failed: {e}");
             error::ErrorInternalServerError("Failed to request user info")
         })?
         .json()
         .await
         .map_err(|e| {
-            error!("Parse QQ user response failed: {}", e);
+            error!("Parse QQ user response failed: {e}");
             error::ErrorInternalServerError("Failed to parse user info response")
         })?;
 

@@ -32,7 +32,7 @@ pub async fn list(
     let total = HomeworkStudent::count(db, student.id, &req.start_date, &req.end_date)
         .await
         .map_err(|e| {
-            error!("test list count error: {}", e);
+            error!("test list count error: {e}");
             AppError::db_error("查询学生任务数量出错")
         })?;
 
@@ -56,7 +56,7 @@ pub async fn list(
     )
     .await
     .map_err(|e| {
-        error!("test list rows error: {}", e);
+        error!("test list rows error: {e}");
         AppError::db_error("查询学生任务列表出错")
     })?;
 
@@ -67,7 +67,7 @@ pub async fn list(
     let homework_rows = Homework::find_by_homework_ids(db, homework_ids)
         .await
         .map_err(|e| {
-            error!("test list homework rows error: {}", e);
+            error!("test list homework rows error: {e}");
             AppError::db_error("获取学生作业布置信息出错")
         })?;
     // 作业标识id-> 作业信息
@@ -81,7 +81,7 @@ pub async fn list(
     paper_ids.sort_unstable();
     paper_ids.dedup();
     let paper_list = Paper::find_by_ids(db, paper_ids).await.map_err(|e| {
-        error!("test list paper rows error: {}", e);
+        error!("test list paper rows error: {e}");
         AppError::db_error("获取学生作业试卷信息出错")
     })?;
     // 试卷id->试卷详情
@@ -106,7 +106,7 @@ pub async fn list(
         let paper_resp = if let Some(paper) = paper_map.get(&paper_id) {
             (**paper).clone().into()
         } else {
-            error!("test list paper info is empty: {}", paper_id);
+            error!("test list paper info is empty: {paper_id}");
             CommonPaperResp::default()
         };
 
@@ -157,7 +157,7 @@ pub async fn attempt_latest(
     )
     .await
     .map_err(|e| {
-        error!("get test latest in progress attempt row error: {}", e);
+        error!("get test latest in progress attempt row error: {e}");
         AppError::db_error("查询最新的作业记录失败")
     })?;
 
@@ -167,7 +167,7 @@ pub async fn attempt_latest(
         let max_no = TestAttempt::find_max_attempt_number(db, hcs.homework_id, hcs.student_id)
             .await
             .map_err(|e| {
-                error!("test latest max attempt number error: {}", e);
+                error!("test latest max attempt number error: {e}");
                 AppError::db_error("获取做题记录批次失败")
             })?
             .unwrap_or(0);
@@ -192,7 +192,7 @@ pub async fn attempt_latest(
     // 首次保存进行中的做题记录
     if hsta.id.is_none() {
         let id = TestAttempt::save(db, &hsta).await.map_err(|e| {
-            error!("save test latest attempt row error: {}", e);
+            error!("save test latest attempt row error: {e}");
             AppError::db_error("记录最新的做题记录失败")
         })?;
         hsta.id = Some(id);
@@ -202,7 +202,7 @@ pub async fn attempt_latest(
     let answers = TestAnswer::find_by_attempt_ids(db, &[hsta.id.unwrap_or_default()])
         .await
         .map_err(|e| {
-            error!("get test latest answer row error: {}", e);
+            error!("get test latest answer row error: {e}");
             AppError::db_error("获取答案明细出错")
         })?;
 
@@ -220,7 +220,7 @@ async fn validate_attempt(db: &PgPool, user_id: i64, attempt_id: i64) -> Result<
     let attempt = TestAttempt::find_by_id(db, attempt_id)
         .await
         .map_err(|e| {
-            error!("find test attempt row error: {}", e);
+            error!("find test attempt row error: {e}");
             AppError::db_error("做题记录查询失败")
         })?
         .ok_or_else(|| AppError::not_found("做题记录为空"))?;
@@ -240,7 +240,7 @@ async fn get_class_student_by_id(
     let hcs = HomeworkStudent::find_by_id(pool, id)
         .await
         .map_err(|e| {
-            error!("get homework class student row error: {}", e);
+            error!("get homework class student row error: {e}");
             AppError::db_error("获取学生作业布置信息出错")
         })?
         .ok_or_else(|| AppError::not_found("作业布置信息不存在"))?;
@@ -261,7 +261,7 @@ async fn get_homework_class_by_homework_id(
     let hc_rows = Homework::find_by_homework_ids(pool, vec![homework_id])
         .await
         .map_err(|e| {
-            error!("get homework class rows error: {}", e);
+            error!("get homework class rows error: {e}");
             AppError::db_error("获取班级作业信息失败")
         })?;
 
@@ -295,7 +295,7 @@ pub async fn attempts(
     let total = TestAttempt::count(db, hcs.homework_id, hcs.student_id)
         .await
         .map_err(|e| {
-            error!("get attempts count error: {}", e);
+            error!("get attempts count error: {e}");
             AppError::db_error("作业做题记录计数查询出错")
         })?;
     let offset = (req.page_no - 1) * req.page_size;
@@ -311,7 +311,7 @@ pub async fn attempts(
     let rows = TestAttempt::list(db, hcs.homework_id, hcs.student_id, req.page_size, offset)
         .await
         .map_err(|e| {
-            error!("get attempts list row error: {}", e);
+            error!("get attempts list row error: {e}");
             AppError::db_error("作业做题记录列表查询出错")
         })?;
 
@@ -322,7 +322,7 @@ pub async fn attempts(
     let answers = TestAnswer::find_by_attempt_ids(db, &attempt_ids)
         .await
         .map_err(|e| {
-            error!("find test attempt row error: {}", e);
+            error!("find test attempt row error: {e}");
             AppError::db_error("获取做题记录出错")
         })?;
     let mut answer_map: HashMap<i64, Vec<TestAnswer>> =
@@ -371,7 +371,7 @@ pub async fn answer_add(
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
-        error!("Failed to answer add begin transaction: {}", e);
+        error!("Failed to answer add begin transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
@@ -379,30 +379,30 @@ pub async fn answer_add(
     let rows = TestAnswer::delete_by_attempt_id(&mut tx, a_id)
         .await
         .map_err(|e| {
-            error!("delete by attempt id error: {}", e);
+            error!("delete by attempt id error: {e}");
             AppError::db_error("删除做题记录失败")
         })?;
-    info!("delete attempt id: {}, rows: {}", a_id, rows);
+    info!("delete attempt id: {a_id}, rows: {rows}");
 
     // 重新写入新答案
     let id = TestAnswer::batch_insert(&mut tx, &add_list)
         .await
         .map_err(|e| {
-            error!("save test answer add error: {}", e);
+            error!("save test answer add error: {e}");
             AppError::db_error("答案保存失败")
         })?;
 
     // 得分暂时计算意义不大, 因此已交卷需要更新尝试做题记录表
     if test_status == TestStatus::Done {
         let row = TestAttempt::done_by_id(&mut tx, a_id).await.map_err(|e| {
-            error!("save test attempt add error: {}", e);
+            error!("save test attempt add error: {e}");
             AppError::db_error("更新做题记录完成状态失败")
         })?;
-        info!("save test attempt id: {}, row: {}", a_id, row);
+        info!("save test attempt id: {a_id}, row: {row}");
     }
     // 提交事务
     tx.commit().await.map_err(|e| {
-        error!("Failed to answer add commit transaction: {}", e);
+        error!("Failed to answer add commit transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 

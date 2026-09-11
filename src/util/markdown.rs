@@ -61,7 +61,7 @@ fn get_parents(text: &str) -> Vec<String> {
 // 二级：分所有H4 H5标题（母题+变式）
 // 返回 标题->原始整体内容 的列表, 仅仅是根据标题分组, 原始内容全部保留
 fn get_parent_and_children(block: &str) -> Vec<(String, String)> {
-    let mut res = Vec::new();
+    let mut res: Vec<(String, String)> = Vec::new();
     let mut buf = String::new();
     let mut level = String::new();
 
@@ -72,7 +72,7 @@ fn get_parent_and_children(block: &str) -> Vec<(String, String)> {
         if is_match {
             // 第二次遇见标题行说明一个题目已完整记录到 buf, 保存后清空继续处理下一个题
             if !buf.is_empty() {
-                res.push((level.clone(), buf.trim().to_string()));
+                res.push((level.clone(), buf.trim().to_owned()));
                 buf.clear();
             }
 
@@ -81,7 +81,7 @@ fn get_parent_and_children(block: &str) -> Vec<(String, String)> {
                 .iter()
                 .find(|&&p| trimmed_line.starts_with(p))
             {
-                level = trimmed_line[matched_prefix.len()..].trim().to_string();
+                level = trimmed_line[matched_prefix.len()..].trim().to_owned();
             }
         }
         // 将当前行也追加到原始内容中
@@ -91,14 +91,15 @@ fn get_parent_and_children(block: &str) -> Vec<(String, String)> {
         }
     }
     if !buf.trim().is_empty() {
-        res.push((level.clone(), buf.trim().to_string()));
+        res.push((level.clone(), buf.trim().to_owned()));
     }
+
     res
 }
 
 // 按照 --- 分隔符将变式题拆分
 fn get_children(children: &str) -> Vec<String> {
-    let mut res = Vec::new();
+    let mut res: Vec<String> = Vec::new();
     let mut current_block = String::new();
 
     for line in children.lines() {
@@ -108,7 +109,7 @@ fn get_children(children: &str) -> Vec<String> {
         if trimmed == "---" {
             // 如果当前题目缓冲区有内容 说明一题结束
             if !current_block.trim().is_empty() {
-                res.push(current_block.trim().to_string());
+                res.push(current_block.trim().to_owned());
                 current_block.clear();
             }
         } else {
@@ -123,7 +124,7 @@ fn get_children(children: &str) -> Vec<String> {
 
     // 收尾工作 最后一道题后面通常没有 ---
     if !current_block.trim().is_empty() {
-        res.push(current_block.trim().to_string());
+        res.push(current_block.trim().to_owned());
     }
 
     res
@@ -268,7 +269,7 @@ fn parse_question(level: String, markdown: &str) -> Result<RawQuestion, AppError
                         };
                         for item in clean_s.split(['、', '，', ',']) {
                             if !item.trim().is_empty() {
-                                target_vec.push(item.trim().to_string());
+                                target_vec.push(item.trim().to_owned());
                             }
                         }
                     }
@@ -295,7 +296,7 @@ fn parse_question(level: String, markdown: &str) -> Result<RawQuestion, AppError
 
     // 解析选项, 没有选项的题目为空
     let choices = if choice.is_empty() {
-        vec![]
+        Vec::new()
     } else {
         get_choices(&choice)?
     };
@@ -358,7 +359,7 @@ pub fn get_choices(text: &str) -> Result<Vec<(char, String)>, AppError> {
         if let Some(raw_content) = text.get(start_pos..end_pos) {
             let content = raw_content
                 .trim_matches(|c: char| c.is_whitespace() || c == '　')
-                .to_string();
+                .to_owned();
             if !content.is_empty() {
                 result.push((letter, content));
             }

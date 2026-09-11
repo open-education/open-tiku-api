@@ -20,7 +20,7 @@ pub async fn add(
         let has = Class::find_by_id(db, req.id.unwrap_or_default())
             .await
             .map_err(|err| {
-                error!("Select class err: {}", err);
+                error!("Select class err: {err}");
                 AppError::db_error("查询班级信息错误")
             })?
             .ok_or_else(|| AppError::not_found("班级不存在"))?;
@@ -31,7 +31,7 @@ pub async fn add(
 
     let class = build_class_req(req, user_info.0.user_id);
     let row_id = Class::save(db, class).await.map_err(|err| {
-        error!("Save class err: {}", err);
+        error!("Save class err: {err}");
         AppError::db_error("班级创建失败")
     })?;
 
@@ -78,7 +78,7 @@ pub async fn list(
     let count = Class::count(db, user_info.0.user_id, &req)
         .await
         .map_err(|err| {
-            error!("Class count err: {}", err);
+            error!("Class count err: {err}");
             AppError::db_error("班级计数信息查询失败")
         })?;
 
@@ -95,7 +95,7 @@ pub async fn list(
     let rows = Class::list(db, user_info.0.user_id, &req, offset)
         .await
         .map_err(|err| {
-            error!("Select class err: {}", err);
+            error!("Select class err: {err}");
             AppError::db_error("班级信息查询失败")
         })?;
 

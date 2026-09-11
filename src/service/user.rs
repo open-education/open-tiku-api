@@ -44,7 +44,7 @@ pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<Str
 
     // 替换用户临时 session 为 登录 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
-        error!("Exchange save user session save err: {}", err);
+        error!("Exchange save user session save err: {err}");
         AppError::db_error("更新用户 session 信息错误")
     })?;
 
@@ -105,7 +105,7 @@ async fn handle_normal_login(
 
     // 更新用户 session
     let _ = UserSession::save(db, session).await.map_err(|err| {
-        error!("Login save user session save err: {}", err);
+        error!("Login save user session save err: {err}");
         AppError::db_error("更新用户 session 信息错误")
     })?;
 
@@ -113,7 +113,7 @@ async fn handle_normal_login(
     user.last_login_time = Some(Utc::now());
     user.login_count += 1;
     let _ = UserIdentity::save(db, &user).await.map_err(|err| {
-        error!("Login save user session save err: {}", err);
+        error!("Login save user session save err: {err}");
         AppError::db_error("更新用户信息错误")
     })?;
 
@@ -148,7 +148,7 @@ async fn handle_student_login(
     let mut student = ClassStudent::find_by_account(db, account.as_str())
         .await
         .map_err(|e| {
-            error!("查询学生账户失败: {}", e);
+            error!("find class student account err: {e}");
             AppError::db_error("学生账户查询出错")
         })?
         .ok_or_else(|| AppError::not_found("学生账户不存在"))?;
@@ -178,7 +178,7 @@ async fn handle_student_login(
         updated_at: None,
     };
     let _ = UserSession::save(db, session).await.map_err(|e| {
-        error!("Save user session failed: {}", e);
+        error!("Save user session failed: {e}");
         AppError::db_error("生成学生登录信息失败")
     })?;
 
@@ -188,7 +188,7 @@ async fn handle_student_login(
     let _ = ClassStudent::update_by_id(db, &student)
         .await
         .map_err(|err| {
-            error!("Update student user session student by id error: {}", err);
+            error!("Update student user session student by id error: {err}");
             AppError::db_error("更新学生用户统计信息错误")
         })?;
 
@@ -249,7 +249,7 @@ pub async fn logout(app_state: &AppState, user_info: UserInfo) -> Result<bool, A
     UserSession::delete_by_id(db, session.id.unwrap_or_default())
         .await
         .map_err(|err| {
-            error!("Login delete user session delete err: {}", err);
+            error!("Login delete user session delete err: {err}");
             AppError::db_error("清空 Session 失败")
         })?;
 
@@ -263,7 +263,7 @@ pub async fn get_user_map(
     let user_list = UserIdentity::find_by_user_ids(db, author_ids)
         .await
         .map_err(|e| {
-            error!("user list by id err: {:?}", e);
+            error!("user list by id err: {e}");
             AppError::db_error("作者信息查询失败")
         })?;
     let user_map: HashMap<i64, String> = user_list
@@ -282,7 +282,7 @@ pub async fn account_list(
     let db = &app_state.db;
 
     let count = UserIdentity::count(db).await.map_err(|e| {
-        error!("list user count err: {}", e);
+        error!("list user count err: {e}");
         AppError::db_error("用户计数查询失败")
     })?;
 
@@ -299,7 +299,7 @@ pub async fn account_list(
     let rows = UserIdentity::list(db, req.page_size, offset)
         .await
         .map_err(|e| {
-            error!("list user list rows err: {}", e);
+            error!("list user list rows err: {e}");
             AppError::db_error("用户列表查询失败")
         })?;
 
@@ -319,7 +319,7 @@ pub async fn session_list(
     let db = &app_state.db;
 
     let count = UserSession::count(db).await.map_err(|e| {
-        error!("list user count err: {}", e);
+        error!("list user count err: {e}");
         AppError::db_error("用户 Session 计数查询失败")
     })?;
 
@@ -336,7 +336,7 @@ pub async fn session_list(
     let rows = UserSession::list(db, req.page_size, offset)
         .await
         .map_err(|e| {
-            error!("list user list rows err: {}", e);
+            error!("list user list rows err: {e}");
             AppError::db_error("用户 Session 列表查询失败")
         })?;
 
@@ -364,7 +364,7 @@ pub async fn session_list(
         let account_list = UserIdentity::find_by_user_ids(db, account_ids)
             .await
             .map_err(|e| {
-                error!("list user list err: {}", e);
+                error!("list user list err: {e}");
                 AppError::db_error("用户列表查询失败")
             })?;
 
@@ -380,7 +380,7 @@ pub async fn session_list(
         let student_list = ClassStudent::find_by_user_ids(db, student_ids)
             .await
             .map_err(|e| {
-                error!("list class student list err: {}", e);
+                error!("list class student list err: {e}");
                 AppError::db_error("学生账户列表查询失败")
             })?;
 
@@ -445,7 +445,7 @@ pub async fn edit(app_state: &AppState, req: UserEditReq) -> Result<bool, AppErr
     let rows = UserIdentity::update_by_id(&app_state.db, req)
         .await
         .map_err(|e| {
-            error!("edit user identity err: {}", e);
+            error!("edit user identity err: {e}");
             AppError::db_error("用户状态更新失败")
         })?;
 
