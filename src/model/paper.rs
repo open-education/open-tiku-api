@@ -136,29 +136,29 @@ impl Paper {
 
         if req.paper_type.is_some() {
             param_count += 1;
-            conditions.push(format!("paper_type = ${}", param_count));
+            conditions.push(format!("paper_type = ${param_count}"));
         }
 
         if req.tag.is_some() {
             param_count += 1;
-            conditions.push(format!("tag = ${}", param_count));
+            conditions.push(format!("tag = ${param_count}"));
         }
         if req.year.is_some() {
             param_count += 1;
-            conditions.push(format!("year = ${}", param_count));
+            conditions.push(format!("year = ${param_count}"));
         }
         if req.grade.is_some() {
             param_count += 1;
-            conditions.push(format!("grade = ${}", param_count));
+            conditions.push(format!("grade = ${param_count}"));
         }
         if req.semester.is_some() {
             param_count += 1;
-            conditions.push(format!("semester = ${}", param_count));
+            conditions.push(format!("semester = ${param_count}"));
         }
         // 是否存在用户信息
         if author_id.is_some() {
             param_count += 1;
-            conditions.push(format!("author_id = ${}", param_count));
+            conditions.push(format!("author_id = ${param_count}"));
         }
 
         let where_clause = if conditions.is_empty() {
@@ -178,7 +178,7 @@ impl Paper {
         status: i16,
         where_clause: &str,
     ) -> Result<i64, sqlx::Error> {
-        let sql = format!("SELECT COUNT(*) FROM paper {}", where_clause);
+        let sql = format!("SELECT COUNT(*) FROM paper {where_clause}");
         let mut query = query_scalar::<_, i64>(&sql);
 
         // 按固定顺序绑定参数（与 build_filter 中的占位符顺序一致）
@@ -218,8 +218,7 @@ impl Paper {
     ) -> Result<Vec<Self>, sqlx::Error> {
         // LIMIT 和 OFFSET 占位符为 param_count+1 和 param_count+2
         let sql = format!(
-            "SELECT * FROM paper {} ORDER BY id LIMIT ${} OFFSET ${}",
-            where_clause,
+            "SELECT * FROM paper {where_clause} ORDER BY id LIMIT ${} OFFSET ${}",
             param_count + 1,
             param_count + 2
         );

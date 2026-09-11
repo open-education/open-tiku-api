@@ -32,7 +32,7 @@ fn generate_state(secret: &str) -> String {
 
     let sig = URL_SAFE_NO_PAD.encode(hash);
 
-    format!("{}.{}", timestamp, sig)
+    format!("{timestamp}.{sig}")
 }
 
 // 验证 state
@@ -47,7 +47,7 @@ fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
 
     let ts: i64 = timestamp
         .parse()
-        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("校验信息错误: {}", e)))?;
+        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("校验信息错误: {e}")))?;
 
     // 检查是否在 5 分钟内
     if Utc::now().timestamp() - ts > 300 {
@@ -105,7 +105,7 @@ pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<Str
 
 // Github 登录
 pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
+    let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let github_user = get_github_user(
         &app_state.config.login.github.client_id,
@@ -152,7 +152,7 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
 
 // QQ 登录
 pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
+    let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let (open_id, qq_user) = get_qq_user(
         &app_state.config.login.qq.client_id,
@@ -196,7 +196,7 @@ pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpRes
 // 提取 code，缺失或为空时返回 400 错误
 // 比如 github: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
 // qq: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b&state=tiku
-fn get_query_code(query: CallbackQueryReq, oauth_state_secret: &str) -> Result<String, Error> {
+fn get_query_code(query: &CallbackQueryReq, oauth_state_secret: &str) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()

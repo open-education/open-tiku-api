@@ -497,12 +497,6 @@ pub async fn preview(
 
     let db = &app_state.db;
 
-    let question_cate_ids = req.conf.question_cate_ids;
-    let tag_ids = req.conf.tag_ids;
-    let dimension_ids = req.conf.dimension_ids;
-    let level_range = req.conf.level_range;
-    let question_types = req.conf.question_types.clone();
-
     let created_at = to_local_datetime(Some(Utc::now()));
     let status = PaperStatus::Draft as i16;
 
@@ -521,19 +515,12 @@ pub async fn preview(
 
         let group_id = (index + 1) as i64;
 
-        let rows = Question::list_by_ext(
-            db,
-            question_cate_ids.clone(),
-            question_type.id,
-            tag_ids.clone(),
-            dimension_ids.clone(),
-            question_type.num,
-        )
-        .await
-        .map_err(|err| {
-            error!("Select question err: {}", err);
-            AppError::db_error("查询题目失败")
-        })?;
+        let rows = Question::list_by_ext(db, question_type.id, &req.conf, question_type.num)
+            .await
+            .map_err(|err| {
+                error!("Select question err: {}", err);
+                AppError::db_error("查询题目失败")
+            })?;
 
         // 批量获取作者名称
         let mut user_ids_set = HashSet::with_capacity(rows.len() * 2);
@@ -615,13 +602,7 @@ pub async fn preview(
             created_at: created_at.clone(),
             updated_at: created_at,
         },
-        conf: GenPaperGenConfig {
-            question_cate_ids,
-            tag_ids,
-            dimension_ids,
-            level_range,
-            question_types,
-        },
+        conf: req.conf,
         groups,
     })
 }
@@ -775,6 +756,9 @@ fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> Pape
             improve: req.level_range.improve,
             expand: req.level_range.expand,
         }),
+        level_ids: Some(Json(req.level_ids.clone().unwrap_or_default())),
+        scene_ids: Some(Json(req.scene_ids.clone().unwrap_or_default())),
+        mistake_tip_ids: Some(Json(req.mistake_tip_ids.clone().unwrap_or_default())),
     }
 }
 
@@ -976,8 +960,11 @@ fn to_gen_resp(
             dimension_ids: paper_gen_config.question_dimension_ids.map(|j| j.0),
             level_range: paper_gen_config.difficulty_level_info.0,
             question_types: paper_gen_config.question_type_info.0,
+            level_ids: paper_gen_config.level_ids.map(|j| j.0),
+            scene_ids: paper_gen_config.scene_ids.map(|j| j.0),
+            mistake_tip_ids: paper_gen_config.mistake_tip_ids.map(|j| j.0),
         },
-        groups: vec![],
+        groups: Vec::new(),
     };
 
     // 构建题型和题目的映射关系

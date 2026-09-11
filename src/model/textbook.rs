@@ -27,7 +27,7 @@ impl Textbook {
     // 每个菜单的标识
     fn get_label_key(parent_id: Option<i32>, label: &str) -> String {
         if let Some(parent_id) = parent_id {
-            format!("{:x}", md5::compute(format!("{}_{}", parent_id, label)))[..10].to_string()
+            format!("{:x}", md5::compute(format!("{parent_id}_{label}")))[..10].to_string()
         } else {
             format!("{:x}", md5::compute(label))[..10].to_string()
         }
@@ -138,7 +138,7 @@ impl Textbook {
         sqlx::query_as::<_, Self>(
             "SELECT * FROM textbook WHERE path_depth <= $1 ORDER BY path_depth, sort_order",
         )
-        .bind(depth as i32)
+        .bind(depth.cast_signed())
         .fetch_all(pool)
         .await
     }

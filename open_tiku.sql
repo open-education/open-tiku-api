@@ -219,7 +219,10 @@ CREATE TABLE paper_gen_config
     question_tag_ids       JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题目标签IDs
     question_dimension_ids JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 核心素养IDs
     question_type_info     JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 题型题量信息
-    difficulty_level_info  JSONB  NOT NULL DEFAULT '{}'::jsonb  -- 难度分布信息
+    difficulty_level_info  JSONB  NOT NULL DEFAULT '{}'::jsonb, -- 难度分布信息
+    level_ids              JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 分层体系
+    scene_ids              JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 适用场景
+    mistake_tip_ids        JSONB  NOT NULL DEFAULT '[]'::jsonb  -- 常见错误
 );
 CREATE INDEX idx_paper_gen_config_paper_id ON paper_gen_config (paper_id);
 

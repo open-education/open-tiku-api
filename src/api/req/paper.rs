@@ -75,6 +75,9 @@ pub struct GenPaperGenConfig {
     pub dimension_ids: Option<Vec<i16>>,
     pub level_range: DifficultyLevelInfo,
     pub question_types: Vec<QuestionTypeInfo>,
+    pub level_ids: Option<Vec<i32>>,
+    pub scene_ids: Option<Vec<i32>>,
+    pub mistake_tip_ids: Option<Vec<i32>>,
 }
 
 #[derive(Deserialize)]

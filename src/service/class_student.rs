@@ -311,7 +311,7 @@ pub async fn edit(
 ) -> Result<bool, AppError> {
     validate_student_edit_req(&req)?;
 
-    let account = req.account.to_owned().trim().to_owned();
+    let account = req.account.clone().trim().to_owned();
 
     let db = &app_state.db;
 
@@ -332,7 +332,7 @@ pub async fn edit(
         id: student.id,
         class_id: req.class_id,
         user_id: student.user_id,
-        account: account.to_owned(),
+        account: account.clone(),
         password: student.password.clone(),
         status: StudentStatus::from_i16(req.status) as i16,
         remark: req.remark,
@@ -417,7 +417,7 @@ async fn check_student_is_edit(
     }
 
     Err(AppError::business_error(
-        format!("账户: {} 已存在, 无法修改", account).as_str(),
+        format!("账户: {account} 已存在, 无法修改").as_str(),
     ))
 }
 
