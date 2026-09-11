@@ -25,7 +25,7 @@ pub struct UserIdentity {
 impl UserIdentity {
     pub async fn save(pool: &PgPool, identity: &Self) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         INSERT INTO user_identity (
             id, user_id, provider, provider_user_id, provider_username,
             provider_email, last_login_time, login_count, role, status, remark
@@ -47,7 +47,7 @@ impl UserIdentity {
             remark = EXCLUDED.remark,
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
-        "#,
+        ",
         )
         .bind(identity.id)
         .bind(identity.user_id)
@@ -70,10 +70,10 @@ impl UserIdentity {
         provider_user_id: &str,
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT * FROM user_identity
         WHERE provider = $1 AND provider_user_id = $2
-        "#,
+        ",
         )
         .bind(provider)
         .bind(provider_user_id)
@@ -83,10 +83,10 @@ impl UserIdentity {
 
     pub async fn find_by_user_id(pool: &PgPool, user_id: i64) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT * FROM user_identity
         WHERE user_id = $1
-        "#,
+        ",
         )
         .bind(user_id)
         .fetch_optional(pool)
@@ -101,10 +101,10 @@ impl UserIdentity {
             return Ok(Vec::new());
         }
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT * FROM user_identity
         WHERE user_id = ANY($1)
-        "#,
+        ",
         )
         .bind(user_ids)
         .fetch_all(pool)
@@ -112,19 +112,19 @@ impl UserIdentity {
     }
 
     pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM user_identity"#)
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM user_identity")
             .fetch_one(pool)
             .await
     }
 
     pub async fn list(pool: &PgPool, limit: i32, offset: i32) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT *
         FROM user_identity
         ORDER BY id DESC
         LIMIT $1 OFFSET $2
-        "#,
+        ",
         )
         .bind(limit)
         .bind(offset)
@@ -136,13 +136,13 @@ impl UserIdentity {
         let now = Utc::now();
 
         let result = sqlx::query(
-            r#"
+            r"
         UPDATE user_identity
         SET status = $2,
             remark = $3,
             updated_at = $4
         WHERE id = $1
-        "#,
+        ",
         )
         .bind(req.id)
         .bind(req.status)

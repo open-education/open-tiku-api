@@ -21,10 +21,10 @@ pub fn get_levels_by_parent_id(
 ) -> Vec<TextbookResp> {
     // 递归结束
     if safe_depth == 0 {
-        return vec![];
+        return Vec::new();
     }
 
-    let mut res: Vec<TextbookResp> = vec![];
+    let mut res: Vec<TextbookResp> = Vec::new();
 
     // 查找以 current_parent_id 为父节点的所有子项
     if let Some(items) = map.get(&current_parent_id) {
@@ -38,7 +38,7 @@ pub fn get_levels_by_parent_id(
                 sort_order: item.sort_order,
                 path_depth: item.path_depth,
                 path: item.path.clone(),
-                table_name: Some("textbook".to_string()),
+                table_name: Some(String::from("textbook")),
                 children: None,
             };
 
@@ -185,7 +185,7 @@ pub async fn list_children(
     }
 
     // 查询题型分类
-    let q_rows = QuestionCate::find_all_by_related_ids(db, bridge_ids)
+    let q_rows = QuestionCate::find_all_by_related_ids(db, &bridge_ids)
         .await
         .map_err(|e| {
             error!("DB Error: {:?}", e);
@@ -216,30 +216,54 @@ fn fill_question_cate(
     question_id_map: &HashMap<i32, Vec<QuestionCate>>,
     resp: &mut [TextbookResp],
 ) {
+    // 分配 64 字节 整个递归或循环期间避免每次都向操作系统 Malloc
+    let mut key_buf = String::with_capacity(64);
+    let mut id_buf = itoa::Buffer::new(); // 引入栈 buffer 专门做极速数字解析
+
     for item in resp.iter_mut() {
         if let Some(ref mut children) = item.children {
             fill_question_cate(relation_map, question_id_map, children);
             continue;
         }
 
-        // 获取对应的关联 ID 列表引用
         if let Some(rel_ids) = relation_map.get(&item.id) {
-            let row_children = item.children.get_or_insert_with(Vec::new);
-            // 第8层菜单是拼接的题型列表
+            // 顺手计算出当前节点一共要 push 多少道题
+            let total_questions: usize = rel_ids
+                .iter()
+                .filter_map(|id| question_id_map.get(id))
+                .map(Vec::len)
+                .sum();
+
+            if total_questions == 0 {
+                continue;
+            }
+
+            // 一步到位初始化或扩容到精准的最终大小
+            let row_children = item
+                .children
+                .get_or_insert_with(|| Vec::with_capacity(total_questions));
+
             for &rel_id in rel_ids {
                 if let Some(questions) = question_id_map.get(&rel_id) {
-                    // 直接遍历 questions 并克隆数据
                     for q in questions {
+                        // 极致重用 清理盘子 重置长度为0但容量不变 纯内存连续直写
+                        key_buf.clear();
+                        let id_str = id_buf.format(q.id); // 纯栈上的数字转字符
+
+                        key_buf.push_str(&item.key);
+                        key_buf.push('-');
+                        key_buf.push_str(id_str);
+
                         row_children.push(TextbookResp {
                             id: q.id,
-                            path_type: constant::textbook::PATH_TYPE_COMMON.to_string(),
+                            path_type: String::from(constant::textbook::PATH_TYPE_COMMON),
                             parent_id: None,
                             label: q.label.clone(),
-                            key: format!("{}-{}", item.key, q.id), // 题型本身没有key， 拼接一个
+                            key: key_buf.clone(),
                             sort_order: q.sort_order,
                             path_depth: None,
-                            path: "".to_string(), // 题型不需要路径
-                            table_name: Some("question_cate".to_string()),
+                            path: String::new(),
+                            table_name: Some(String::from("question_cate")),
                             children: None,
                         });
                     }

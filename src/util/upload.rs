@@ -30,7 +30,7 @@ fn validate_file_type(filename: &str, is_image: bool) -> Result<(), AppError> {
     let ext = Path::new(filename)
         .extension()
         .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
+        .map(str::to_lowercase)
         .ok_or_else(|| AppError::param_error("文件缺少扩展名"))?;
 
     // 2. 选择匹配列表
@@ -43,7 +43,7 @@ fn validate_file_type(filename: &str, is_image: bool) -> Result<(), AppError> {
     // 3. 校验
     if !list.contains(&ext.as_str()) {
         return Err(AppError::param_error(
-            format!("不支持的{}类型: .{}", type_desc, ext).as_str(),
+            format!("不支持的{type_desc}类型: .{ext}").as_str(),
         ));
     }
 
@@ -54,7 +54,7 @@ fn validate_file_type(filename: &str, is_image: bool) -> Result<(), AppError> {
 fn generate_safe_filename(original_name: &str) -> String {
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S_%f");
     let safe_name = sanitize_filename::sanitize(original_name);
-    format!("{:x}", md5::compute(format!("{}_{}", timestamp, safe_name)))[..meta::IMAGE_NAME_LEN]
+    format!("{:x}", md5::compute(format!("{timestamp}_{safe_name}")))[..meta::IMAGE_NAME_LEN]
         .to_string()
 }
 
@@ -131,7 +131,7 @@ pub async fn upload_file(
     // 验证与生成文件名
     validate_file_type(&original_filename, *is_image)?;
     let safe_filename = generate_safe_filename(&original_filename);
-    let file_path = format!("{}/{}", upload_path, safe_filename);
+    let file_path = format!("{upload_path}/{safe_filename}");
 
     // 保存
     let file_size = save_file(&mut field, &file_path).await?;

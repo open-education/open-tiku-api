@@ -38,7 +38,7 @@ impl Paper {
         paper: &Self,
     ) -> Result<i64, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
             INSERT INTO paper (
                 id, related_id, related_name, tag, year, grade, semester,
                 title, score, source, remark, author_id, author_name,
@@ -71,7 +71,7 @@ impl Paper {
                 paper_type = EXCLUDED.paper_type,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING id
-        "#,
+        ",
         )
         .bind(paper.id)
         .bind(paper.related_id)
@@ -104,7 +104,7 @@ impl Paper {
     }
 
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
-        let row = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = $1"#)
+        let row = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = $1")
             .bind(paper_id)
             .fetch_optional(pool)
             .await?;
@@ -113,7 +113,7 @@ impl Paper {
     }
 
     pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, Self>(r#"SELECT * FROM paper WHERE id = ANY($1)"#)
+        let rows = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = ANY($1)")
             .bind(ids)
             .fetch_all(pool)
             .await?;
@@ -283,7 +283,7 @@ impl Paper {
         let now = Utc::now();
 
         let result = sqlx::query(
-            r#"
+            r"
         UPDATE paper
         SET status = $2,
             approve_id = $3,
@@ -291,7 +291,7 @@ impl Paper {
             approve_at = $5,
             updated_at = $5
         WHERE id = $1
-        "#,
+        ",
         )
         .bind(id)
         .bind(status)

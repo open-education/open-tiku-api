@@ -20,7 +20,7 @@ pub struct Class {
 impl Class {
     pub async fn save(pool: &PgPool, req: Self) -> Result<i64, sqlx::Error> {
         let row_id = sqlx::query(
-            r#"
+            r"
         INSERT INTO class (
             id, year, grade, semester, label, email, sort_order, author_id, remark
         ) VALUES (
@@ -37,7 +37,7 @@ impl Class {
             remark = EXCLUDED.remark,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
-        "#,
+        ",
         )
         .bind(req.id)
         .bind(req.year)
@@ -60,11 +60,11 @@ impl Class {
 
     pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Option<Self>> {
         let row = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
             WHERE id = $1
-            "#,
+            ",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -73,13 +73,13 @@ impl Class {
         Ok(row)
     }
 
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>> {
+    pub async fn find_by_ids(pool: &PgPool, ids: &[i64]) -> Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
             WHERE id = ANY($1)
-            "#,
+            ",
         )
             .bind(ids)
             .fetch_all(pool)
@@ -90,14 +90,14 @@ impl Class {
 
     pub async fn count(pool: &PgPool, author_id: i64, req: &ClassListReq) -> Result<i64> {
         let id = sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT COUNT(*)
             FROM class
             WHERE author_id = $1
               AND ($2 IS NULL OR year = $2)
               AND ($3 IS NULL OR grade = $3)
               AND ($4 IS NULL OR semester = $4)
-            "#,
+            ",
         )
         .bind(author_id)
         .bind(&req.year)
@@ -116,7 +116,7 @@ impl Class {
         offset: i32,
     ) -> Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT id, year, grade, semester, label, email, author_id, sort_order, remark, created_at, updated_at
             FROM class
             WHERE author_id = $1
@@ -125,7 +125,7 @@ impl Class {
               AND ($4 IS NULL OR semester = $4)
             ORDER BY id DESC
             LIMIT $5 OFFSET $6
-            "#,
+            ",
         )
         .bind(author_id)
         .bind(&req.year)

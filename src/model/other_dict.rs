@@ -17,7 +17,7 @@ impl TextbookDict {
     // 添加字典项
     pub async fn save(pool: &PgPool, req: CreateTextbookDictReq) -> Result<i32, sqlx::Error> {
         let id: i32 = sqlx::query_scalar(
-            r#"
+            r"
         INSERT INTO textbook_dict (id, textbook_id, type_code, item_value, sort_order, is_select)
         VALUES (
             COALESCE($1, nextval('textbook_dict_id_seq')),
@@ -30,7 +30,7 @@ impl TextbookDict {
             sort_order = EXCLUDED.sort_order,
             is_select = EXCLUDED.is_select
         RETURNING id
-        "#,
+        ",
         )
         .bind(req.id)
         .bind(req.textbook_id)
@@ -74,12 +74,12 @@ impl TextbookDict {
         type_code: &str,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT id, textbook_id, type_code, item_value, sort_order, is_select
             FROM textbook_dict
             WHERE textbook_id = $1 AND type_code = $2
             ORDER BY sort_order
-            "#,
+            ",
         )
         .bind(textbook_id)
         .bind(type_code)
@@ -93,13 +93,13 @@ impl TextbookDict {
         type_codes: Option<Vec<String>>,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT id, textbook_id, type_code, item_value, sort_order, is_select
         FROM textbook_dict
         WHERE textbook_id = ANY($1) 
           AND ($2 IS NULL OR type_code = ANY($2))
         ORDER BY sort_order
-        "#,
+        ",
         )
         .bind(textbook_ids)
         .bind(type_codes)

@@ -35,7 +35,7 @@ impl PaperGenConfig {
         conf: &Self,
     ) -> Result<i64, sqlx::Error> {
         let id = sqlx::query(
-            r#"
+            r"
             INSERT INTO paper_gen_config (
                 paper_id,
                 question_cate_ids,
@@ -45,7 +45,7 @@ impl PaperGenConfig {
                 difficulty_level_info
             ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id
-            "#,
+            ",
         )
         .bind(conf.paper_id)
         .bind(&conf.question_cate_ids)
@@ -67,11 +67,10 @@ impl PaperGenConfig {
         pool: &PgPool,
         paper_id: i64,
     ) -> Result<Option<Self>, sqlx::Error> {
-        let row =
-            sqlx::query_as::<_, Self>(r#"SELECT * FROM paper_gen_config WHERE paper_id = $1"#)
-                .bind(paper_id)
-                .fetch_optional(pool)
-                .await?;
+        let row = sqlx::query_as::<_, Self>(r"SELECT * FROM paper_gen_config WHERE paper_id = $1")
+            .bind(paper_id)
+            .fetch_optional(pool)
+            .await?;
         Ok(row)
     }
 
@@ -80,10 +79,10 @@ impl PaperGenConfig {
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
         DELETE FROM paper_gen_config
         WHERE paper_id = $1
-        "#,
+        ",
         )
         .bind(paper_id)
         .execute(&mut **tx)

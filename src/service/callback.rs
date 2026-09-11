@@ -17,14 +17,14 @@ use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::util::error::AppError;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use sha2::Digest;
 use sha2::Sha256;
 use std::io::ErrorKind;
 
 // 生成 state
-async fn generate_state(secret: &str) -> String {
+fn generate_state(secret: &str) -> String {
     let timestamp = Utc::now().timestamp().to_string();
 
-    use sha2::Digest;
     let mut hasher = Sha256::new();
     hasher.update(secret.as_bytes());
     hasher.update(timestamp.as_bytes());
@@ -36,7 +36,7 @@ async fn generate_state(secret: &str) -> String {
 }
 
 // 验证 state
-async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
+fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
     let parts: Vec<&str> = state.split('.').collect();
     if parts.len() != 2 {
         return Ok(false);
@@ -55,7 +55,6 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
     }
 
     // 重新计算签名
-    use sha2::Digest;
     let mut hasher = Sha256::new();
     hasher.update(secret.as_bytes());
     hasher.update(timestamp.as_bytes());
@@ -66,21 +65,18 @@ async fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error>
 }
 
 // 获取第三方登录地址
-pub async fn login_url(
-    app_state: &AppState,
-    provider: i16,
-) -> std::result::Result<String, AppError> {
+pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<String, AppError> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
         error!("Failed to parse provider type from provider: {}", provider);
         AppError::param_error("不受支持的登录方式")
     })?;
 
-    let state = generate_state(&app_state.config.login.oauth_state_secret).await;
+    let state = generate_state(&app_state.config.login.oauth_state_secret);
 
-    let (base, params): (&str, Vec<(&str, &str)>) = match provider_type {
+    let (base, params): (&str, &[(&str, &str)]) = match provider_type {
         ProviderType::Github => (
             "https://github.com/login/oauth/authorize",
-            vec![
+            &[
                 ("client_id", &app_state.config.login.github.client_id),
                 ("redirect_uri", &app_state.config.login.github.redirect_uri),
                 ("state", &state),
@@ -88,7 +84,7 @@ pub async fn login_url(
         ),
         ProviderType::QQ => (
             "https://graph.qq.com/oauth2.0/authorize",
-            vec![
+            &[
                 ("response_type", "code"),
                 ("client_id", &app_state.config.login.qq.client_id),
                 ("redirect_uri", &app_state.config.login.qq.redirect_uri),
@@ -109,7 +105,7 @@ pub async fn login_url(
 
 // Github 登录
 pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
+    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
 
     let github_user = get_github_user(
         &app_state.config.login.github.client_id,
@@ -156,7 +152,7 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
 
 // QQ 登录
 pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret).await?;
+    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
 
     let (open_id, qq_user) = get_qq_user(
         &app_state.config.login.qq.client_id,
@@ -200,10 +196,7 @@ pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpRes
 // 提取 code，缺失或为空时返回 400 错误
 // 比如 github: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
 // qq: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b&state=tiku
-async fn get_query_code(
-    query: CallbackQueryReq,
-    oauth_state_secret: &str,
-) -> Result<String, Error> {
+fn get_query_code(query: CallbackQueryReq, oauth_state_secret: &str) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()
@@ -218,21 +211,17 @@ async fn get_query_code(
         return Err(error::ErrorBadRequest("Query code is empty"));
     }
 
-    let state = query
-        .state
-        .as_ref()
-        .ok_or_else(|| {
-            error!("Missing state query parameter");
-            error::ErrorBadRequest("Query state is required")
-        })?
-        .to_owned();
+    let state = query.state.as_ref().ok_or_else(|| {
+        error!("Missing state query parameter");
+        error::ErrorBadRequest("Query state is required")
+    })?;
     if state.is_empty() {
         error!("Empty state query parameter");
         return Err(error::ErrorBadRequest("Query state is empty"));
     }
 
     // 校验 state 字段值
-    if !verify_state(&state, oauth_state_secret).await? {
+    if !verify_state(state, oauth_state_secret)? {
         return Err(error::ErrorBadRequest("校验失败, 请重新发起登录"));
     }
 
@@ -266,7 +255,7 @@ async fn save_user_identity(
             login_count: 0,
             role: RoleType::Normal as i16,
             status: StatusType::Active as i16,
-            remark: "".to_string(),
+            remark: String::new(),
             created_at: None,
             updated_at: None,
         });
@@ -291,11 +280,11 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
         id: None,
         user_id,
         source: UserSource::User as i16,
-        token: token.to_string(),
+        token: token.to_owned(),
         expired_at: Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE),
         renew_cnt: 0,
-        client_ip: "".to_string(),
-        user_agent: "".to_string(),
+        client_ip: String::new(),
+        user_agent: String::new(),
         created_at: None,
         updated_at: None,
     };

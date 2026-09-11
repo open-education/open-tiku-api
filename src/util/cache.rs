@@ -23,8 +23,12 @@ where
 {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+        .map_err(|e| {
+            error!("get cache getting system time error: {}", e);
+            AppError::internal_error("系统时间获取错误")
+        })?
+        .as_secs()
+        .cast_signed();
 
     let bytes: Vec<u8> =
         sqlx::query_scalar("SELECT value FROM kv_cache WHERE key = ? AND expires_at > ?")
@@ -52,11 +56,15 @@ pub async fn set<T>(pool: &SqlitePool, key: &str, value: &T, ttl: Duration)
 where
     T: Serialize,
 {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
-    let expires_at = now + ttl.as_secs() as i64;
+    let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(cur) => cur.as_secs().cast_signed(),
+        Err(e) => {
+            error!("set cache getting system time error: {}", e);
+            return;
+        }
+    };
+
+    let expires_at = now + ttl.as_secs().cast_signed();
 
     let binary_bytes =
         match bincode_next::serde::encode_to_vec(value, bincode_next::config::standard()) {
@@ -89,7 +97,7 @@ pub async fn delete_by_prefix(pool: &SqlitePool, prefix: &str) {
         .replace('_', "/_");
 
     // 右通配符模式
-    let pattern = format!("{}%", escaped_prefix);
+    let pattern = format!("{escaped_prefix}%");
 
     // SQL 层面使用 ESCAPE '/' 强行规定斜杠为转义符
     if let Err(e) = sqlx::query("DELETE FROM kv_cache WHERE key LIKE ? ESCAPE '/'")

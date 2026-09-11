@@ -97,7 +97,7 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
         })?;
 
     let mut map: HashMap<String, Vec<TextbookDictResp>> = HashMap::new();
-    for item in rows.into_iter() {
+    for item in rows {
         map.entry(item.type_code.clone())
             .or_default()
             .push(item.into());
@@ -134,7 +134,7 @@ pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
     let type_code = TypeCode::from_str(&row.type_code)
         .ok_or_else(|| AppError::business_error("不支持的字典类型"))?;
     // 看该类型的字典是否关联了题目
-    let ext_id_req = ExtIdReq::from_type_code(type_code, row_id);
+    let ext_id_req = ExtIdReq::from_type_code(&type_code, row_id);
     let exist = Question::exists_by_ext_id(db, &ext_id_req)
         .await
         .map_err(|e| {

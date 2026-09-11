@@ -20,7 +20,7 @@ use crate::service::question;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::{HashMap, HashSet};
@@ -222,8 +222,8 @@ fn build_paper_meta_from_request(
         approve_id: 0,
         reject_reason: None,
         approve_at: None,
-        created_at: Default::default(),
-        updated_at: Default::default(),
+        created_at: DateTime::default(),
+        updated_at: DateTime::default(),
     }
 }
 
@@ -507,7 +507,7 @@ pub async fn preview(
     let status = PaperStatus::Draft as i16;
 
     let paper_id = 1;
-    let mut groups: Vec<GenPaperGroupResp> = vec![];
+    let mut groups: Vec<GenPaperGroupResp> = Vec::new();
 
     // todo 难度等级不知道怎么实现
 
@@ -548,16 +548,16 @@ pub async fn preview(
         let user_ids: Vec<i64> = user_ids_set.into_iter().collect();
         let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
 
-        let mut questions: Vec<GenPaperQuestionResp> = vec![];
+        let mut questions: Vec<GenPaperQuestionResp> = Vec::with_capacity(rows.len());
         for (index, row) in rows.into_iter().enumerate() {
             let author_name = user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string());
+                .unwrap_or_else(String::new);
             let approve_name = user_map
                 .get(&row.approve_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string());
+                .unwrap_or_else(String::new);
 
             questions.push(GenPaperQuestionResp {
                 common: CommonPaperGenQuestionResp {
@@ -755,7 +755,7 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
 // 构建配置信息
 fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> PaperGenConfig {
     let mut question_types: Vec<QuestionTypeInfo> = vec![];
-    for info in req.question_types.iter() {
+    for info in &req.question_types {
         question_types.push(QuestionTypeInfo {
             id: info.id,
             label: info.label.clone(),
@@ -955,7 +955,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         paper_groups,
         paper_gen_questions,
         &user_map,
-        question_map,
+        &question_map,
     )
 }
 
@@ -966,7 +966,7 @@ fn to_gen_resp(
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     user_map: &HashMap<i64, String>,
-    question_raw_map: HashMap<i64, Question>,
+    question_raw_map: &HashMap<i64, Question>,
 ) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
         common: paper.into(),
@@ -1027,11 +1027,11 @@ fn to_gen_paper_question_resp(
             user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_else(String::new),
             user_map
                 .get(&row.approve_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_else(String::new),
         ),
     }
 }

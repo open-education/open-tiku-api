@@ -55,5 +55,4 @@ server = "smtp.qq.com"
 port = 587
 username = ""
 password = ""
-from_name = ""
-from_email = ""
+from = ""

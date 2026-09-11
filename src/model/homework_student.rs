@@ -28,11 +28,11 @@ impl HomeworkStudent {
 
     pub async fn find_by_id(pool: &PgPool, id: i64) -> sqlx::Result<Option<Self>> {
         let row = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM homework_student
             WHERE id = $1
-            "#,
+            ",
         )
         .bind(id)
         .fetch_optional(pool)
@@ -43,11 +43,11 @@ impl HomeworkStudent {
 
     pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM homework_student
             WHERE homework_id = ANY($1)
-            "#,
+            ",
         )
         .bind(ids)
         .fetch_all(pool)
@@ -63,13 +63,13 @@ impl HomeworkStudent {
         end_date: &str,
     ) -> sqlx::Result<i64> {
         let row = sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
         SELECT COUNT(*)
         FROM homework_student
         WHERE student_id = $1
           AND created_at >= $2::DATE
           AND created_at < $3::DATE
-        "#,
+        ",
         )
         .bind(student_id)
         .bind(start_date)
@@ -89,7 +89,7 @@ impl HomeworkStudent {
         offset: i32,
     ) -> sqlx::Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM homework_student
             WHERE student_id = $1
@@ -97,7 +97,7 @@ impl HomeworkStudent {
               AND created_at < $3::DATE
               ORDER BY id DESC
               LIMIT $4 OFFSET $5
-            "#,
+            ",
         )
         .bind(student_id)
         .bind(start_date)

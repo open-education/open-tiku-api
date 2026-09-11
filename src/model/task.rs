@@ -27,11 +27,11 @@ impl Task {
         author_id: i64,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
-            r#"
+            r"
         INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email, textbook_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
-        "#,
+        ",
         )
             .bind(req.question_cate_id)
             .bind(req.task_type)
@@ -52,11 +52,11 @@ impl Task {
         result: String,
     ) -> Result<u64, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
         UPDATE task
         SET status = $2, result = $3, updated_at = NOW()
         WHERE id = $1
-        "#,
+        ",
         )
         .bind(id)
         .bind(status)
@@ -73,11 +73,11 @@ impl Task {
         task_type: i16,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT COUNT(*) FROM task
             WHERE question_cate_id=$1
               AND task_type = $2
-            "#,
+            ",
         )
         .bind(question_cate_id)
         .bind(task_type)
@@ -93,14 +93,14 @@ impl Task {
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT *
         FROM task
         WHERE question_cate_id = $1
           AND task_type = $2
         ORDER BY id DESC
         LIMIT $3 OFFSET $4
-        "#,
+        ",
         )
         .bind(question_cate_id)
         .bind(task_type)
@@ -113,12 +113,12 @@ impl Task {
     // 所有待执行的任务列表
     pub async fn get_waiting_list(pool: &PgPool, task_type: i16) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT *
         FROM task
         WHERE status = 1
         AND task_type = $1
-        "#,
+        ",
         )
         .bind(task_type)
         .fetch_all(pool)

@@ -20,7 +20,7 @@ pub struct UserSession {
 impl UserSession {
     pub async fn save(pool: &PgPool, session: Self) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         INSERT INTO user_session (
             id, user_id, source, token, expired_at, renew_cnt, client_ip, user_agent
         )
@@ -38,7 +38,7 @@ impl UserSession {
             user_agent = EXCLUDED.user_agent,
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
-        "#,
+        ",
         )
         .bind(session.id)
         .bind(session.user_id)
@@ -54,10 +54,10 @@ impl UserSession {
 
     pub async fn find_by_token(pool: &PgPool, token: &str) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT * FROM user_session
         WHERE token = $1
-        "#,
+        ",
         )
         .bind(token)
         .fetch_optional(pool)
@@ -86,19 +86,19 @@ impl UserSession {
     }
 
     pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM user_session"#)
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM user_session")
             .fetch_one(pool)
             .await
     }
 
     pub async fn list(pool: &PgPool, limit: i32, offset: i32) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            r#"
+            r"
         SELECT *
         FROM user_session
         ORDER BY id DESC
         LIMIT $1 OFFSET $2
-        "#,
+        ",
         )
         .bind(limit)
         .bind(offset)

@@ -10,7 +10,7 @@ pub async fn cleanup(conf: &AppState) {
             info!("Deleting expired sessions: {:?}", rows);
         }
         Err(e) => {
-            error!("Error while deleting expired sessions: {}", e)
+            error!("Error while deleting expired sessions: {}", e);
         }
     }
 }

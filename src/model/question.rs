@@ -102,7 +102,7 @@ pub struct ExtIdReq {
 }
 
 impl ExtIdReq {
-    pub fn from_type_code(type_code: TypeCode, row_id: i32) -> Self {
+    pub fn from_type_code(type_code: &TypeCode, row_id: i32) -> Self {
         match type_code {
             TypeCode::Type => Self {
                 type_id: Some(row_id),
@@ -247,7 +247,7 @@ impl Question {
     // 添加题目-根据主键判断是新增还是更新
     pub async fn simple_save(pool: &PgPool, req: CreateQuestionReq) -> Result<i64, sqlx::Error> {
         let id: i64 = sqlx::query_scalar(
-            r#"
+            r"
         INSERT INTO question (
             id, question_cate_id, question_type_id, question_tag_ids, author_id,
             source, original_name, status,
@@ -292,7 +292,7 @@ impl Question {
             mistake_tip_ids = EXCLUDED.mistake_tip_ids,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
-        "#,
+        ",
         )
         .bind(req.id)
         .bind(req.question_cate_id)
@@ -334,7 +334,7 @@ impl Question {
         req: CreateQuestionReq,
     ) -> Result<Question, sqlx::Error> {
         sqlx::query_as::<_, Question>(
-            r#"
+            r"
         INSERT INTO question (
             question_cate_id, question_type_id, question_tag_ids, author_id,
             source, original_name, status,
@@ -347,7 +347,7 @@ impl Question {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
         RETURNING *
-        "#,
+        ",
         )
         .bind(req.question_cate_id)
         .bind(req.question_type_id)
@@ -397,7 +397,7 @@ impl Question {
         // 简单看了下一个中等规模的题直接存为 .md 是 1.6k 500*1.6=800k, 大部分题都是选择填空一次性写300条应该暂时没什么风险
         for chunk in records.chunks(300) {
             let mut query_builder = QueryBuilder::new(
-                r#"
+                r"
             INSERT INTO question (
                 question_cate_id, question_type_id, question_tag_ids, author_id,source,original_name,
                 title, content_plain, comment, difficulty_level,
@@ -406,7 +406,7 @@ impl Question {
                 steps, question_dimension_ids, relation_type,
                 level_id, scene_ids, mistake_tip_ids
             )
-            "#,
+            ",
             );
 
             query_builder.push_values(chunk, |mut b, req| {
@@ -530,9 +530,9 @@ impl Question {
     // 题型下是否存在题目
     pub async fn exist_by_cate_id(pool: &PgPool, cate_id: i32) -> Result<bool, sqlx::Error> {
         let exists = sqlx::query_scalar::<_, bool>(
-            r#"
+            r"
         SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)
-        "#,
+        ",
         )
         .bind(cate_id)
         .fetch_one(pool)
@@ -552,7 +552,7 @@ impl Question {
         let now = Utc::now();
 
         let result = sqlx::query(
-            r#"
+            r"
         UPDATE question
         SET status = $2,
             approve_id = $3,
@@ -560,7 +560,7 @@ impl Question {
             approve_at = $5,
             updated_at = $5
         WHERE id = $1
-        "#,
+        ",
         )
         .bind(id)
         .bind(status)

@@ -36,7 +36,7 @@ pub fn read_file(
 fn get_content_type(filename: &str) -> &'static str {
     match filename.rsplit('.').next() {
         Some("png") => "image/png",
-        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("jpg" | "jpeg") => "image/jpeg",
         Some("gif") => "image/gif",
         Some("webp") => "image/webp",
         Some("svg") => "image/svg+xml",

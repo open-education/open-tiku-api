@@ -58,3 +58,4 @@ tracing-appender = "0.2.5"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 rsa = { version = "0.9", features = ["sha2"] }
 bincode-next = { version = "3.1.1", features = ["serde"] }
+itoa = "1.0.18"

@@ -17,7 +17,7 @@ impl PaperPageSource {
     }
 }
 
-#[repr(i16)]
+#[derive(PartialEq, Eq)]
 pub enum PaperStatus {
     Draft = 1,     // 1: 草稿
     Pending = 2,   // 2: 待审核
@@ -40,7 +40,6 @@ impl PaperStatus {
 
     pub fn from_i16(code: i16) -> Self {
         match code {
-            1 => Self::Draft,
             2 => Self::Pending,
             3 => Self::Published,
             4 => Self::Homework,

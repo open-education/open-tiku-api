@@ -63,13 +63,13 @@ impl Homework {
         batch_no: Option<i32>,
     ) -> sqlx::Result<i64> {
         let row = sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT COUNT(*)
             FROM homework
             WHERE author_id = $1
               AND paper_id = $2
               AND ($3 IS NULL OR batch_no = $3)
-            "#,
+            ",
         )
         .bind(author_id)
         .bind(paper_id)
@@ -89,7 +89,7 @@ impl Homework {
         offset: i32,
     ) -> sqlx::Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM homework
             WHERE author_id = $1
@@ -97,7 +97,7 @@ impl Homework {
               AND ($3 IS NULL OR batch_no = $3)
             ORDER BY id DESC
             LIMIT $4 OFFSET $5
-            "#,
+            ",
         )
         .bind(author_id)
         .bind(paper_id)
@@ -112,11 +112,11 @@ impl Homework {
 
     pub async fn find_by_homework_ids(pool: &PgPool, ids: Vec<i64>) -> sqlx::Result<Vec<Self>> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM homework
             WHERE homework_id = ANY($1)
-            "#,
+            ",
         )
         .bind(ids)
         .fetch_all(pool)

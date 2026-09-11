@@ -49,7 +49,7 @@ impl TestAnswer {
         tx: &mut Transaction<'_, Postgres>,
         attempt_id: i64,
     ) -> Result<u64, sqlx::Error> {
-        let row = sqlx::query(r#"DELETE FROM test_answer WHERE attempt_id = $1"#)
+        let row = sqlx::query(r"DELETE FROM test_answer WHERE attempt_id = $1")
             .bind(attempt_id)
             .execute(&mut **tx)
             .await?;
@@ -62,11 +62,11 @@ impl TestAnswer {
         attempt_ids: &[i64],
     ) -> Result<Vec<Self>, sqlx::Error> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM test_answer
             WHERE attempt_id = ANY($1)
-            "#,
+            ",
         )
         .bind(attempt_ids)
         .fetch_all(pool)

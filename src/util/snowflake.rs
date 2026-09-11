@@ -15,8 +15,10 @@ pub fn init_snowflake(worker_id: u16) {
 // 生成一个唯一 ID
 pub fn generate_id() -> i64 {
     // 检查是否已初始化
-    if INIT.get().is_none() {
-        panic!("Snowflake generator not initialized. Call `init_snowflake(worker_id)` first.");
-    }
-    next_id() as i64
+    assert!(
+        INIT.get().is_some(),
+        "Snowflake generator not initialized. Call `init_snowflake(worker_id)` first."
+    );
+
+    next_id().cast_signed()
 }

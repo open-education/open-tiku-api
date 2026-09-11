@@ -289,7 +289,7 @@ pub async fn account_list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= count as i32 {
         return Ok(UserListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total: count,
@@ -326,7 +326,7 @@ pub async fn session_list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= count as i32 {
         return Ok(UserSessionListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total: 0,
@@ -341,8 +341,15 @@ pub async fn session_list(
         })?;
 
     // 根据来源获取两份用户信息
-    let mut account_ids: Vec<i64> = vec![];
-    let mut student_ids: Vec<i64> = vec![];
+    let account_count = rows
+        .iter()
+        .filter(|r| r.source == UserSource::User as i16)
+        .count();
+    let student_count = rows.len() - account_count;
+
+    let mut account_ids = Vec::with_capacity(account_count);
+    let mut student_ids = Vec::with_capacity(student_count);
+
     for row in &rows {
         if row.source == UserSource::User as i16 {
             account_ids.push(row.user_id);
@@ -351,36 +358,40 @@ pub async fn session_list(
         }
     }
 
-    let mut account_map: HashMap<i64, UserIdentity> = HashMap::new();
-    if !account_ids.is_empty() {
+    let account_map: HashMap<i64, UserIdentity> = if account_ids.is_empty() {
+        HashMap::new()
+    } else {
         let account_list = UserIdentity::find_by_user_ids(db, account_ids)
             .await
             .map_err(|e| {
                 error!("list user list err: {}", e);
                 AppError::db_error("用户列表查询失败")
             })?;
-        account_map = account_list
+
+        account_list
             .into_iter()
             .map(|item| (item.user_id, item))
-            .collect();
-    }
+            .collect()
+    };
 
-    let mut student_map: HashMap<i64, ClassStudent> = HashMap::new();
-    if !student_ids.is_empty() {
+    let student_map: HashMap<i64, ClassStudent> = if student_ids.is_empty() {
+        HashMap::new()
+    } else {
         let student_list = ClassStudent::find_by_user_ids(db, student_ids)
             .await
             .map_err(|e| {
                 error!("list class student list err: {}", e);
                 AppError::db_error("学生账户列表查询失败")
             })?;
-        student_map = student_list
+
+        student_list
             .into_iter()
             .map(|item| (item.user_id, item))
-            .collect();
-    }
+            .collect()
+    };
 
     Ok(UserSessionListResp {
-        list: to_session_info_resp(rows, account_map, student_map),
+        list: to_session_info_resp(rows, &account_map, &student_map),
         page_no: req.page_no,
         page_size: req.page_size,
         total: count,
@@ -389,42 +400,40 @@ pub async fn session_list(
 
 fn to_session_info_resp(
     rows: Vec<UserSession>,
-    account_map: HashMap<i64, UserIdentity>,
-    student_map: HashMap<i64, ClassStudent>,
+    account_map: &HashMap<i64, UserIdentity>,
+    student_map: &HashMap<i64, ClassStudent>,
 ) -> Vec<UserSessionInfoResp> {
-    let mut resp_list: Vec<UserSessionInfoResp> = vec![];
-    for row in rows.into_iter() {
-        let mut username: String = "".to_string();
-        let mut provider_desc: String = "".to_string();
+    let mut resp_list: Vec<UserSessionInfoResp> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let mut username: String = String::new();
+        let mut provider_desc: String = String::new();
 
         if row.source == UserSource::User as i16 {
             if let Some(account) = account_map.get(&row.user_id) {
                 username = account
                     .provider_username
-                    .clone()
-                    .unwrap_or("未知".to_string());
+                    .as_ref()
+                    .map_or_else(|| String::from("未知"), Clone::clone);
                 provider_desc = ProviderType::desc(account.provider).to_string();
             }
-        } else {
-            if let Some(student) = student_map.get(&row.user_id) {
-                username = student.account.clone();
-                provider_desc = "班级".to_string();
-            }
+        } else if let Some(student) = student_map.get(&row.user_id) {
+            username.clone_from(&student.account);
+            provider_desc = String::from("班级");
         }
 
         resp_list.push(UserSessionInfoResp {
             id: row.id.unwrap_or_default(),
             user_id: row.user_id,
             source_desc: UserSource::desc(row.source).to_string(),
-            username: username.clone(),
-            provider_desc: provider_desc.clone(),
+            username,
+            provider_desc,
             expired_at: to_local_datetime(Some(row.expired_at)),
             renew_cnt: row.renew_cnt,
-            client_ip: row.client_ip.clone(),
-            user_agent: row.user_agent.clone(),
+            client_ip: row.client_ip,
+            user_agent: row.user_agent,
             created_at: to_local_datetime(row.created_at),
             updated_at: to_local_datetime(row.updated_at),
-        })
+        });
     }
 
     resp_list

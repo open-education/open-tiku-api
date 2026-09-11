@@ -12,16 +12,13 @@ pub struct ChapterKnowledge {
 
 impl ChapterKnowledge {
     // 保存关联关系
-    pub async fn insert(
-        pool: &PgPool,
-        req: &CreateChapterKnowledgeReq,
-    ) -> Result<i32, sqlx::Error> {
+    pub async fn insert(pool: &PgPool, req: CreateChapterKnowledgeReq) -> Result<i32, sqlx::Error> {
         sqlx::query_scalar(
-            r#"
+            r"
         INSERT INTO chapter_knowledge (chapter_id, knowledge_id)
         VALUES ($1, $2)
         RETURNING id
-        "#,
+        ",
         )
         .bind(req.chapter_id)
         .bind(req.knowledge_id)

@@ -31,7 +31,7 @@ fn load_private_key(absolute_path: &str) -> Result<String, Box<dyn std::error::E
     let path = Path::new(absolute_path);
     if !path.exists() {
         error!("Load private key file:  {} not exist", absolute_path);
-        return Err(format!("私钥文件不存在，请检查路径: {}", absolute_path).into());
+        return Err(format!("私钥文件不存在，请检查路径: {absolute_path}").into());
     }
 
     // 读取绝对路径的文件内容并转换为 String
@@ -80,10 +80,19 @@ fn verify_and_get_pwd(d_pwd: &str) -> Result<String, AppError> {
         error!("Verify pwd timestamp error: {}", err);
         AppError::param_error("密码时间戳生成错误")
     })?;
-    let server_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
+    let server_time = u64::try_from(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| {
+                error!("Verify pwd SystemTime now error: {}", e);
+                AppError::param_error("时间获取错误")
+            })?
+            .as_millis(),
+    )
+    .map_err(|err| {
+        error!("Verify pwd server time error: {}", err);
+        AppError::internal_error("服务时间获取错误")
+    })?;
 
     // 检查请求是否超时 或者是否是未来的请求 防止客户端时钟严重不准
     if client_time > server_time + STUDENT_LOGIN_TIME_WINDOW_MS

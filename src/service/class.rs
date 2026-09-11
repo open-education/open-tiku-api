@@ -85,7 +85,7 @@ pub async fn list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= count as i32 {
         return Ok(ClassListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total: count,

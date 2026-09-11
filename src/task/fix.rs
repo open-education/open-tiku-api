@@ -12,9 +12,7 @@ use tracing::error;
 pub async fn path(conf: &AppState) {
     // 限制获取数据的最大层级
     let safe_depth = constant::textbook::MAX_DEPTH;
-    let rows = if let Ok(rows) = Textbook::find_all_by_depth(&conf.db, safe_depth).await {
-        rows
-    } else {
+    let Ok(rows) = Textbook::find_all_by_depth(&conf.db, safe_depth).await else {
         error!("Error searching textbook");
         return;
     };
@@ -24,20 +22,20 @@ pub async fn path(conf: &AppState) {
 
     // 从根节点（parent_id=0 是根）递归构建
     let mut resp: Vec<TextbookResp> = get_levels_by_parent_id(&map, 0, safe_depth);
-    for node in resp.iter_mut() {
-        fix_node_path(node, String::new());
+    for node in &mut resp {
+        fix_node_path(node, "");
     }
 
     // 保存所有节点到数据库
-    for node in resp.iter() {
+    for node in &resp {
         save_node_recursive(&conf.db, node).await;
     }
 }
 
 /// 递归为节点及其子节点补齐 path 字段
-fn fix_node_path(node: &mut TextbookResp, parent_path: String) {
+fn fix_node_path(node: &mut TextbookResp, parent_path: &str) {
     // 设置当前节点的 path 为父路径（不包含当前节点）
-    node.path = parent_path.clone();
+    node.path = parent_path.to_owned();
 
     // 如果有子节点，递归处理
     if let Some(children) = &mut node.children {
@@ -50,7 +48,7 @@ fn fix_node_path(node: &mut TextbookResp, parent_path: String) {
                 // 如果父路径不为空，追加 "/id"
                 format!("{}/{}", parent_path, node.id)
             };
-            fix_node_path(child, child_parent_path);
+            fix_node_path(child, &child_parent_path);
         }
     }
 }

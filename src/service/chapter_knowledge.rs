@@ -12,19 +12,16 @@ use tracing::error;
 
 // 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
-    let res = ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
+    match ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
         .await
         .map_err(|err| {
             error!("add relation query err: {}", err);
             AppError::db_error("章节/考点绑定关系查询失败")
-        })?;
-
-    if res.is_none() {
-        Ok(())
-    } else {
-        Err(AppError::param_error(
+        })? {
+        Some(_) => Err(AppError::param_error(
             "当前选择的章节和知识点已存在关联关系, 无需重复关联",
-        ))
+        )),
+        None => Ok(()),
     }
 }
 
@@ -37,10 +34,10 @@ pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeR
             AppError::db_error("绑定关系查询失败")
         })?;
 
-    if !rows.is_empty() {
-        Ok(rows.into_iter().map(Into::into).collect())
-    } else {
+    if rows.is_empty() {
         Ok(Vec::new())
+    } else {
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 }
 
@@ -50,7 +47,7 @@ pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result
 
     check_unique(db, &req).await?;
 
-    let row_id = ChapterKnowledge::insert(db, &req).await.map_err(|err| {
+    let row_id = ChapterKnowledge::insert(db, req).await.map_err(|err| {
         error!("error adding chapter knowledge: {}", err);
         AppError::db_error("绑定失败")
     })?;
@@ -83,23 +80,21 @@ pub async fn remove(
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
             AppError::db_error("考点章节关联查询失败")
-        })?;
-    if relation_row.is_none() {
-        return Err(AppError::param_error("章节/考点没有关联关系, 无需解绑"));
-    }
-    let relation_id = relation_row.unwrap().id;
+        })?
+        .ok_or_else(|| AppError::param_error("章节/考点没有关联关系, 无需解绑"))?;
+
+    let relation_id = relation_row.id;
     if relation_id != req.id {
-        return Err(AppError::param_error("章节/考点关联关系不匹配, 无需解绑"));
+        return Err(AppError::param_error("章节/考点关联关系不匹配, 无法解绑"));
     }
 
     // 如果有题型关联就不能解除了, 后续如果需要放开重新绑定再处理
-    let rows = QuestionCate::find_all_by_related_ids(db, vec![relation_id])
+    let rows = QuestionCate::find_all_by_related_ids(db, &[relation_id])
         .await
         .map_err(|err| {
             error!("error fetching chapter knowledge: {}", err);
             AppError::db_error("绑定关系查询失败")
         })?;
-
     if !rows.is_empty() {
         return Err(AppError::business_error("已关联了题型, 不能解除关联"));
     }

@@ -38,12 +38,12 @@ impl PaperGroup {
     // 通过 paper_id 查询所有题型（使用 &Pool）
     pub async fn find_by_paper_id(pool: &PgPool, paper_id: i64) -> Result<Vec<Self>, sqlx::Error> {
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM paper_group
             WHERE paper_id = $1
             ORDER BY id ASC
-            "#,
+            ",
         )
         .bind(paper_id)
         .fetch_all(pool)
@@ -58,10 +58,10 @@ impl PaperGroup {
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
         DELETE FROM paper_group
         WHERE paper_id = $1
-        "#,
+        ",
         )
         .bind(paper_id)
         .execute(&mut **tx)

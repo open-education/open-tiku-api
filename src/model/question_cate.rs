@@ -17,7 +17,7 @@ impl QuestionCate {
         let key = format!("{:x}", md5::compute(&req.label))[..10].to_string();
 
         let id = sqlx::query(
-            r#"
+            r"
         INSERT INTO question_cate (id, related_id, label, key, sort_order)
         VALUES (COALESCE($1, nextval('question_cate_id_seq')), $2, $3, $4, $5)
         ON CONFLICT (id) DO UPDATE SET
@@ -26,7 +26,7 @@ impl QuestionCate {
             key = EXCLUDED.key,
             sort_order = EXCLUDED.sort_order
         RETURNING id
-        "#,
+        ",
         )
         .bind(req.id) // Option<i32>
         .bind(req.related_id)
@@ -55,7 +55,7 @@ impl QuestionCate {
     // 通过关联标识获取题型列表
     pub async fn find_all_by_related_ids(
         pool: &PgPool,
-        related_ids: Vec<i32>,
+        related_ids: &[i32],
     ) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>("SELECT * FROM question_cate WHERE related_id = ANY($1)")
             .bind(related_ids)
@@ -64,7 +64,7 @@ impl QuestionCate {
     }
 
     pub async fn find_by_ids(pool: &PgPool, id: &[i32]) -> Result<Vec<Self>, sqlx::Error> {
-        let row = sqlx::query_as::<_, Self>(r#"SELECT * FROM question_cate WHERE id = ANY($1)"#)
+        let row = sqlx::query_as::<_, Self>(r"SELECT * FROM question_cate WHERE id = ANY($1)")
             .bind(id)
             .fetch_all(pool)
             .await?;

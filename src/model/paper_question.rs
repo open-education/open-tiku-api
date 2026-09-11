@@ -57,12 +57,12 @@ impl PaperQuestion {
         }
 
         let rows = sqlx::query_as::<_, Self>(
-            r#"
+            r"
             SELECT *
             FROM paper_question
             WHERE paper_id = $1 AND group_id = ANY($2)
             ORDER BY group_id, id ASC
-            "#,
+            ",
         )
         .bind(paper_id)
         .bind(group_ids)
@@ -78,10 +78,10 @@ impl PaperQuestion {
         paper_id: i64,
     ) -> Result<u64, sqlx::Error> {
         let row = sqlx::query(
-            r#"
+            r"
         DELETE FROM paper_question
         WHERE paper_id = $1
-        "#,
+        ",
         )
         .bind(paper_id)
         .execute(&mut **tx)

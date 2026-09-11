@@ -2075,6 +2075,7 @@ dependencies = [
  "config",
  "futures-util",
  "idgen_rs",
+ "itoa",
  "lettre",
  "md5",
  "pulldown-cmark",
