@@ -40,7 +40,6 @@ impl PaperStatus {
 
     pub fn from_i16(code: i16) -> Self {
         match code {
-            1 => Self::Draft,
             2 => Self::Pending,
             3 => Self::Published,
             4 => Self::Homework,

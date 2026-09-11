@@ -102,7 +102,7 @@ pub struct ExtIdReq {
 }
 
 impl ExtIdReq {
-    pub fn from_type_code(type_code: TypeCode, row_id: i32) -> Self {
+    pub fn from_type_code(type_code: &TypeCode, row_id: i32) -> Self {
         match type_code {
             TypeCode::Type => Self {
                 type_id: Some(row_id),

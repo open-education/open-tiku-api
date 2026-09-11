@@ -11,7 +11,7 @@ pub fn init_logger(file_name: &str) -> WorkerGuard {
 
     // 每天自动分割日志
     let file_appender = tracing_appender::rolling::daily(log_dir, file_prefix);
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // 日期偏移 8小时, 内容是本地时间, 但是日志文件名还是 UTC 时间
     let local_offset = time::UtcOffset::from_hms(8, 0, 0).expect("Valid offset");
@@ -43,5 +43,5 @@ pub fn init_logger(file_name: &str) -> WorkerGuard {
         .with(file_layer)
         .init();
 
-    _guard
+    guard
 }

@@ -63,7 +63,7 @@ pub async fn add(
     check_class_list_info(db, &class_ids, teacher_user_info.0.user_id, true).await?;
 
     // 生成批量入库信息, homework_id 为提前生成
-    let (class_list, class_students) = build_homework_add_req(req, teacher_user_info.0.user_id)?;
+    let (class_list, class_students) = build_homework_add_req(&req, teacher_user_info.0.user_id)?;
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
@@ -103,16 +103,16 @@ pub async fn add(
 }
 
 fn build_homework_add_req(
-    req: HomeworkAddReq,
+    req: &HomeworkAddReq,
     author_id: i64,
 ) -> Result<(Vec<Homework>, Vec<HomeworkStudent>), AppError> {
     let mut class_list: Vec<Homework> = Vec::with_capacity(req.class_map.len());
-    let total_students: usize = req.class_map.values().map(|ids| ids.len()).sum();
+    let total_students: usize = req.class_map.values().map(Vec::len).sum();
     let mut class_students: Vec<HomeworkStudent> = Vec::with_capacity(total_students);
 
     let deadline = get_datetime(&req.deadline)?;
 
-    for (class_id, student_ids) in req.class_map.iter() {
+    for (class_id, student_ids) in &req.class_map {
         // 班级信息不能为空
         if student_ids.is_empty() {
             return Err(AppError::param_error("班级学生账户为空"));
@@ -127,7 +127,7 @@ fn build_homework_add_req(
                 student_id: *student_id,
                 created_at: None,
                 updated_at: None,
-            })
+            });
         }
 
         class_list.push(Homework {
@@ -137,11 +137,11 @@ fn build_homework_add_req(
             paper_id: req.paper_id,
             class_id: *class_id,
             author_id,
-            title: req.title.to_owned(),
+            title: req.title.clone(),
             deadline,
-            remark: req.remark.to_owned().unwrap_or_default(),
+            remark: req.remark.clone().unwrap_or_default(),
             created_at: None,
-        })
+        });
     }
 
     Ok((class_list, class_students))
@@ -255,7 +255,7 @@ pub async fn list(
     for item in rows {
         // 班级信息
         let class_info = if let Some(class_row) = class_map.get(&item.class_id) {
-            (**class_row).to_owned().into()
+            (**class_row).clone().into()
         } else {
             error!("Homework class id not found: {}", item.class_id);
             ClassInfoResp::default()
@@ -267,7 +267,7 @@ pub async fn list(
         if let Some(student_list) = student_map.remove(&item.homework_id) {
             for info in student_list {
                 if let Some(account_info) = account_map.get(&info.student_id) {
-                    account_list.push((*account_info).to_owned().into());
+                    account_list.push((*account_info).clone().into());
                 } else {
                     error!("Homework class student_id not found: {}", info.student_id);
                 }

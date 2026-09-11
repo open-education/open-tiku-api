@@ -220,8 +220,8 @@ pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, App
 
     Ok(to_info_resp(
         &row,
-        author_name.to_string(),
-        approve_name.to_string(),
+        author_name.clone(),
+        approve_name.clone(),
     ))
 }
 
@@ -306,8 +306,8 @@ pub async fn list(
     let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
 
     Ok(to_list_resp(
-        list_data,
-        user_map,
+        &list_data,
+        &user_map,
         req.page_no,
         req.page_size,
         total,
@@ -315,26 +315,26 @@ pub async fn list(
 }
 
 fn to_list_resp(
-    list_data: Vec<Question>,
-    user_map: HashMap<i64, String>,
+    list_data: &[Question],
+    user_map: &HashMap<i64, String>,
     page_no: i32,
     page_size: i32,
     total: i64,
 ) -> QuestionListResp {
     QuestionListResp {
         list: list_data
-            .into_iter()
+            .iter()
             .map(|row| {
                 to_base_resp(
-                    &row,
+                    row,
                     user_map
                         .get(&row.author_id)
                         .cloned()
-                        .unwrap_or_else(|| "".to_string()),
+                        .unwrap_or_else(String::new),
                     user_map
                         .get(&row.approve_id)
                         .cloned()
-                        .unwrap_or_else(|| "".to_string()),
+                        .unwrap_or_else(String::new),
                 )
             })
             .collect(),
@@ -395,8 +395,8 @@ pub async fn similar(
 
     // 转换并返回
     Ok(to_list_resp(
-        list_data,
-        user_map,
+        &list_data,
+        &user_map,
         req.page_no,
         req.page_size,
         total,

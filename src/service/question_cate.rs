@@ -107,7 +107,7 @@ async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, Textbo
                 cache_key, err.msg
             );
         }
-    };
+    }
 
     // 然后建立第7层菜单跟它对应的 map
     let seven_map = build_seven_level_map(seven_resp);
@@ -177,9 +177,8 @@ pub async fn list_all(
         info_map.insert(info_id, info);
 
         // 如果在关联表里找不到对应的关系 说明这行题型数据非法 直接跳过, 不影响前端展示题目本身
-        let ck_info = match ck_map.get(&related_id) {
-            Some(ck) => ck,
-            None => continue,
+        let Some(ck_info) = ck_map.get(&related_id) else {
+            continue;
         };
 
         for &start_pid in &[ck_info.chapter_id, ck_info.knowledge_id] {

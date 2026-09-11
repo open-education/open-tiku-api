@@ -39,7 +39,7 @@ pub async fn question_status(
         // 审核结果（通过/拒绝/退回草稿）——均需教师权限 拒绝时必须填写原因
         QuestionStatus::Published | QuestionStatus::Rejected | QuestionStatus::Draft => {
             if status == QuestionStatus::Rejected
-                && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
+                && req.reject_reason.as_ref().is_none_or(String::is_empty)
             {
                 return Err(AppError::business_error("拒绝审核必须说明原因"));
             }
@@ -95,13 +95,13 @@ pub async fn paper_status(
         // 审核结果（通过/拒绝/退回草稿）——均需教师权限 拒绝时必须填写原因
         PaperStatus::Published | PaperStatus::Rejected | PaperStatus::Draft => {
             if status == PaperStatus::Rejected
-                && req.reject_reason.as_ref().is_none_or(|s| s.is_empty())
+                && req.reject_reason.as_ref().is_none_or(String::is_empty)
             {
                 return Err(AppError::business_error("拒绝审核必须说明原因"));
             }
         }
         // 其他状态（如布置作业）暂不支持
-        _ => {
+        PaperStatus::Homework => {
             return Err(AppError::business_error(
                 format!("不支持的状态变更: {}", req.status).as_str(),
             ));

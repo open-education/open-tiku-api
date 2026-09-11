@@ -112,7 +112,7 @@ impl UserIdentity {
     }
 
     pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(r#"SELECT COUNT(*) FROM user_identity"#)
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM user_identity")
             .fetch_one(pool)
             .await
     }

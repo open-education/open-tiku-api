@@ -12,7 +12,7 @@ pub async fn login_url(
     app_state: web::Data<AppState>,
     path: web::Path<(i16,)>,
 ) -> ApiResponse<String> {
-    ApiResponse::response(callback::login_url(&app_state, path.into_inner().0).await)
+    ApiResponse::response(callback::login_url(&app_state, path.into_inner().0))
 }
 
 // GitHub 登录回调

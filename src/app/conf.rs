@@ -1,11 +1,12 @@
 use config::{Config, File, FileFormat};
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{AsyncSmtpTransport, Tokio1Executor};
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{PgPool, SqlitePool};
 use std::str::FromStr;
 use std::time::Duration;
-
 // 配置结构定义
 
 // 服务监听地址和端口配置
@@ -69,8 +70,7 @@ pub struct SmtpEmailConfig {
     pub port: u16,
     pub username: String,
     pub password: String,
-    pub from_name: String,
-    pub from_email: String,
+    pub from: String,
 }
 
 // 应用配置文件
@@ -96,6 +96,7 @@ pub struct AppState {
     pub config: AppConfig,
     pub db: PgPool,
     pub sqlite: SqlitePool,
+    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 
 // 公共初始化配置函数
@@ -144,9 +145,18 @@ pub async fn init(is_task: bool) -> AppState {
         .await
         .expect("Failed to create sqlx sqlite pool");
 
+    // 发送邮件连接
+    let creds = Credentials::new(config.smtp.username.clone(), config.smtp.password.clone());
+    let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp.server)
+        .expect("SMTP连接失败")
+        .port(config.smtp.port)
+        .credentials(creds)
+        .build();
+
     AppState {
         config,
         db: db_pool,
         sqlite: sqlite_pool,
+        mailer,
     }
 }

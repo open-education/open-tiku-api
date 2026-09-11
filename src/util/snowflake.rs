@@ -16,7 +16,7 @@ pub fn init_snowflake(worker_id: u16) {
 pub fn generate_id() -> i64 {
     // 检查是否已初始化
     assert!(
-        !INIT.get().is_none(),
+        INIT.get().is_some(),
         "Snowflake generator not initialized. Call `init_snowflake(worker_id)` first."
     );
 

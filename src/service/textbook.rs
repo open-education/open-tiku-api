@@ -231,7 +231,7 @@ fn fill_question_cate(
             let total_questions: usize = rel_ids
                 .iter()
                 .filter_map(|id| question_id_map.get(id))
-                .map(|q| q.len())
+                .map(Vec::len)
                 .sum();
 
             if total_questions == 0 {
@@ -251,14 +251,14 @@ fn fill_question_cate(
                         let id_str = id_buf.format(q.id); // 纯栈上的数字转字符
 
                         key_buf.push_str(&item.key);
-                        key_buf.push_str("-");
+                        key_buf.push('-');
                         key_buf.push_str(id_str);
 
                         row_children.push(TextbookResp {
                             id: q.id,
                             path_type: String::from(constant::textbook::PATH_TYPE_COMMON),
                             parent_id: None,
-                            label: q.label.to_owned(),
+                            label: q.label.clone(),
                             key: key_buf.clone(),
                             sort_order: q.sort_order,
                             path_depth: None,

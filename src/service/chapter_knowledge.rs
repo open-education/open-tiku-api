@@ -12,19 +12,16 @@ use tracing::error;
 
 // 查询唯一绑定关系是否一存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
-    let res = ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
+    match ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
         .await
         .map_err(|err| {
             error!("add relation query err: {}", err);
             AppError::db_error("章节/考点绑定关系查询失败")
-        })?;
-
-    if res.is_none() {
-        Ok(())
-    } else {
-        Err(AppError::param_error(
+        })? {
+        Some(_) => Err(AppError::param_error(
             "当前选择的章节和知识点已存在关联关系, 无需重复关联",
-        ))
+        )),
+        None => Ok(()),
     }
 }
 
@@ -37,10 +34,10 @@ pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeR
             AppError::db_error("绑定关系查询失败")
         })?;
 
-    if !rows.is_empty() {
-        Ok(rows.into_iter().map(Into::into).collect())
-    } else {
+    if rows.is_empty() {
         Ok(Vec::new())
+    } else {
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 }
 

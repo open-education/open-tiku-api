@@ -29,7 +29,7 @@ pub async fn add(
 ) -> Result<u64, AppError> {
     check_student_add_req(&req)?;
 
-    let account_set = get_account_set(req.accounts);
+    let account_set = get_account_set(&req.accounts);
     let accounts: Vec<String> = account_set.into_iter().collect();
     if accounts.is_empty() {
         return Err(AppError::param_error("没有有效的学生账户"));
@@ -75,7 +75,7 @@ pub async fn add(
             AppError::db_error("导入班级学生出错")
         })?;
 
-    send_account_email(app_state, &class_row, account_to_map).await?;
+    send_account_email(app_state, class_row, account_to_map).await?;
 
     Ok(count)
 }
@@ -93,10 +93,10 @@ fn check_student_add_req(req: &ClassStudentReq) -> Result<(), AppError> {
 }
 
 // 去除账户两边的空格等特殊字符并去重
-fn get_account_set(input: String) -> HashSet<String> {
+fn get_account_set(input: &str) -> HashSet<String> {
     input
         .split(',')
-        .map(|s| s.trim())
+        .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(String::from)
         .collect()
@@ -134,7 +134,7 @@ pub async fn check_class_list_info(
         return Err(AppError::param_error("班级为空"));
     }
 
-    for class_row in class_row_list.iter() {
+    for class_row in &class_row_list {
         if class_row.author_id != user_id {
             return Err(AppError::permission_denied("你只能管理自己的班级"));
         }
@@ -194,7 +194,7 @@ async fn build_student_req(
                     id: 0,
                     class_id,
                     user_id: snowflake::generate_id(),
-                    account: account.to_owned(),
+                    account: account.clone(),
                     password: hashed,
                     status: StudentStatus::Active as i16,
                     remark: String::new(),
@@ -212,9 +212,7 @@ async fn build_student_req(
     let results = timeout(Duration::from_secs(120), try_join_all(tasks))
         .await
         .map_err(|_| AppError::internal_error("导入超时，请稍后重试"))?
-        .map_err(|join_err| {
-            AppError::internal_error(format!("并行任务失败: {}", join_err).as_str())
-        })?
+        .map_err(|join_err| AppError::internal_error(format!("并行任务失败: {join_err}").as_str()))?
         .into_iter()
         .collect::<Result<Vec<_>, AppError>>()?;
 
@@ -231,35 +229,39 @@ async fn build_student_req(
 // 发送学生账户密码文件给教师个人邮箱
 async fn send_account_email(
     app_state: &AppState,
-    class_info: &Class,
+    class_info: Class,
     account_to_map: HashMap<String, String>,
 ) -> Result<(), AppError> {
     let account_htm = get_student_account_html(&account_to_map);
 
     // 邮件标题
-    let mut titles: Vec<String> = Vec::new();
-    titles.push(to_local_datetime(Some(Utc::now())));
-    titles.push(class_info.year.to_string());
-    if !class_info.grade.is_empty() {
-        titles.push(class_info.grade.to_string());
-    }
-    if !class_info.semester.is_empty() {
-        titles.push(class_info.semester.to_string());
-    }
-    titles.push(class_info.label.to_string());
-    titles.push("学生账户相关信息".to_string());
+    let mut title = to_local_datetime(Some(Utc::now()));
+    title.reserve(32);
 
-    let title = titles.join("-");
+    for s in &[
+        class_info.year,
+        class_info.grade,
+        class_info.semester,
+        class_info.label,
+    ] {
+        if !s.is_empty() {
+            title.push('-');
+            title.push_str(s);
+        }
+    }
+    title.push('-');
+    title.push_str("学生账户相关信息");
 
     send_html_email(
-        &app_state.config.smtp,
-        class_info.email.as_str(),
-        title.as_str(),
-        account_htm.as_str(),
+        &app_state.mailer,
+        &app_state.config.smtp.from,
+        &class_info.email,
+        title,
+        account_htm,
     )
     .await?;
 
-    info!("email title: {} send success", title);
+    info!("email send success");
 
     Ok(())
 }
@@ -331,7 +333,7 @@ pub async fn edit(
         class_id: req.class_id,
         user_id: student.user_id,
         account: account.to_owned(),
-        password: student.password.to_owned(),
+        password: student.password.clone(),
         status: StudentStatus::from_i16(req.status) as i16,
         remark: req.remark,
         last_login_time: student.last_login_time,
@@ -369,9 +371,9 @@ pub async fn edit(
     if req.reset_pwd {
         let mut account_to_map: HashMap<String, String> = HashMap::new();
         account_to_map
-            .entry(req.account.to_owned())
+            .entry(req.account.clone())
             .or_insert(password);
-        send_account_email(app_state, &class_row, account_to_map).await?;
+        send_account_email(app_state, class_row, account_to_map).await?;
     }
 
     Ok(rows > 0)

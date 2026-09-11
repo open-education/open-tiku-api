@@ -39,7 +39,7 @@ pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<Str
 
     // 替换 session 为登录 token
     let login_token = Uuid::new_v4().to_string();
-    session.token = login_token.to_owned();
+    session.token = login_token.clone();
     session.expired_at = Utc::now() + Duration::minutes(meta::TEMP_TOKEN_EXPIRED_MINUTE);
 
     // 替换用户临时 session 为 登录 session
@@ -358,7 +358,9 @@ pub async fn session_list(
         }
     }
 
-    let account_map: HashMap<i64, UserIdentity> = if !account_ids.is_empty() {
+    let account_map: HashMap<i64, UserIdentity> = if account_ids.is_empty() {
+        HashMap::new()
+    } else {
         let account_list = UserIdentity::find_by_user_ids(db, account_ids)
             .await
             .map_err(|e| {
@@ -370,11 +372,11 @@ pub async fn session_list(
             .into_iter()
             .map(|item| (item.user_id, item))
             .collect()
-    } else {
-        HashMap::new()
     };
 
-    let student_map: HashMap<i64, ClassStudent> = if !student_ids.is_empty() {
+    let student_map: HashMap<i64, ClassStudent> = if student_ids.is_empty() {
+        HashMap::new()
+    } else {
         let student_list = ClassStudent::find_by_user_ids(db, student_ids)
             .await
             .map_err(|e| {
@@ -386,12 +388,10 @@ pub async fn session_list(
             .into_iter()
             .map(|item| (item.user_id, item))
             .collect()
-    } else {
-        HashMap::new()
     };
 
     Ok(UserSessionListResp {
-        list: to_session_info_resp(rows, account_map, student_map),
+        list: to_session_info_resp(rows, &account_map, &student_map),
         page_no: req.page_no,
         page_size: req.page_size,
         total: count,
@@ -400,11 +400,11 @@ pub async fn session_list(
 
 fn to_session_info_resp(
     rows: Vec<UserSession>,
-    account_map: HashMap<i64, UserIdentity>,
-    student_map: HashMap<i64, ClassStudent>,
+    account_map: &HashMap<i64, UserIdentity>,
+    student_map: &HashMap<i64, ClassStudent>,
 ) -> Vec<UserSessionInfoResp> {
     let mut resp_list: Vec<UserSessionInfoResp> = Vec::with_capacity(rows.len());
-    for row in rows.into_iter() {
+    for row in rows {
         let mut username: String = String::new();
         let mut provider_desc: String = String::new();
 
@@ -413,15 +413,12 @@ fn to_session_info_resp(
                 username = account
                     .provider_username
                     .as_ref()
-                    .map(|s| s.clone())
-                    .unwrap_or_else(|| "未知".to_string());
+                    .map_or_else(|| String::from("未知"), Clone::clone);
                 provider_desc = ProviderType::desc(account.provider).to_string();
             }
-        } else {
-            if let Some(student) = student_map.get(&row.user_id) {
-                username = student.account.clone();
-                provider_desc = "班级".to_string();
-            }
+        } else if let Some(student) = student_map.get(&row.user_id) {
+            username.clone_from(&student.account);
+            provider_desc = String::from("班级");
         }
 
         resp_list.push(UserSessionInfoResp {
@@ -436,7 +433,7 @@ fn to_session_info_resp(
             user_agent: row.user_agent,
             created_at: to_local_datetime(row.created_at),
             updated_at: to_local_datetime(row.updated_at),
-        })
+        });
     }
 
     resp_list

@@ -93,13 +93,13 @@ pub async fn list(
     // 试卷完成情况信息记录
 
     let mut resp: Vec<InfoResp> = Vec::with_capacity(rows.len());
-    for item in rows.into_iter() {
+    for item in rows {
         // 获取对应的试卷标识
         let (paper_id, deadline) = if let Some(hc) = homework_id_class_map.get(&item.homework_id) {
             (hc.paper_id, to_local_date(Some(hc.deadline)))
         } else {
             error!("test list homework id is empty: {}", item.homework_id);
-            (0, "".to_string())
+            (0, String::new())
         };
 
         // 获取试卷详情, 试卷不存在默认空
@@ -118,7 +118,7 @@ pub async fn list(
             created_at: to_local_datetime(item.created_at),
             updated_at: to_local_datetime(item.updated_at),
             paper_info: paper_resp,
-        })
+        });
     }
 
     Ok(ListResp {
@@ -161,34 +161,31 @@ pub async fn attempt_latest(
         AppError::db_error("查询最新的作业记录失败")
     })?;
 
-    let mut hsta = match maybe_hsta {
-        Some(record) => record,
+    let mut hsta = if let Some(record) = maybe_hsta {
+        record
+    } else {
+        let max_no = TestAttempt::find_max_attempt_number(db, hcs.homework_id, hcs.student_id)
+            .await
+            .map_err(|e| {
+                error!("test latest max attempt number error: {}", e);
+                AppError::db_error("获取做题记录批次失败")
+            })?
+            .unwrap_or(0);
 
-        // 如果没有记录 或者已有记录都已完成 需要开启新一轮
-        None => {
-            let max_no = TestAttempt::find_max_attempt_number(db, hcs.homework_id, hcs.student_id)
-                .await
-                .map_err(|e| {
-                    error!("test latest max attempt number error: {}", e);
-                    AppError::db_error("获取做题记录批次失败")
-                })?
-                .unwrap_or(0);
-
-            // 开启新一轮做题, 批次号在历史最大值基础上 + 1
-            TestAttempt {
-                id: None,
-                student_id: hcs.student_id,
-                homework_id: hcs.homework_id,
-                class_id: hc.class_id,
-                paper_id: hc.paper_id,
-                attempt_number: max_no + 1,
-                method: test_method as i16,
-                status: TestStatus::InProgress as i16,
-                score: None,
-                created_at: None,
-                updated_at: None,
-                completed_at: None,
-            }
+        // 开启新一轮做题, 批次号在历史最大值基础上 + 1
+        TestAttempt {
+            id: None,
+            student_id: hcs.student_id,
+            homework_id: hcs.homework_id,
+            class_id: hc.class_id,
+            paper_id: hc.paper_id,
+            attempt_number: max_no + 1,
+            method: test_method as i16,
+            status: TestStatus::InProgress as i16,
+            score: None,
+            created_at: None,
+            updated_at: None,
+            completed_at: None,
         }
     };
 
@@ -335,7 +332,7 @@ pub async fn attempts(
         });
 
     let mut resp_list: Vec<AttemptInfoResp> = Vec::with_capacity(rows.len());
-    for row in rows.into_iter() {
+    for row in rows {
         let id = row.id.unwrap_or_default();
         let mut resp: AttemptInfoResp = row.into();
         if let Some(cur_answers) = answer_map.remove(&id) {
@@ -414,7 +411,7 @@ pub async fn answer_add(
 
 fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<TestAnswer>, AppError> {
     let mut add_list: Vec<TestAnswer> = vec![];
-    for req in req_list.list.into_iter() {
+    for req in req_list.list {
         let test_result = TestResult::from_i16(req.result)
             .ok_or_else(|| AppError::param_error("答案正确与否处理错误"))?;
         add_list.push(TestAnswer {
@@ -427,7 +424,7 @@ fn build_add_req(req_list: TestAnswerAddReq) -> Result<Vec<TestAnswer>, AppError
             remark: String::new(),
             created_at: None,
             updated_at: None,
-        })
+        });
     }
 
     Ok(add_list)

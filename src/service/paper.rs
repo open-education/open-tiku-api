@@ -20,7 +20,7 @@ use crate::service::question;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sqlx::types::Json;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::{HashMap, HashSet};
@@ -204,26 +204,26 @@ fn build_paper_meta_from_request(
     Paper {
         id: req.id,
         related_id: req.related_id,
-        related_name: req.related_name.to_owned(),
+        related_name: req.related_name.clone(),
         paper_type: req.paper_type,
-        tag: req.tag.to_owned(),
-        year: req.year.to_owned(),
-        grade: req.grade.to_owned(),
-        semester: req.semester.to_owned(),
-        title: req.title.to_owned(),
+        tag: req.tag.clone(),
+        year: req.year.clone(),
+        grade: req.grade.clone(),
+        semester: req.semester.clone(),
+        title: req.title.clone(),
         score: req.score,
-        source: req.source.to_owned(),
-        remark: req.remark.to_owned(),
+        source: req.source.clone(),
+        remark: req.remark.clone(),
         author_id: user_info.user_id,
-        author_name: user_info.username.to_owned().unwrap_or_default(),
+        author_name: user_info.username.clone().unwrap_or_default(),
         count: total_question_count, // 设置总题目数
         remark_ext: None,
         status: PaperStatus::from_i16(req.status) as i16,
         approve_id: 0,
         reject_reason: None,
         approve_at: None,
-        created_at: Default::default(),
-        updated_at: Default::default(),
+        created_at: DateTime::default(),
+        updated_at: DateTime::default(),
     }
 }
 
@@ -246,9 +246,9 @@ fn build_top_groups_and_questions(
         paper_groups.push(PaperGroup {
             id: group_id,
             paper_id,
-            gen_id: group.gen_id.to_owned(),
-            type_name: group.type_name.to_owned(),
-            sub_title: group.sub_title.to_owned(),
+            gen_id: group.gen_id.clone(),
+            type_name: group.type_name.clone(),
+            sub_title: group.sub_title.clone(),
         });
 
         // 构建该题型下的所有题目
@@ -257,14 +257,14 @@ fn build_top_groups_and_questions(
                 id: 0,
                 paper_id,
                 group_id,
-                gen_id: question.gen_id.to_owned(),
+                gen_id: question.gen_id.clone(),
                 order_num: question.order_num,
-                stem: question.stem.to_owned(),
-                images: question.images.to_owned(),
-                options: question.options.to_owned(),
+                stem: question.stem.clone(),
+                images: question.images.clone(),
+                options: question.options.clone(),
                 options_layout: question.options_layout,
-                answer: question.answer.to_owned(),
-                analysis: question.analysis.to_owned(),
+                answer: question.answer.clone(),
+                analysis: question.analysis.clone(),
                 score: question.score,
             });
         }
@@ -553,11 +553,11 @@ pub async fn preview(
             let author_name = user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| String::new());
+                .unwrap_or_else(String::new);
             let approve_name = user_map
                 .get(&row.approve_id)
                 .cloned()
-                .unwrap_or_else(|| String::new());
+                .unwrap_or_else(String::new);
 
             questions.push(GenPaperQuestionResp {
                 common: CommonPaperGenQuestionResp {
@@ -755,7 +755,7 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
 // 构建配置信息
 fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> PaperGenConfig {
     let mut question_types: Vec<QuestionTypeInfo> = vec![];
-    for info in req.question_types.iter() {
+    for info in &req.question_types {
         question_types.push(QuestionTypeInfo {
             id: info.id,
             label: info.label.clone(),
@@ -955,7 +955,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         paper_groups,
         paper_gen_questions,
         &user_map,
-        question_map,
+        &question_map,
     )
 }
 
@@ -966,7 +966,7 @@ fn to_gen_resp(
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     user_map: &HashMap<i64, String>,
-    question_raw_map: HashMap<i64, Question>,
+    question_raw_map: &HashMap<i64, Question>,
 ) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
         common: paper.into(),
@@ -1027,11 +1027,11 @@ fn to_gen_paper_question_resp(
             user_map
                 .get(&row.author_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_else(String::new),
             user_map
                 .get(&row.approve_id)
                 .cloned()
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_else(String::new),
         ),
     }
 }

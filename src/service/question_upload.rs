@@ -50,7 +50,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         })?;
 
     let mut map: HashMap<i32, HashMap<String, Vec<TextbookDict>>> = HashMap::new();
-    for item in rows.into_iter() {
+    for item in rows {
         map.entry(item.textbook_id)
             .or_default()
             .entry(item.type_code.clone())
@@ -66,7 +66,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         let task_id = task_info.id;
         let task_name = task_info.name.clone();
         if let Err(e) =
-            Task::update_by_id(db, &task_id, TaskStatus::Running as i16, "".to_string()).await
+            Task::update_by_id(db, &task_id, TaskStatus::Running as i16, String::new()).await
         {
             error!(
                 "Update task id: {}, name {} status=Running err: {}",
@@ -128,7 +128,7 @@ async fn single(
     if all_questions.is_empty() {
         error!("Task name: {} all questions is empty", task_info.name);
         return Err(AppError::business_error("该文件没有读取到任何有效的题目"));
-    };
+    }
 
     // 这部分更新使用事务
     let mut tx = app_state.db.begin().await.map_err(|e| {
@@ -271,7 +271,7 @@ fn get_question_type_and_options(
                 .enumerate()
                 .map(|(idx, (label, content))| QuestionOption {
                     label: label.to_string(),
-                    content: content.to_string(),
+                    content: content.clone(),
                     images: None,
                     order: (idx + 1) as i32,
                 })
@@ -409,8 +409,8 @@ fn to_req(
         scene_ids: Some(scene_ids),
         mistake_tip_ids: Some(mistake_tip_ids),
         author_id: Some(task_info.author_id),
-        source: "题目上传".to_string(),
-        original_name: "".to_string(),
+        source: String::from("题目上传"),
+        original_name: String::new(),
         status: QuestionStatus::Draft as i16,
         title: raw.title.clone(),
         content_plain: Some(question::to_plain_text(&raw.title)),
@@ -431,7 +431,7 @@ fn to_req(
         })),
         steps: None,
         remark: None,
-        remark_ext: Some("批量题目上传".to_string()),
+        remark_ext: Some(String::from("批量题目上传")),
     };
 
     Ok(req)
@@ -472,7 +472,7 @@ pub async fn parse_question_snippet(
         })?;
 
     let mut map: HashMap<String, Vec<TextbookDict>> = HashMap::new();
-    for item in rows.into_iter() {
+    for item in rows {
         map.entry(item.type_code.clone()).or_default().push(item);
     }
 
@@ -515,8 +515,8 @@ pub async fn parse_question_snippet(
         scene_ids: Some(scene_ids),
         mistake_tip_ids: Some(mistake_tip_ids),
         author_id: None,
-        source: "".to_string(),
-        original_name: "".to_string(),
+        source: String::new(),
+        original_name: String::new(),
         status: QuestionStatus::Draft as i16,
         title: raw.title.clone(),
         content_plain: Some(question::to_plain_text(&raw.title)),
@@ -537,6 +537,6 @@ pub async fn parse_question_snippet(
         })),
         steps: None,
         remark: None,
-        remark_ext: Some("文本片段解析".to_string()),
+        remark_ext: Some(String::from("文本片段解析")),
     })
 }

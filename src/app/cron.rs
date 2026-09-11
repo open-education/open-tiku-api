@@ -18,7 +18,7 @@ pub async fn run_cron(args: Vec<String>) {
         "session-cleanup" => task::session::cleanup(&app_state).await,
         "fix-path" => task::fix::path(&app_state).await,
         _ => {
-            eprintln!("未知任务: {}", task_name);
+            eprintln!("未知任务: {task_name}");
             std::process::exit(1);
         }
     }

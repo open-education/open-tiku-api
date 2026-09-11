@@ -97,13 +97,15 @@ impl FromRequest for ClientInfo {
             .headers()
             .get("X-Real-IP")
             .and_then(|h| h.to_str().ok())
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|| {
-                req.connection_info()
-                    .realip_remote_addr()
-                    .unwrap_or("IP not available")
-                    .to_string()
-            });
+            .map_or_else(
+                || {
+                    req.connection_info()
+                        .realip_remote_addr()
+                        .unwrap_or("IP not available")
+                        .to_string()
+                },
+                |ip| ip.to_string(),
+            );
 
         let user_agent = req
             .headers()
@@ -193,12 +195,9 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     };
 
     // 获取全局配置
-    let app_state = match req.app_data::<web::Data<AppState>>() {
-        Some(data) => data,
-        None => {
-            let err = actix_web::error::ErrorInternalServerError("服务配置参数错误");
-            return Err((err, req));
-        }
+    let Some(app_state) = req.app_data::<web::Data<AppState>>() else {
+        let err = actix_web::error::ErrorInternalServerError("服务配置参数错误");
+        return Err((err, req));
     };
 
     let db = &app_state.db;
