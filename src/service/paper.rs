@@ -16,7 +16,6 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
-use crate::service::question;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
@@ -545,7 +544,7 @@ pub async fn preview(
                     question_id: row.id,
                     score: question_type.score as i32,
                 },
-                info: question::to_info_resp(&row, author_name, approve_name),
+                info: (row, author_name, approve_name).into(),
             });
         }
 
@@ -683,6 +682,14 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
         return Err(AppError::param_error("试卷至少需要一个题型"));
     }
 
+    // 检验题目不能重复
+    let q_num = req
+        .groups
+        .iter()
+        .map(|item| item.questions.len())
+        .sum::<usize>();
+    let mut q_id_set: HashSet<i64> = HashSet::with_capacity(q_num);
+
     for (idx, group) in req.groups.iter().enumerate() {
         if group.type_name.trim().is_empty() {
             return Err(AppError::param_error(
@@ -697,6 +704,12 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
 
         // 验证题目
         for (q_idx, question) in group.questions.iter().enumerate() {
+            // 验证题目是否重复
+            if q_id_set.contains(&question.question_id) {
+                return Err(AppError::business_error("试卷内的题目不允许重复"));
+            }
+            q_id_set.insert(question.question_id);
+
             // 验证分数
             if question.score < 0 {
                 return Err(AppError::param_error(
@@ -885,7 +898,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         })?;
 
     // 收集题型标识和作者信息
-    let (question_map, author_ids) =
+    let (mut question_map, author_ids) =
         questions
             .into_iter()
             .fold((HashMap::new(), Vec::new()), |(mut map, mut ids), q| {
@@ -904,7 +917,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         paper_groups,
         paper_gen_questions,
         &user_map,
-        &question_map,
+        &mut question_map,
     )
 }
 
@@ -915,7 +928,7 @@ fn to_gen_resp(
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     user_map: &HashMap<i64, String>,
-    question_raw_map: &HashMap<i64, Question>,
+    question_raw_map: &mut HashMap<i64, Question>,
 ) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
         common: paper.into(),
@@ -937,13 +950,16 @@ fn to_gen_resp(
 
     for question in paper_questions {
         let group_id = question.group_id;
-        let raw = question_raw_map.get(&question.question_id).ok_or_else(|| {
-            error!(
-                "gen group_id {group_id} question_id {} not found in map",
-                question.question_id
-            );
-            AppError::param_error("题目不存在")
-        })?;
+        // 严格来说一张试卷内的题目不能重复, 直接消费
+        let raw = question_raw_map
+            .remove(&question.question_id)
+            .ok_or_else(|| {
+                error!(
+                    "gen group_id {group_id} question_id {} not found in map",
+                    question.question_id
+                );
+                AppError::param_error("题目不存在")
+            })?;
 
         let question_resp = to_gen_paper_question_resp(question, raw, user_map);
         questions_map
@@ -968,23 +984,15 @@ fn to_gen_resp(
 
 fn to_gen_paper_question_resp(
     gen_info: PaperGenQuestion,
-    row: &Question,
+    row: Question,
     user_map: &HashMap<i64, String>,
 ) -> GenPaperQuestionResp {
+    let author_name = user_map.get(&row.author_id).cloned().unwrap_or_default();
+    let approve_name = user_map.get(&row.approve_id).cloned().unwrap_or_default();
+
     GenPaperQuestionResp {
         common: gen_info.into(),
-
-        info: question::to_info_resp(
-            row,
-            user_map
-                .get(&row.author_id)
-                .cloned()
-                .unwrap_or_else(String::new),
-            user_map
-                .get(&row.approve_id)
-                .cloned()
-                .unwrap_or_else(String::new),
-        ),
+        info: (row, author_name, approve_name).into(),
     }
 }
 

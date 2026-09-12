@@ -1,4 +1,5 @@
-use crate::model::question::{Content, QuestionOption, Step};
+use crate::model::question::{Content, Question, QuestionOption, Step};
+use crate::util::local::to_local_datetime;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use sqlx::types::Json;
@@ -64,6 +65,52 @@ pub struct QuestionExtraInfoResp {
 pub struct QuestionInfoResp {
     pub base_info: QuestionBaseResp,
     pub extra_info: QuestionExtraInfoResp,
+}
+
+// 列表查询不要查询所有字段, 赋值了一次 None, 后续如果需要可以把 extra_info 调整为 Option 类型
+// (row: Question, author_name: String, approve_name: String)
+impl From<(Question, String, String)> for QuestionInfoResp {
+    fn from(raw: (Question, String, String)) -> Self {
+        Self {
+            base_info: QuestionBaseResp {
+                id: raw.0.id,
+                question_cate_id: raw.0.question_cate_id,
+                question_type_id: raw.0.question_type_id,
+                question_tag_ids: raw.0.question_tag_ids,
+                question_dimension_ids: raw.0.question_dimension_ids,
+                relation_type: raw.0.relation_type,
+                level_id: raw.0.level_id,
+                scene_ids: raw.0.scene_ids,
+                mistake_tip_ids: raw.0.mistake_tip_ids,
+                author_id: raw.0.author_id,
+                author_name: raw.1,
+                source: raw.0.source,
+                original_name: raw.0.original_name,
+                title: raw.0.title,
+                content_plain: Some(raw.0.content_plain),
+                comment: raw.0.comment,
+                difficulty_level: raw.0.difficulty_level,
+                images: raw.0.images,
+                options: raw.0.options,
+                options_layout: raw.0.options_layout,
+                status: raw.0.status,
+                approve_id: raw.0.approve_id,
+                approve_name: raw.2,
+                reject_reason: raw.0.reject_reason,
+                approve_at: to_local_datetime(raw.0.approve_at),
+                steps: raw.0.steps,
+                created_at: to_local_datetime(Some(raw.0.created_at)),
+                updated_at: to_local_datetime(Some(raw.0.updated_at)),
+            },
+            extra_info: QuestionExtraInfoResp {
+                answer: raw.0.answer,
+                knowledge: raw.0.knowledge,
+                analysis: raw.0.analysis,
+                process: raw.0.process,
+                remark: raw.0.remark,
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]

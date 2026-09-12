@@ -60,12 +60,17 @@ pub struct Question {
     pub options_layout: Option<i16>,                // 使用 i16 对应数据库 SMALLINT
 
     // 答案与解析
-    pub answer: Option<String>,          // 参考答案
-    pub knowledge: Option<String>,       // 知识点文本描述
+    #[sqlx(default)]
+    pub answer: Option<String>, // 参考答案
+    #[sqlx(default)]
+    pub knowledge: Option<String>, // 知识点文本描述
+    #[sqlx(default)]
     pub analysis: Option<Json<Content>>, // 解题分析
-    pub process: Option<Json<Content>>,  // 解题过程
-    pub steps: Option<Json<Vec<Step>>>,  // 解题步骤, 学生做题时提示
-    pub remark: Option<String>,          // 备注
+    #[sqlx(default)]
+    pub process: Option<Json<Content>>, // 解题过程
+    pub steps: Option<Json<Vec<Step>>>, // 解题步骤, 学生做题时提示
+    #[sqlx(default)]
+    pub remark: Option<String>, // 备注
 
     // 审核相关
     pub status: i16,                       // 审核状态
@@ -474,10 +479,8 @@ impl Question {
                     .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
             });
 
-            // 添加 RETURNING id 子句
             query_builder.push(" RETURNING id");
 
-            // 执行查询并获取返回的 id 列表
             let ids: Vec<i64> = query_builder
                 .build_query_scalar()
                 .fetch_all(&mut **tx)
@@ -512,22 +515,50 @@ impl Question {
     ) -> Result<i64, sqlx::Error> {
         let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM question ");
 
-        // 使用扩展方法
         qb = qb.push_cate_and_type_where(req);
 
         qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
-    // 题型下题目列表
+    // 题型下题目列表, 该接口没有扩展信息
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
         req: &CateAndTypeReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT * FROM question ");
+        let sql = r"
+        SELECT
+            id,
+            question_cate_id,
+            question_type_id,
+            question_tag_ids,
+            question_dimension_ids,
+            relation_type,
+            level_id,
+            scene_ids,
+            mistake_tip_ids,
+            author_id,
+            source,
+            original_name,
+            title,
+            content_plain,
+            comment,
+            difficulty_level,
+            images,
+            options,
+            status,
+            options_layout,
+            steps,
+            approve_id,
+            reject_reason,
+            approve_at,
+            created_at,
+            updated_at
+        FROM question
+        ";
+        let mut qb = QueryBuilder::new(sql);
 
-        // 使用扩展方法
         qb = qb.push_cate_and_type_where(req);
 
         qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit);
@@ -537,10 +568,8 @@ impl Question {
     }
 
     pub async fn exists_by_ext_id(pool: &PgPool, req: &ExtIdReq) -> Result<bool, sqlx::Error> {
-        // 初始化 QueryBuilder
         let mut qb = QueryBuilder::new("SELECT EXISTS (SELECT 1 FROM question WHERE ");
 
-        // 通过 req 访问字段 动态拼接 SQL
         if let Some(type_id) = req.type_id
             && type_id > 0
         {

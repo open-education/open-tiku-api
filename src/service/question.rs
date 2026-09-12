@@ -1,9 +1,7 @@
 use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
-use crate::api::resp::question::{
-    QuestionBaseResp, QuestionExtraInfoResp, QuestionInfoResp, QuestionListResp,
-};
+use crate::api::resp::question::{QuestionBaseResp, QuestionInfoResp, QuestionListResp};
 use crate::app::conf::AppState;
 use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
@@ -11,7 +9,6 @@ use crate::model::question::{CateAndTypeReq, Question, SimilarReq};
 use crate::model::question_relation::QuestionRelation;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
-use crate::util::local::to_local_datetime;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use tracing::error;
@@ -133,59 +130,6 @@ pub async fn add(
     Ok(id)
 }
 
-// 题目基本信息, 基本够列表使用
-fn to_base_resp(row: &Question, author_name: String, approve_name: String) -> QuestionBaseResp {
-    QuestionBaseResp {
-        id: row.id,
-        question_cate_id: row.question_cate_id,
-        question_type_id: row.question_type_id,
-        question_tag_ids: row.question_tag_ids.clone(),
-        question_dimension_ids: row.question_dimension_ids.clone(),
-        relation_type: row.relation_type,
-        level_id: row.level_id,
-        scene_ids: row.scene_ids.clone(),
-        mistake_tip_ids: row.mistake_tip_ids.clone(),
-        author_id: row.author_id,
-        author_name,
-        source: row.source.clone(),
-        original_name: row.original_name.clone(),
-        title: row.title.clone(),
-        content_plain: Some(row.content_plain.clone()),
-        comment: row.comment.clone(),
-        difficulty_level: row.difficulty_level,
-        images: row.images.clone(),
-        options: row.options.clone(),
-        options_layout: row.options_layout,
-        status: row.status,
-        approve_id: row.approve_id,
-        approve_name,
-        reject_reason: row.reject_reason.clone(),
-        approve_at: to_local_datetime(row.approve_at),
-        steps: row.steps.clone(),
-        created_at: to_local_datetime(Some(row.created_at)),
-        updated_at: to_local_datetime(Some(row.updated_at)),
-    }
-}
-
-// 额外扩展信息
-fn to_extra_resp(row: &Question) -> QuestionExtraInfoResp {
-    QuestionExtraInfoResp {
-        answer: row.answer.clone(),
-        knowledge: row.knowledge.clone(),
-        analysis: row.analysis.clone(),
-        process: row.process.clone(),
-        remark: row.remark.clone(),
-    }
-}
-
-// 完整的题目信息
-pub fn to_info_resp(row: &Question, author_name: String, approve_name: String) -> QuestionInfoResp {
-    QuestionInfoResp {
-        base_info: to_base_resp(row, author_name, approve_name),
-        extra_info: to_extra_resp(row),
-    }
-}
-
 // 通过主键获取详情
 pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, AppError> {
     let db = &app_state.db;
@@ -212,11 +156,9 @@ pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, App
         .cloned()
         .unwrap_or_default();
 
-    Ok(to_info_resp(
-        &row,
-        author_name.clone(),
-        approve_name.clone(),
-    ))
+    let resp = (row, author_name, approve_name).into();
+
+    Ok(resp)
 }
 
 // 题目列表
@@ -280,16 +222,16 @@ pub async fn list(
     }
 
     // 查询列表 (添加 ? 运算符解包 Result)
-    let list_data = Question::list_by_cate_and_type(db, &query_req, req.page_size, offset)
+    let rows = Question::list_by_cate_and_type(db, &query_req, req.page_size, offset)
         .await
         .map_err(|e| {
             error!("question list by id err: {e}");
             AppError::db_error("题目列表查询失败")
         })?;
 
-    let mut user_ids_set = HashSet::with_capacity(list_data.len() * 2);
+    let mut user_ids_set = HashSet::with_capacity(rows.len() * 2);
 
-    for q in &list_data {
+    for q in &rows {
         user_ids_set.insert(q.author_id);
         if q.approve_id > 0 {
             user_ids_set.insert(q.approve_id);
@@ -299,43 +241,24 @@ pub async fn list(
     let user_ids: Vec<i64> = user_ids_set.into_iter().collect();
     let user_map: HashMap<i64, String> = get_user_map(db, user_ids).await?;
 
-    Ok(to_list_resp(
-        &list_data,
-        &user_map,
-        req.page_no,
-        req.page_size,
+    Ok(QuestionListResp {
+        list: to_list_resp(rows, &user_map),
+        page_no: req.page_no,
+        page_size: req.page_size,
         total,
-    ))
+    })
 }
 
-fn to_list_resp(
-    list_data: &[Question],
-    user_map: &HashMap<i64, String>,
-    page_no: i32,
-    page_size: i32,
-    total: i64,
-) -> QuestionListResp {
-    QuestionListResp {
-        list: list_data
-            .iter()
-            .map(|row| {
-                to_base_resp(
-                    row,
-                    user_map
-                        .get(&row.author_id)
-                        .cloned()
-                        .unwrap_or_else(String::new),
-                    user_map
-                        .get(&row.approve_id)
-                        .cloned()
-                        .unwrap_or_else(String::new),
-                )
-            })
-            .collect(),
-        page_no,
-        page_size,
-        total,
+fn to_list_resp(rows: Vec<Question>, user_map: &HashMap<i64, String>) -> Vec<QuestionBaseResp> {
+    let mut list: Vec<QuestionBaseResp> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let author_name = user_map.get(&row.author_id).cloned().unwrap_or_default();
+        let approve_name = user_map.get(&row.approve_id).cloned().unwrap_or_default();
+        let info: QuestionInfoResp = (row, author_name, approve_name).into();
+        list.push(info.base_info);
     }
+
+    list
 }
 
 // 变式题题目列表
@@ -364,37 +287,33 @@ pub async fn similar(
             AppError::db_error("变式题计数查询失败")
         })?;
 
-    if total == 0 {
+    // 计算偏移量
+    let offset = (req.page_no - 1) * req.page_size;
+    if offset >= total as i32 {
         return Ok(QuestionListResp {
-            list: vec![],
-            page_no: 0,
-            page_size: 0,
+            list: Vec::new(),
+            page_no: req.page_no,
+            page_size: req.page_size,
             total,
         });
     }
 
-    // 计算偏移量
-    let offset = (req.page_no - 1) * req.page_size;
-
-    // 查询列表 (添加 ? 运算符解包 Result)
-    let list_data = Question::list_similar_by_params(db, &query_req, req.page_size, offset)
+    let rows = Question::list_similar_by_params(db, &query_req, req.page_size, offset)
         .await
         .map_err(|e| {
             error!("question similar list by id err: {e}");
             AppError::db_error("变式题列表查询失败")
         })?;
 
-    let author_ids: Vec<i64> = list_data.iter().map(|q| q.author_id).collect();
+    let author_ids: Vec<i64> = rows.iter().map(|q| q.author_id).collect();
     let user_map: HashMap<i64, String> = get_user_map(db, author_ids).await?;
 
-    // 转换并返回
-    Ok(to_list_resp(
-        &list_data,
-        &user_map,
-        req.page_no,
-        req.page_size,
+    Ok(QuestionListResp {
+        list: to_list_resp(rows, &user_map),
+        page_no: req.page_no,
+        page_size: req.page_size,
         total,
-    ))
+    })
 }
 
 // 删除题目
