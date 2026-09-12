@@ -14,7 +14,7 @@ impl<T: Serialize> ApiResponse<T> {
     fn success(data: T) -> Self {
         Self {
             code: 0,
-            msg: "ok".to_string(),
+            msg: String::from("ok"),
             data: Some(data),
         }
     }

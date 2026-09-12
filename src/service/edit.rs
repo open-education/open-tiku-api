@@ -24,7 +24,7 @@ pub async fn question_status(
     let db = &app_state.db;
 
     let question = Question::find_by_id(db, req.id).await.map_err(|e| {
-        error!("Select question id: {} err: {}", req.id, e);
+        error!("Select question id: {} err: {e}", req.id);
         AppError::db_error("查询题目失败")
     })?;
 
@@ -55,7 +55,7 @@ pub async fn question_status(
     )
     .await
     .map_err(|e| {
-        error!("Update status by id: {} err: {}", req.id, e);
+        error!("Update status by id: {} err: {e}", req.id);
         AppError::db_error("更新题目失败")
     })?;
 
@@ -79,7 +79,7 @@ pub async fn paper_status(
     let paper = Paper::find_by_id(db, req.id)
         .await
         .map_err(|e| {
-            error!("Select paper id: {} err: {}", req.id, e);
+            error!("Select paper id: {} err: {e}", req.id);
             AppError::db_error("查询试卷失败")
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
@@ -117,7 +117,7 @@ pub async fn paper_status(
     )
     .await
     .map_err(|e| {
-        error!("Update status by id: {} err: {}", req.id, e);
+        error!("Update status by id: {} err: {e}", req.id);
         AppError::db_error("更新试卷失败")
     })?;
 

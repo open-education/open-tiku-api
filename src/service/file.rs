@@ -45,7 +45,7 @@ pub async fn delete_file(app_state: &AppState, req: DeleteFileReq) -> Result<boo
     )
     .await
     .map_err(|err| {
-        error!("delete file : {} err: {}", req.filename, err);
+        error!("delete file : {} err: {err}", req.filename);
         AppError::internal_error("文件删除失败")
     })?;
 

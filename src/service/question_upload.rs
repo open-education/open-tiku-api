@@ -27,7 +27,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
     let waiting_task_list = Task::get_waiting_list(db, TaskType::UploadQuestion as i16)
         .await
         .map_err(|e| {
-            error!("Get waiting task list err: {}", e);
+            error!("Get waiting task list err: {e}");
             AppError::db_error("待运行的任务列表查询失败")
         })?;
     if waiting_task_list.is_empty() {
@@ -45,7 +45,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
     let rows = TextbookDict::find_by_textbook_ids(db, &textbook_ids, None)
         .await
         .map_err(|e| {
-            error!("find textbook dict err: {}", e);
+            error!("find textbook dict err: {e}");
             AppError::db_error("查询教材字典出错")
         })?;
 
@@ -68,32 +68,26 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
         if let Err(e) =
             Task::update_by_id(db, &task_id, TaskStatus::Running as i16, String::new()).await
         {
-            error!(
-                "Update task id: {}, name {} status=Running err: {}",
-                task_id, task_name, e
-            );
+            error!("Update task id: {task_id}, name {task_name} status=Running err: {e}");
             // 不 return，继续下一个任务
             continue;
         }
 
         // 处理一个任务, 一个任务的事务是独立的
         let task_name = task_info.name.clone();
-        info!("Process single task info process start: {}", task_name);
+        info!("Process single task info process start: {task_name}");
         if let Err(e) = single(app_state, task_info, &map).await {
             error!("Process single task info err: {}", e.msg);
             // 更新当前任务执行失败, 数据库记录原因为捕获的错误信息, 实际的执行内容需要看脚本执行日志
             if let Err(e) = Task::update_by_id(db, &task_id, TaskStatus::Failed as i16, e.msg).await
             {
-                error!(
-                    "Update task id: {}, name {} status=Failed err: {}",
-                    task_id, task_name, e
-                );
+                error!("Update task id: {task_id}, name {task_name} status=Failed err: {e}");
                 // 不 return，继续下一个任务
                 continue;
             }
             continue;
         }
-        info!("Process single task info process done: {}", task_name);
+        info!("Process single task info process done: {task_name}");
     }
 
     info!("Waiting task list all done");
@@ -118,7 +112,7 @@ async fn single(
         task_info.url
     );
     let content = fs::read_to_string(file_path.as_str()).map_err(|err| {
-        error!("read file {} err: {}", file_path, err);
+        error!("read file {file_path} err: {err}");
         AppError::internal_error("读取文件内容失败")
     })?;
 
@@ -132,7 +126,7 @@ async fn single(
 
     // 这部分更新使用事务
     let mut tx = app_state.db.begin().await.map_err(|e| {
-        error!("Error beginning transaction: {}", e);
+        error!("Error beginning transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
@@ -140,7 +134,7 @@ async fn single(
     for question_info in all_questions {
         // 母题分层体系
         let parent_level = question_info.parent.level.clone();
-        result.push(format!("添加 {}", parent_level));
+        result.push(format!("添加 {parent_level}"));
 
         let parent_req = to_req(
             question_info.parent,
@@ -149,16 +143,16 @@ async fn single(
             &task_info,
             map,
         )?;
-        info!("Add parent question name: {} begin", parent_level);
+        info!("Add parent question name: {parent_level} begin");
         // 母题标题
         let p_title = parent_req.title.clone();
         let parent = Question::tx_insert(&mut tx, parent_req)
             .await
             .map_err(|err| {
-                error!("Insert parent of question err: {}", err);
+                error!("Insert parent of question err: {err}");
                 AppError::db_error("母题添加失败")
             })?;
-        result.push(format!("添加 {}", p_title));
+        result.push(format!("添加 {p_title}"));
 
         // 变式题列表为空正常
         if question_info.children.is_empty() {
@@ -168,8 +162,8 @@ async fn single(
         let mut children_req: Vec<CreateQuestionReq> = vec![];
         for child in question_info.children {
             let child_level = child.level.clone();
-            info!("Add child question name: {} begin", child_level);
-            result.push(format!("添加 {}", child_level));
+            info!("Add child question name: {child_level} begin");
+            result.push(format!("添加 {child_level}"));
 
             let child_req = to_req(
                 child,
@@ -183,18 +177,18 @@ async fn single(
             let c_title = child_req.title.clone();
             children_req.push(child_req);
 
-            result.push(format!("添加 {}", c_title));
+            result.push(format!("添加 {c_title}"));
         }
 
         // 得到所有添加的变式题主键列表
         let children_ids = Question::tx_batch_insert(&mut tx, children_req)
             .await
             .map_err(|err| {
-                error!("Batch insert child of question err: {}", err);
+                error!("Batch insert child of question err: {err}");
                 AppError::db_error("批量添加变式题失败")
             })?;
         info!("Add all child question end");
-        result.push("变式题添加完成".to_string());
+        result.push(String::from("变式题添加完成"));
 
         info!("Add relation parent child question begin");
         let similar_pairs: Vec<(i64, i64, i16)> = children_ids
@@ -206,22 +200,22 @@ async fn single(
         QuestionRelation::batch_insert(&mut tx, similar_pairs)
             .await
             .map_err(|e| {
-                error!("Batch insert child of question similar relation err: {}", e);
+                error!("Batch insert child of question similar relation err: {e}");
                 AppError::db_error("母题和变式题关联失败")
             })?;
         info!("Add relation parent child question end");
 
-        result.push("关联母题和变式题完成".to_string());
+        result.push(String::from("关联母题和变式题完成"));
 
-        info!("Add parent question name: {} end", parent_level);
+        info!("Add parent question name: {parent_level} end");
     }
 
     tx.commit().await.map_err(|e| {
-        error!("Error committing transaction: {}", e);
+        error!("Error committing transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 
-    result.push("文件处理完成".to_string());
+    result.push(String::from("文件处理完成"));
 
     // 更新任务列表为执行成功
     if let Err(e) = Task::update_by_id(
@@ -233,8 +227,8 @@ async fn single(
     .await
     {
         error!(
-            "Task done, but update task id: {}, name {} status=Failed err: {}",
-            task_info.id, task_info.name, e
+            "Task done, but update task id: {}, name {} status=Failed err: {e}",
+            task_info.id, task_info.name
         );
         // 这次更新失败不做任何处理, 需要关注这类日志
     }

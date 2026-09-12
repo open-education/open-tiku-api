@@ -49,15 +49,12 @@ pub async fn add(
             .await
             .map_err(|err| {
                 error!(
-                    "Add class student delete by class id {} err: {}",
-                    req.class_id, err
+                    "Add class student delete by class id {} err: {err}",
+                    req.class_id
                 );
                 AppError::db_error("全量导入时清空班级已有账户失败")
             })?;
-        info!(
-            "Delete class id: {} student rows: {}",
-            req.class_id, del_rows
-        );
+        info!("Delete class id: {} student rows: {del_rows}", req.class_id);
     }
 
     // 记录账户和登录密码
@@ -71,7 +68,7 @@ pub async fn add(
     let count = ClassStudent::batch_insert(db, &add_list)
         .await
         .map_err(|e| {
-            error!("Batch insert err: {}", e);
+            error!("Batch insert err: {e}");
             AppError::db_error("导入班级学生出错")
         })?;
 
@@ -127,7 +124,7 @@ pub async fn check_class_list_info(
     check_email: bool,
 ) -> Result<Vec<Class>, AppError> {
     let class_row_list = Class::find_by_ids(db, class_ids).await.map_err(|err| {
-        error!("Select class err: {}", err);
+        error!("Select class err: {err}");
         AppError::db_error("班级查询错误")
     })?;
     if class_row_list.is_empty() {
@@ -154,7 +151,7 @@ async fn check_student_accounts(db: &PgPool, accounts: &[String]) -> Result<(), 
     let has_rows = ClassStudent::find_by_accounts(db, accounts)
         .await
         .map_err(|e| {
-            error!("Select class student by account err: {}", e);
+            error!("Select class student by account err: {e}");
             AppError::db_error("班级学生查询错误")
         })?;
     let has_accounts: Vec<String> = has_rows.into_iter().map(|item| item.account).collect();
@@ -187,7 +184,7 @@ async fn build_student_req(
                 let _permit = permit; // 持有许可直到任务结束
                 let password = generate_random_password();
                 let hashed = hash_password(&pepper, &password).map_err(|err| {
-                    error!("Generate student account {} password err: {}", account, err);
+                    error!("Generate student account {account} password err: {err}");
                     AppError::internal_error("生成学生密码失败, 请重试")
                 })?;
                 let student = ClassStudent {
@@ -261,8 +258,6 @@ async fn send_account_email(
     )
     .await?;
 
-    info!("email send success");
-
     Ok(())
 }
 
@@ -283,7 +278,7 @@ pub async fn list(
     let rows = ClassStudent::find_by_class_ids(db, &req.class_ids)
         .await
         .map_err(|err| {
-            error!("Select class err: {}", err);
+            error!("Select class err: {err}");
             AppError::db_error("班级账号查询错误")
         })?;
 
@@ -311,7 +306,7 @@ pub async fn edit(
 ) -> Result<bool, AppError> {
     validate_student_edit_req(&req)?;
 
-    let account = req.account.to_owned().trim().to_owned();
+    let account = req.account.clone().trim().to_owned();
 
     let db = &app_state.db;
 
@@ -320,7 +315,7 @@ pub async fn edit(
     let student = ClassStudent::find_by_id(db, req.id)
         .await
         .map_err(|err| {
-            error!("Select class student {} err: {}", req.id, err);
+            error!("Select class student {} err: {err}", req.id);
             AppError::db_error("查询学生账户信息错误")
         })?
         .ok_or_else(|| AppError::not_found("学生账户不存在"))?;
@@ -332,7 +327,7 @@ pub async fn edit(
         id: student.id,
         class_id: req.class_id,
         user_id: student.user_id,
-        account: account.to_owned(),
+        account: account.clone(),
         password: student.password.clone(),
         status: StudentStatus::from_i16(req.status) as i16,
         remark: req.remark,
@@ -349,8 +344,8 @@ pub async fn edit(
         let hashed =
             hash_password(&app_state.config.login.student_pepper, &password).map_err(|err| {
                 error!(
-                    "Generate student account {} password err: {}",
-                    req.account, err
+                    "Generate student account {} password err: {err}",
+                    req.account
                 );
                 AppError::internal_error("生成学生密码失败, 请重试")
             })?;
@@ -363,7 +358,7 @@ pub async fn edit(
     let rows = ClassStudent::update_by_id(db, &edit_req)
         .await
         .map_err(|err| {
-            error!("Update student account {} err: {}", req.id, err);
+            error!("Update student account {} err: {err}", req.id);
             AppError::db_error("更新学生账户信息失败")
         })?;
 
@@ -401,7 +396,7 @@ async fn check_student_is_edit(
     let has_rows = ClassStudent::find_by_account(db, account)
         .await
         .map_err(|e| {
-            error!("Select class student {} err: {}", account, e);
+            error!("Select class student {account} err: {e}");
             AppError::db_error("班级学生查询错误")
         })?;
     // 不存在说明是新用户名称
@@ -417,7 +412,7 @@ async fn check_student_is_edit(
     }
 
     Err(AppError::business_error(
-        format!("账户: {} 已存在, 无法修改", account).as_str(),
+        format!("账户: {account} 已存在, 无法修改").as_str(),
     ))
 }
 
@@ -426,7 +421,7 @@ pub async fn get_student_by_user_id(db: &PgPool, user_id: i64) -> Result<ClassSt
     let student = ClassStudent::find_by_user_id(db, user_id)
         .await
         .map_err(|e| {
-            error!("Select class student {} err: {}", user_id, e);
+            error!("Select class student {user_id} err: {e}");
             AppError::db_error("学生账户查询出错")
         })?
         .ok_or_else(|| AppError::not_found("学生账户不存在"))?;

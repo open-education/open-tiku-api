@@ -15,7 +15,7 @@ async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<
     match ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
         .await
         .map_err(|err| {
-            error!("add relation query err: {}", err);
+            error!("add relation query err: {err}");
             AppError::db_error("章节/考点绑定关系查询失败")
         })? {
         Some(_) => Err(AppError::param_error(
@@ -30,7 +30,7 @@ pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeR
     let rows = ChapterKnowledge::find_by_ck_ids(&app_state.db, &[id])
         .await
         .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
+            error!("error fetching chapter knowledge: {err}");
             AppError::db_error("绑定关系查询失败")
         })?;
 
@@ -48,7 +48,7 @@ pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result
     check_unique(db, &req).await?;
 
     let row_id = ChapterKnowledge::insert(db, req).await.map_err(|err| {
-        error!("error adding chapter knowledge: {}", err);
+        error!("error adding chapter knowledge: {err}");
         AppError::db_error("绑定失败")
     })?;
 
@@ -78,7 +78,7 @@ pub async fn remove(
     let relation_row = ChapterKnowledge::find_unique(db, chapter_id, knowledge_id)
         .await
         .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
+            error!("error fetching chapter knowledge: {err}");
             AppError::db_error("考点章节关联查询失败")
         })?
         .ok_or_else(|| AppError::param_error("章节/考点没有关联关系, 无需解绑"))?;
@@ -92,7 +92,7 @@ pub async fn remove(
     let rows = QuestionCate::find_all_by_related_ids(db, &[relation_id])
         .await
         .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
+            error!("error fetching chapter knowledge: {err}");
             AppError::db_error("绑定关系查询失败")
         })?;
     if !rows.is_empty() {
@@ -102,7 +102,7 @@ pub async fn remove(
     let res = ChapterKnowledge::delete_by_id(db, req.id)
         .await
         .map_err(|err| {
-            error!("error fetching chapter knowledge: {}", err);
+            error!("error fetching chapter knowledge: {err}");
             AppError::db_error("删除失败")
         })?;
 

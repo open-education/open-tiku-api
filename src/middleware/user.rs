@@ -102,9 +102,9 @@ impl FromRequest for ClientInfo {
                     req.connection_info()
                         .realip_remote_addr()
                         .unwrap_or("IP not available")
-                        .to_string()
+                        .to_owned()
                 },
-                |ip| ip.to_string(),
+                ToOwned::to_owned,
             );
 
         let user_agent = req
@@ -112,7 +112,7 @@ impl FromRequest for ClientInfo {
             .get(USER_AGENT)
             .and_then(|h| h.to_str().ok())
             .unwrap_or("User-Agent not provided")
-            .to_string();
+            .to_owned();
 
         ready(Ok(ClientInfo {
             ip: client_ip,

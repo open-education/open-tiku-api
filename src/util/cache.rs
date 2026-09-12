@@ -24,7 +24,7 @@ where
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| {
-            error!("get cache getting system time error: {}", e);
+            error!("get cache getting system time error: {e}");
             AppError::internal_error("系统时间获取错误")
         })?
         .as_secs()
@@ -37,7 +37,7 @@ where
             .fetch_optional(pool)
             .await
             .map_err(|e| {
-                error!("Get cache key: {} database error: {}", key, e);
+                error!("Get cache key: {key} database error: {e}");
                 AppError::db_error("缓存查询出错")
             })?
             .ok_or_else(|| AppError::not_found("缓存数据为空或已过期"))?;
@@ -45,7 +45,7 @@ where
     let (data, _bytes_read) =
         bincode_next::serde::decode_from_slice::<T, _>(&bytes, bincode_next::config::standard())
             .map_err(|e| {
-                error!("Decode cache key: {} failed, error: {:?}", key, e);
+                error!("Decode cache key: {key} failed, error: {e}");
                 AppError::serde_error("缓存数据反序列出错")
             })?;
 
@@ -59,7 +59,7 @@ where
     let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(cur) => cur.as_secs().cast_signed(),
         Err(e) => {
-            error!("set cache getting system time error: {}", e);
+            error!("set cache getting system time error: {e}");
             return;
         }
     };
@@ -70,7 +70,7 @@ where
         match bincode_next::serde::encode_to_vec(value, bincode_next::config::standard()) {
             Ok(bytes) => bytes,
             Err(e) => {
-                error!("Encode cache key: {} failed, error: {:?}", key, e);
+                error!("Encode cache key: {key} failed, error: {e}");
                 return;
             }
         };
@@ -83,7 +83,7 @@ where
             .execute(pool)
             .await
     {
-        error!("Set cache key: {} database error: {}", key, e);
+        error!("Set cache key: {key} database error: {e}");
     }
 }
 
@@ -105,6 +105,6 @@ pub async fn delete_by_prefix(pool: &SqlitePool, prefix: &str) {
         .execute(pool)
         .await
     {
-        error!("Delete cache by prefix: {} database error: {}", prefix, e);
+        error!("Delete cache by prefix: {prefix} database error: {e}");
     }
 }

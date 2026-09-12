@@ -27,12 +27,15 @@ pub struct PaperGenConfig {
     pub question_dimension_ids: Option<Json<Vec<i16>>>,
     pub question_type_info: Json<Vec<QuestionTypeInfo>>,
     pub difficulty_level_info: Json<DifficultyLevelInfo>,
+    pub level_ids: Option<Json<Vec<i32>>>,
+    pub scene_ids: Option<Json<Vec<i32>>>,
+    pub mistake_tip_ids: Option<Json<Vec<i32>>>,
 }
 
 impl PaperGenConfig {
     pub async fn tx_insert(
         tx: &mut Transaction<'_, Postgres>,
-        conf: &Self,
+        conf: Self,
     ) -> Result<i64, sqlx::Error> {
         let id = sqlx::query(
             r"
@@ -42,17 +45,23 @@ impl PaperGenConfig {
                 question_tag_ids,
                 question_dimension_ids,
                 question_type_info,
-                difficulty_level_info
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+                difficulty_level_info,
+                level_ids,
+                scene_ids,
+                mistake_tip_ids
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
             ",
         )
         .bind(conf.paper_id)
-        .bind(&conf.question_cate_ids)
-        .bind(&conf.question_tag_ids)
-        .bind(&conf.question_dimension_ids)
-        .bind(&conf.question_type_info)
-        .bind(&conf.difficulty_level_info)
+        .bind(conf.question_cate_ids)
+        .bind(conf.question_tag_ids)
+        .bind(conf.question_dimension_ids)
+        .bind(conf.question_type_info)
+        .bind(conf.difficulty_level_info)
+        .bind(conf.level_ids)
+        .bind(conf.scene_ids)
+        .bind(conf.mistake_tip_ids)
         .map(|row: sqlx::postgres::PgRow| {
             use sqlx::Row;
             row.get::<i64, _>("id")

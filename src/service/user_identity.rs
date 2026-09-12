@@ -12,7 +12,7 @@ pub async fn get_user_identity_by_user_id(
     let user = UserIdentity::find_by_user_id(db, user_id)
         .await
         .map_err(|err| {
-            error!("Query user identity err: {}", err);
+            error!("Query user identity err: {err}");
             AppError::db_error("读取用户信息错误")
         })?
         .ok_or_else(|| AppError::not_found("用户不存在"))?;

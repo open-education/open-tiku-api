@@ -43,13 +43,13 @@ async fn get_access_token(
         .send()
         .await
         .map_err(|e| {
-            error!("Parse GitHub access_token failed: {}", e);
+            error!("Parse GitHub access_token failed: {e}");
             error::ErrorInternalServerError("Failed to request access token")
         })?
         .json()
         .await
         .map_err(|e| {
-            error!("Parse GitHub access_token response failed: {}", e);
+            error!("Parse GitHub access_token response failed: {e}");
             error::ErrorInternalServerError("Failed to parse access token response")
         })?;
 
@@ -85,13 +85,13 @@ async fn get_user(client: &Client, access_token: &str) -> actix_web::Result<Gith
         .send()
         .await
         .map_err(|e| {
-            error!("Request GitHub user failed: {}", e);
+            error!("Request GitHub user failed: {e}");
             error::ErrorInternalServerError("Failed to request user info")
         })?
         .json()
         .await
         .map_err(|e| {
-            error!("Parse GitHub user response failed: {}", e);
+            error!("Parse GitHub user response failed: {e}");
             error::ErrorInternalServerError("Failed to parse user info response")
         })?;
 

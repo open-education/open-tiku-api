@@ -39,7 +39,7 @@ pub fn get_student_account_html(accounts: &HashMap<String, String>) -> String {
 
     // 5. 使用 write! 直接将数据写进 html_buf
     for (name, password) in accounts {
-        let _ = write!(html_buf, "<li>{}: {}</li>", name, password);
+        let _ = write!(html_buf, "<li>{name}: {password}</li>");
     }
 
     // 将 HTML 后半部分写入缓冲区
@@ -63,12 +63,12 @@ pub async fn send_html_email(
     html_body: String,
 ) -> Result<(), AppError> {
     let from = from.parse::<Mailbox>().map_err(|e| {
-        error!("send mail from name err: {}", e);
+        error!("send mail from name err: {e}");
         AppError::param_error("发件人格式错误")
     })?;
 
     let to = to.parse::<Mailbox>().map_err(|e| {
-        error!("send mail to email err: {}", e);
+        error!("send mail to email err: {e}");
         AppError::param_error("收件人格式错误")
     })?;
 
@@ -79,12 +79,12 @@ pub async fn send_html_email(
         .header(ContentType::TEXT_HTML)
         .body(html_body)
         .map_err(|e| {
-            error!("send email content err: {}", e);
+            error!("send email content err: {e}");
             AppError::internal_error("构建邮件失败")
         })?;
 
     mailer.send(email).await.map_err(|e| {
-        error!("send email mailer err: {}", e);
+        error!("send email mailer err: {e}");
         AppError::internal_error("邮件发送失败")
     })?;
 

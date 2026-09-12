@@ -1,5 +1,7 @@
+use crate::api::req::paper::GenPaperGenConfig;
 use crate::api::req::question::CreateQuestionReq;
 use crate::enums::dict::TypeCode;
+use crate::enums::question::{QuestionRelationType, QuestionStatus};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -58,12 +60,17 @@ pub struct Question {
     pub options_layout: Option<i16>,                // 使用 i16 对应数据库 SMALLINT
 
     // 答案与解析
-    pub answer: Option<String>,          // 参考答案
-    pub knowledge: Option<String>,       // 知识点文本描述
+    #[sqlx(default)]
+    pub answer: Option<String>, // 参考答案
+    #[sqlx(default)]
+    pub knowledge: Option<String>, // 知识点文本描述
+    #[sqlx(default)]
     pub analysis: Option<Json<Content>>, // 解题分析
-    pub process: Option<Json<Content>>,  // 解题过程
-    pub steps: Option<Json<Vec<Step>>>,  // 解题步骤, 学生做题时提示
-    pub remark: Option<String>,          // 备注
+    #[sqlx(default)]
+    pub process: Option<Json<Content>>, // 解题过程
+    pub steps: Option<Json<Vec<Step>>>, // 解题步骤, 学生做题时提示
+    #[sqlx(default)]
+    pub remark: Option<String>, // 备注
 
     // 审核相关
     pub status: i16,                       // 审核状态
@@ -145,13 +152,7 @@ pub struct SimilarReq {
 trait QueryBuilderExt<'a> {
     fn push_cate_and_type_where(self, req: &'a CateAndTypeReq) -> Self;
     fn push_similar_where(self, req: &'a SimilarReq) -> Self;
-    fn push_ext_filters(
-        self,
-        cate_ids: &'a [i32],
-        type_id: i16,
-        tag_ids: Option<&'a [i16]>,
-        dimension_ids: Option<&'a [i16]>,
-    ) -> Self;
+    fn push_random_where(self, req: &'a GenPaperGenConfig) -> Self;
 }
 
 // 为 sqlx::QueryBuilder 实现这个 Trait
@@ -162,36 +163,54 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
             .push(")");
         self.push(" AND status = ").push_bind(req.status);
 
-        if let Some(type_id) = req.type_id {
+        if let Some(type_id) = req.type_id
+            && type_id > 0
+        {
             self.push(" AND question_type_id = ").push_bind(type_id);
         }
-        if let Some(ref ids) = req.ids {
+        if let Some(ref ids) = req.ids
+            && !ids.is_empty()
+        {
             self.push(" AND id = ANY(").push_bind(ids).push(")");
         }
-        if let Some(ref title_val) = req.title_val {
+        if let Some(ref title_val) = req.title_val
+            && !title_val.is_empty()
+        {
             self.push(" AND content_plain LIKE ")
-                .push_bind(format!("%{}%", title_val));
+                .push_bind(format!("%{title_val}%"));
         }
-        if let Some(ref tag_ids) = req.tag_ids {
+        if let Some(ref tag_ids) = req.tag_ids
+            && !tag_ids.is_empty()
+        {
             self.push(" AND question_tag_ids @> ")
                 .push_bind(Json(tag_ids));
         }
-        if let Some(ref dimension_ids) = req.dimension_ids {
+        if let Some(ref dimension_ids) = req.dimension_ids
+            && !dimension_ids.is_empty()
+        {
             self.push(" AND question_dimension_ids @> ")
                 .push_bind(Json(dimension_ids));
         }
-        if let Some(author_id) = req.author_id {
+        if let Some(author_id) = req.author_id
+            && author_id > 0
+        {
             self.push(" AND author_id = ").push_bind(author_id);
         }
-        if let Some(ref level_ids) = req.level_ids {
+        if let Some(ref level_ids) = req.level_ids
+            && !level_ids.is_empty()
+        {
             self.push(" AND level_id = ANY(")
                 .push_bind(level_ids)
                 .push(")");
         }
-        if let Some(ref scene_ids) = req.scene_ids {
+        if let Some(ref scene_ids) = req.scene_ids
+            && !scene_ids.is_empty()
+        {
             self.push(" AND scene_ids @> ").push_bind(Json(scene_ids));
         }
-        if let Some(ref mistake_tip_ids) = req.mistake_tip_ids {
+        if let Some(ref mistake_tip_ids) = req.mistake_tip_ids
+            && !mistake_tip_ids.is_empty()
+        {
             self.push(" AND mistake_tip_ids @> ")
                 .push_bind(Json(mistake_tip_ids));
         }
@@ -204,40 +223,63 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
         self.push(" AND q.status = ").push_bind(req.status);
         self.push(" AND q.question_cate_id = ")
             .push_bind(req.cate_id);
-        self.push(" AND qs.question_type = 1");
-        if let Some(type_id) = req.type_id {
+        self.push(" AND qs.question_type = ")
+            .push_bind(QuestionRelationType::Similar as i16);
+        if let Some(type_id) = req.type_id
+            && type_id > 0
+        {
             self.push(" AND q.question_type_id = ").push_bind(type_id);
         }
-        if let Some(ref tag_ids) = req.tag_ids {
+        if let Some(ref tag_ids) = req.tag_ids
+            && !tag_ids.is_empty()
+        {
             self.push(" AND q.question_tag_ids @> ")
                 .push_bind(Json(tag_ids));
         }
-        if let Some(ref dimension_ids) = req.dimension_ids {
+        if let Some(ref dimension_ids) = req.dimension_ids
+            && !dimension_ids.is_empty()
+        {
             self.push(" AND q.question_dimension_ids @> ")
                 .push_bind(Json(dimension_ids));
         }
         self
     }
 
-    fn push_ext_filters(
-        mut self,
-        cate_ids: &'a [i32],
-        type_id: i16,
-        tag_ids: Option<&'a [i16]>,
-        dimension_ids: Option<&'a [i16]>,
-    ) -> Self {
-        self.push(" WHERE question_cate_id = ANY(")
-            .push_bind(cate_ids)
+    fn push_random_where(mut self, req: &'a GenPaperGenConfig) -> Self {
+        self.push(" AND question_cate_id = ANY(")
+            .push_bind(&req.question_cate_ids)
             .push(")");
-        self.push(" AND status = 2");
-        self.push(" AND question_type_id = ").push_bind(type_id);
+        self.push(" AND status = ")
+            .push_bind(QuestionStatus::Published as i16);
 
-        if let Some(tags) = tag_ids {
+        if let Some(ref tags) = req.tag_ids
+            && !tags.is_empty()
+        {
             self.push(" AND question_tag_ids @> ").push_bind(Json(tags));
         }
-        if let Some(dimensions) = dimension_ids {
+        if let Some(ref dimensions) = req.dimension_ids
+            && !dimensions.is_empty()
+        {
             self.push(" AND question_dimension_ids @> ")
                 .push_bind(Json(dimensions));
+        }
+        if let Some(ref level_ids) = req.level_ids
+            && !level_ids.is_empty()
+        {
+            self.push(" AND level_id = ANY(")
+                .push_bind(level_ids)
+                .push(")");
+        }
+        if let Some(ref scene_ids) = req.scene_ids
+            && !scene_ids.is_empty()
+        {
+            self.push(" AND scene_ids @> ").push_bind(Json(scene_ids));
+        }
+        if let Some(ref mistake_tip_ids) = req.mistake_tip_ids
+            && !mistake_tip_ids.is_empty()
+        {
+            self.push(" AND mistake_tip_ids @> ")
+                .push_bind(Json(mistake_tip_ids));
         }
         self
     }
@@ -437,10 +479,8 @@ impl Question {
                     .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
             });
 
-            // 添加 RETURNING id 子句
             query_builder.push(" RETURNING id");
 
-            // 执行查询并获取返回的 id 列表
             let ids: Vec<i64> = query_builder
                 .build_query_scalar()
                 .fetch_all(&mut **tx)
@@ -475,22 +515,50 @@ impl Question {
     ) -> Result<i64, sqlx::Error> {
         let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM question ");
 
-        // 使用扩展方法
         qb = qb.push_cate_and_type_where(req);
 
         qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
-    // 题型下题目列表
+    // 题型下题目列表, 该接口没有扩展信息
     pub async fn list_by_cate_and_type(
         pool: &PgPool,
         req: &CateAndTypeReq,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT * FROM question ");
+        let sql = r"
+        SELECT
+            id,
+            question_cate_id,
+            question_type_id,
+            question_tag_ids,
+            question_dimension_ids,
+            relation_type,
+            level_id,
+            scene_ids,
+            mistake_tip_ids,
+            author_id,
+            source,
+            original_name,
+            title,
+            content_plain,
+            comment,
+            difficulty_level,
+            images,
+            options,
+            status,
+            options_layout,
+            steps,
+            approve_id,
+            reject_reason,
+            approve_at,
+            created_at,
+            updated_at
+        FROM question
+        ";
+        let mut qb = QueryBuilder::new(sql);
 
-        // 使用扩展方法
         qb = qb.push_cate_and_type_where(req);
 
         qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit);
@@ -500,22 +568,32 @@ impl Question {
     }
 
     pub async fn exists_by_ext_id(pool: &PgPool, req: &ExtIdReq) -> Result<bool, sqlx::Error> {
-        // 初始化 QueryBuilder
         let mut qb = QueryBuilder::new("SELECT EXISTS (SELECT 1 FROM question WHERE ");
 
-        // 通过 req 访问字段 动态拼接 SQL
-        if let Some(type_id) = req.type_id {
+        if let Some(type_id) = req.type_id
+            && type_id > 0
+        {
             qb.push("question_type_id = ").push_bind(type_id);
-        } else if let Some(ref tag_ids) = req.tag_ids {
+        } else if let Some(ref tag_ids) = req.tag_ids
+            && !tag_ids.is_empty()
+        {
             qb.push("question_tag_ids @> ").push_bind(Json(tag_ids));
-        } else if let Some(ref dimension_ids) = req.dimension_ids {
+        } else if let Some(ref dimension_ids) = req.dimension_ids
+            && !dimension_ids.is_empty()
+        {
             qb.push("question_dimension_ids @> ")
                 .push_bind(Json(dimension_ids));
-        } else if let Some(level_id) = req.level_id {
+        } else if let Some(level_id) = req.level_id
+            && level_id > 0
+        {
             qb.push("level_id = ").push_bind(level_id);
-        } else if let Some(ref scene_ids) = req.scene_ids {
+        } else if let Some(ref scene_ids) = req.scene_ids
+            && !scene_ids.is_empty()
+        {
             qb.push("scene_ids @> ").push_bind(Json(scene_ids));
-        } else if let Some(ref mistake_tip_ids) = req.mistake_tip_ids {
+        } else if let Some(ref mistake_tip_ids) = req.mistake_tip_ids
+            && !mistake_tip_ids.is_empty()
+        {
             qb.push("mistake_tip_ids @> ")
                 .push_bind(Json(mistake_tip_ids));
         } else {
@@ -618,20 +696,14 @@ impl Question {
     // 题型等条件下题目列表
     pub async fn list_by_ext(
         pool: &PgPool,
-        cate_ids: Vec<i32>,
         type_id: i16,
-        tag_ids: Option<Vec<i16>>,
-        dimension_ids: Option<Vec<i16>>,
+        req: &GenPaperGenConfig,
         limit: i16,
     ) -> Result<Vec<Self>, sqlx::Error> {
         let mut qb = QueryBuilder::new("SELECT * FROM question ");
+        qb.push(" WHERE question_type_id = ").push_bind(type_id);
 
-        qb = qb.push_ext_filters(
-            &cate_ids,
-            type_id,
-            tag_ids.as_deref(),
-            dimension_ids.as_deref(),
-        );
+        qb = qb.push_random_where(req);
 
         qb.push(" ORDER BY RANDOM() LIMIT ").push_bind(limit);
 

@@ -32,7 +32,7 @@ fn generate_state(secret: &str) -> String {
 
     let sig = URL_SAFE_NO_PAD.encode(hash);
 
-    format!("{}.{}", timestamp, sig)
+    format!("{timestamp}.{sig}")
 }
 
 // 验证 state
@@ -47,7 +47,7 @@ fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
 
     let ts: i64 = timestamp
         .parse()
-        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("校验信息错误: {}", e)))?;
+        .map_err(|e| std::io::Error::new(ErrorKind::InvalidData, format!("校验信息错误: {e}")))?;
 
     // 检查是否在 5 分钟内
     if Utc::now().timestamp() - ts > 300 {
@@ -67,7 +67,7 @@ fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
 // 获取第三方登录地址
 pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<String, AppError> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
-        error!("Failed to parse provider type from provider: {}", provider);
+        error!("Failed to parse provider type from provider: {provider}");
         AppError::param_error("不受支持的登录方式")
     })?;
 
@@ -95,7 +95,7 @@ pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<Str
     };
 
     let mut url = Url::parse(base).map_err(|e| {
-        error!("Parse base url error: {}", e);
+        error!("Parse base url error: {e}");
         AppError::param_error("地址信息错误")
     })?;
     // extend_pairs 会自动进行 URL 编码
@@ -105,7 +105,7 @@ pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<Str
 
 // Github 登录
 pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
+    let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let github_user = get_github_user(
         &app_state.config.login.github.client_id,
@@ -119,7 +119,7 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
     // 保存用户信息
     // 名称拼接
     let name = if let Some(name) = github_user.name {
-        format!("{} <{}>", github_user.login, name)
+        format!("{} <{name}>", github_user.login)
     } else {
         github_user.login
     };
@@ -143,8 +143,8 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
         .append_header((
             "Location",
             format!(
-                "{}/?token={}",
-                app_state.config.login.website_home_url, temp_token
+                "{}/?token={temp_token}",
+                app_state.config.login.website_home_url
             ),
         ))
         .finish())
@@ -152,7 +152,7 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
 
 // QQ 登录
 pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
-    let code = get_query_code(query, &app_state.config.login.oauth_state_secret)?;
+    let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let (open_id, qq_user) = get_qq_user(
         &app_state.config.login.qq.client_id,
@@ -185,8 +185,8 @@ pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpRes
         .append_header((
             "Location",
             format!(
-                "{}/?token={}",
-                app_state.config.login.website_home_url, temp_token
+                "{}/?token={temp_token}",
+                app_state.config.login.website_home_url
             ),
         ))
         .finish())
@@ -196,7 +196,7 @@ pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpRes
 // 提取 code，缺失或为空时返回 400 错误
 // 比如 github: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b
 // qq: http://127.0.0.1:8082/callback/github?code=9ca3d96cf1809fdba60b&state=tiku
-fn get_query_code(query: CallbackQueryReq, oauth_state_secret: &str) -> Result<String, Error> {
+fn get_query_code(query: &CallbackQueryReq, oauth_state_secret: &str) -> Result<String, Error> {
     let code = query
         .code
         .as_ref()
@@ -241,7 +241,7 @@ async fn save_user_identity(
     let mut has_user = UserIdentity::find_by_provider(db, provider_type_val, provider_user_id)
         .await
         .map_err(|e| {
-            error!("Error finding user identity by id: {}", e);
+            error!("Error finding user identity by id: {e}");
             error::ErrorInternalServerError("Failed to user_identity check github user")
         })?
         .unwrap_or_else(|| UserIdentity {
@@ -267,7 +267,7 @@ async fn save_user_identity(
     }
 
     let _ = UserIdentity::save(db, &has_user).await.map_err(|e| {
-        error!("Failed to save user identity: {}", e);
+        error!("Failed to save user identity: {e}");
         error::ErrorInternalServerError("Failed to save user identity")
     })?;
 
@@ -290,7 +290,7 @@ async fn save_user_session(db: &PgPool, token: &str, user_id: i64) -> Result<(),
     };
 
     let _ = UserSession::save(db, session).await.map_err(|e| {
-        error!("Save user session failed: {}", e);
+        error!("Save user session failed: {e}");
         error::ErrorInternalServerError("Failed to save user session")
     })?;
 

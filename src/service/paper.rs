@@ -16,7 +16,6 @@ use crate::model::paper_gen_question::PaperGenQuestion;
 use crate::model::paper_group::PaperGroup;
 use crate::model::paper_question::PaperQuestion;
 use crate::model::question::Question;
-use crate::service::question;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use crate::util::local::to_local_datetime;
@@ -46,7 +45,7 @@ pub async fn top_add(
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
-        error!("Failed to top begin transaction: {}", e);
+        error!("Failed to top begin transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
@@ -54,14 +53,14 @@ pub async fn top_add(
     let total_question_count = req.groups.iter().map(|g| g.questions.len() as i32).sum();
 
     // 构建并插入试卷主体（包含总题目数）
-    let paper = build_paper_meta_from_request(&user_info, &req.common, total_question_count);
+    let paper = build_paper_meta_from_request(&user_info, req.common, total_question_count);
     let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
-        error!("Failed to insert top paper: {}", err);
+        error!("Failed to insert top paper: {err}");
         AppError::db_error("试卷主体信息添加失败")
     })?;
 
     // 构建题型和题目
-    let (paper_groups, paper_questions) = build_top_groups_and_questions(paper_id, &req.groups);
+    let (paper_groups, paper_questions) = build_top_groups_and_questions(paper_id, req.groups);
 
     // 如果是编辑则需要先删除题型分类和题目列表
     if is_update {
@@ -73,7 +72,7 @@ pub async fn top_add(
         PaperGroup::batch_insert(&mut tx, &paper_groups)
             .await
             .map_err(|err| {
-                error!("Failed to insert top paper groups: {}", err);
+                error!("Failed to insert top paper groups: {err}");
                 AppError::db_error("试卷题型信息添加失败")
             })?;
     }
@@ -83,22 +82,19 @@ pub async fn top_add(
         PaperQuestion::batch_insert(&mut tx, &paper_questions)
             .await
             .map_err(|err| {
-                error!("Failed to insert top paper questions: {}", err);
+                error!("Failed to insert top paper questions: {err}");
                 AppError::db_error("试卷题目信息添加失败")
             })?;
     }
 
     // 提交事务
     tx.commit().await.map_err(|e| {
-        error!("Failed to top commit transaction: {}", e);
+        error!("Failed to top commit transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 
     // 记录操作日志
-    info!(
-        "Paper top added successfully. ID: {}, Title: {}, Total Questions: {}",
-        paper_id, req.common.title, total_question_count
-    );
+    info!("Paper top added successfully. ID: {paper_id}, Total Questions: {total_question_count}");
 
     Ok(paper_id)
 }
@@ -157,7 +153,7 @@ async fn validate_is_allow_edit(db: &PgPool, id: i64, user_id: i64) -> Result<()
     let has_paper = Paper::find_by_id(db, id)
         .await
         .map_err(|err| {
-            error!("Add paper err: {}", err);
+            error!("Add paper err: {err}");
             AppError::db_error("查询试卷信息错误")
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
@@ -198,25 +194,25 @@ fn validate_paper_meta_request(req: &CommonPaperReq) -> Result<(), AppError> {
 // 构建试卷对象（包含总题目数）
 fn build_paper_meta_from_request(
     user_info: &UserInfo,
-    req: &CommonPaperReq,
+    req: CommonPaperReq,
     total_question_count: i32,
 ) -> Paper {
     Paper {
         id: req.id,
         related_id: req.related_id,
-        related_name: req.related_name.clone(),
+        related_name: req.related_name,
         paper_type: req.paper_type,
-        tag: req.tag.clone(),
-        year: req.year.clone(),
-        grade: req.grade.clone(),
-        semester: req.semester.clone(),
-        title: req.title.clone(),
+        tag: req.tag,
+        year: req.year,
+        grade: req.grade,
+        semester: req.semester,
+        title: req.title,
         score: req.score,
-        source: req.source.clone(),
-        remark: req.remark.clone(),
+        source: req.source,
+        remark: req.remark,
         author_id: user_info.user_id,
         author_name: user_info.username.clone().unwrap_or_default(),
-        count: total_question_count, // 设置总题目数
+        count: total_question_count,
         remark_ext: None,
         status: PaperStatus::from_i16(req.status) as i16,
         approve_id: 0,
@@ -230,7 +226,7 @@ fn build_paper_meta_from_request(
 // 构建题型和题目
 fn build_top_groups_and_questions(
     paper_id: i64,
-    groups: &[TopPaperGroupReq],
+    groups: Vec<TopPaperGroupReq>,
 ) -> (Vec<PaperGroup>, Vec<PaperQuestion>) {
     let group_count = groups.len();
     let mut paper_groups = Vec::with_capacity(group_count);
@@ -239,32 +235,32 @@ fn build_top_groups_and_questions(
     let total_questions: usize = groups.iter().map(|g| g.questions.len()).sum();
     let mut paper_questions = Vec::with_capacity(total_questions);
 
-    for (group_idx, group) in groups.iter().enumerate() {
+    for (group_idx, group) in groups.into_iter().enumerate() {
         // 生成 group_id: 使用更大的基数避免冲突
         let group_id = paper_id * 1000 + (group_idx + 1) as i64;
 
         paper_groups.push(PaperGroup {
             id: group_id,
             paper_id,
-            gen_id: group.gen_id.clone(),
-            type_name: group.type_name.clone(),
-            sub_title: group.sub_title.clone(),
+            gen_id: group.gen_id,
+            type_name: group.type_name,
+            sub_title: group.sub_title,
         });
 
         // 构建该题型下的所有题目
-        for question in &group.questions {
+        for question in group.questions {
             paper_questions.push(PaperQuestion {
                 id: 0,
                 paper_id,
                 group_id,
-                gen_id: question.gen_id.clone(),
+                gen_id: question.gen_id,
                 order_num: question.order_num,
-                stem: question.stem.clone(),
-                images: question.images.clone(),
-                options: question.options.clone(),
+                stem: question.stem,
+                images: question.images,
+                options: question.options,
                 options_layout: question.options_layout,
-                answer: question.answer.clone(),
-                analysis: question.analysis.clone(),
+                answer: question.answer,
+                analysis: question.analysis,
                 score: question.score,
             });
         }
@@ -282,24 +278,18 @@ async fn delete_top_info(
     let del_group_rows = PaperGroup::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
-            error!("Failed {} to delete top paper group: {}", source, err);
+            error!("Failed {source} to delete top paper group: {err}");
             AppError::db_error("删除题型分类失败")
         })?;
-    info!(
-        "Deleted {} top paper group rows: {:?}",
-        source, del_group_rows
-    );
+    info!("Deleted {source} top paper group rows: {del_group_rows}");
 
     let del_question_rows = PaperQuestion::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
-            error!("Failed {} to delete top paper question: {}", source, err);
+            error!("Failed {source} to delete top paper question: {err}");
             AppError::db_error("删除题目列表失败")
         })?;
-    info!(
-        "Deleted {} top paper question rows: {:?}",
-        source, del_question_rows
-    );
+    info!("Deleted {source} top paper question rows: {del_question_rows}",);
 
     Ok(())
 }
@@ -312,11 +302,11 @@ pub async fn top_info(app_state: &AppState, id: i64) -> Result<TopPaperResp, App
     let paper = Paper::find_by_id(db, id)
         .await
         .map_err(|err| {
-            error!("Select top paper id: {}, error: {}", id, err);
+            error!("Select top paper id: {id}, error: {err}");
             AppError::db_error("试卷查询出错")
         })?
         .ok_or_else(|| {
-            error!("Select top paper id: {} is empty", id);
+            error!("Select top paper id: {id} is empty");
             AppError::not_found("试卷不存在")
         })?;
 
@@ -325,9 +315,8 @@ pub async fn top_info(app_state: &AppState, id: i64) -> Result<TopPaperResp, App
         .await
         .map_err(|err| {
             error!(
-                "Select top paper group, paper_id: {}, error: {}",
-                paper.id.unwrap_or_default(),
-                err
+                "Select top paper group, paper_id: {}, error: {err}",
+                paper.id.unwrap_or_default()
             );
             AppError::db_error("查询试卷题型失败")
         })?;
@@ -341,9 +330,8 @@ pub async fn top_info(app_state: &AppState, id: i64) -> Result<TopPaperResp, App
             .await
             .map_err(|err| {
                 error!(
-                    "Select top paper question paper_id: {}, error: {}",
-                    paper.id.unwrap_or_default(),
-                    err
+                    "Select top paper question paper_id: {}, error: {err}",
+                    paper.id.unwrap_or_default()
                 );
                 AppError::db_error("查询试卷题目失败")
             })?
@@ -426,7 +414,7 @@ pub async fn list(
     let total = Paper::count(db, &req, author_id, status, &where_clause)
         .await
         .map_err(|err| {
-            error!("Select paper count err: {}", err);
+            error!("Select paper count err: {err}");
             AppError::db_error("查询试卷总数失败")
         })?;
 
@@ -434,7 +422,7 @@ pub async fn list(
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
         return Ok(PaperListResp {
-            list: vec![],
+            list: Vec::new(),
             page_no: req.page_no,
             page_size: req.page_size,
             total,
@@ -452,7 +440,7 @@ pub async fn list(
     )
     .await
     .map_err(|err| {
-        error!("Select paper list err: {}", err);
+        error!("Select paper list err: {err}");
         AppError::db_error("查询试卷列表失败")
     })?;
 
@@ -472,7 +460,7 @@ pub async fn latest(
     let papers = Paper::get_latest_papers(&app_state.db, path.0, path.1)
         .await
         .map_err(|err| {
-            error!("Select paper list err: {}", err);
+            error!("Select paper list err: {err}");
             AppError::db_error("查询试卷列表失败")
         })?;
 
@@ -497,12 +485,6 @@ pub async fn preview(
 
     let db = &app_state.db;
 
-    let question_cate_ids = req.conf.question_cate_ids;
-    let tag_ids = req.conf.tag_ids;
-    let dimension_ids = req.conf.dimension_ids;
-    let level_range = req.conf.level_range;
-    let question_types = req.conf.question_types.clone();
-
     let created_at = to_local_datetime(Some(Utc::now()));
     let status = PaperStatus::Draft as i16;
 
@@ -521,19 +503,12 @@ pub async fn preview(
 
         let group_id = (index + 1) as i64;
 
-        let rows = Question::list_by_ext(
-            db,
-            question_cate_ids.clone(),
-            question_type.id,
-            tag_ids.clone(),
-            dimension_ids.clone(),
-            question_type.num,
-        )
-        .await
-        .map_err(|err| {
-            error!("Select question err: {}", err);
-            AppError::db_error("查询题目失败")
-        })?;
+        let rows = Question::list_by_ext(db, question_type.id, &req.conf, question_type.num)
+            .await
+            .map_err(|err| {
+                error!("Select question err: {err}");
+                AppError::db_error("查询题目失败")
+            })?;
 
         // 批量获取作者名称
         let mut user_ids_set = HashSet::with_capacity(rows.len() * 2);
@@ -569,7 +544,7 @@ pub async fn preview(
                     question_id: row.id,
                     score: question_type.score as i32,
                 },
-                info: question::to_info_resp(&row, author_name, approve_name),
+                info: (row, author_name, approve_name).into(),
             });
         }
 
@@ -615,13 +590,7 @@ pub async fn preview(
             created_at: created_at.clone(),
             updated_at: created_at,
         },
-        conf: GenPaperGenConfig {
-            question_cate_ids,
-            tag_ids,
-            dimension_ids,
-            level_range,
-            question_types,
-        },
+        conf: req.conf,
         groups,
     })
 }
@@ -644,18 +613,15 @@ pub async fn gen_add(
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
-        error!("Failed to gen begin transaction: {}", e);
+        error!("Failed to gen begin transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
     // 构建并插入试卷主体（包含总题目数）
-    let paper = build_paper_meta_from_request(
-        &user_info,
-        &req.common,
-        req.common.count.unwrap_or_default(),
-    );
+    let total_count = req.common.count.unwrap_or_default();
+    let paper = build_paper_meta_from_request(&user_info, req.common, total_count);
     let paper_id = Paper::save(&mut tx, &paper).await.map_err(|err| {
-        error!("Failed to insert gen paper: {}", err);
+        error!("Failed to insert gen paper: {err}");
         AppError::db_error("试卷主体信息添加失败")
     })?;
 
@@ -665,23 +631,23 @@ pub async fn gen_add(
     }
 
     // 题目选择配置信息
-    let paper_gen_config = build_gen_config_from_request(paper_id, &req.conf);
-    let _ = PaperGenConfig::tx_insert(&mut tx, &paper_gen_config)
+    let paper_gen_config = build_gen_config_from_request(paper_id, req.conf);
+    let _ = PaperGenConfig::tx_insert(&mut tx, paper_gen_config)
         .await
         .map_err(|err| {
-            error!("Failed to insert gen paper gen config: {}", err);
+            error!("Failed to insert gen paper gen config: {err}");
             AppError::db_error("试卷题目选择配置信息添加失败")
         })?;
 
     // 构建题型和题目
-    let (paper_groups, paper_questions) = build_gen_groups_and_questions(paper_id, &req.groups);
+    let (paper_groups, paper_questions) = build_gen_groups_and_questions(paper_id, req.groups);
 
     // 批量插入题型
     if !paper_groups.is_empty() {
         PaperGroup::batch_insert(&mut tx, &paper_groups)
             .await
             .map_err(|err| {
-                error!("Failed to insert gen paper groups: {}", err);
+                error!("Failed to insert gen paper groups: {err}");
                 AppError::db_error("试卷题型信息添加失败")
             })?;
     }
@@ -691,22 +657,17 @@ pub async fn gen_add(
         PaperGenQuestion::batch_insert(&mut tx, &paper_questions)
             .await
             .map_err(|err| {
-                error!("Failed to insert gen paper questions: {}", err);
+                error!("Failed to insert gen paper questions: {err}");
                 AppError::db_error("试卷题目信息添加失败")
             })?;
     }
 
     // 记录操作日志
-    info!(
-        "Paper gen added successfully. ID: {}, Title: {}, Total Questions: {}",
-        paper_id,
-        req.common.title,
-        req.common.count.unwrap_or_default()
-    );
+    info!("Paper gen added successfully. ID: {paper_id}, Total question: {total_count}");
 
     // 提交事务
     tx.commit().await.map_err(|e| {
-        error!("Failed to gen commit transaction: {}", e);
+        error!("Failed to gen commit transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 
@@ -720,6 +681,14 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
     if req.groups.is_empty() {
         return Err(AppError::param_error("试卷至少需要一个题型"));
     }
+
+    // 检验题目不能重复
+    let q_num = req
+        .groups
+        .iter()
+        .map(|item| item.questions.len())
+        .sum::<usize>();
+    let mut q_id_set: HashSet<i64> = HashSet::with_capacity(q_num);
 
     for (idx, group) in req.groups.iter().enumerate() {
         if group.type_name.trim().is_empty() {
@@ -735,6 +704,12 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
 
         // 验证题目
         for (q_idx, question) in group.questions.iter().enumerate() {
+            // 验证题目是否重复
+            if q_id_set.contains(&question.question_id) {
+                return Err(AppError::business_error("试卷内的题目不允许重复"));
+            }
+            q_id_set.insert(question.question_id);
+
             // 验证分数
             if question.score < 0 {
                 return Err(AppError::param_error(
@@ -753,12 +728,12 @@ fn validate_paper_gen_request(req: &PaperGenReq) -> Result<(), AppError> {
 }
 
 // 构建配置信息
-fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> PaperGenConfig {
+fn build_gen_config_from_request(paper_id: i64, req: GenPaperGenConfig) -> PaperGenConfig {
     let mut question_types: Vec<QuestionTypeInfo> = vec![];
-    for info in &req.question_types {
+    for info in req.question_types {
         question_types.push(QuestionTypeInfo {
             id: info.id,
-            label: info.label.clone(),
+            label: info.label,
             num: info.num,
             score: info.score,
         });
@@ -766,22 +741,25 @@ fn build_gen_config_from_request(paper_id: i64, req: &GenPaperGenConfig) -> Pape
 
     PaperGenConfig {
         paper_id,
-        question_cate_ids: Json(req.question_cate_ids.clone()),
-        question_tag_ids: Some(Json(req.tag_ids.clone().unwrap_or_default())),
-        question_dimension_ids: Some(Json(req.dimension_ids.clone().unwrap_or_default())),
+        question_cate_ids: Json(req.question_cate_ids),
+        question_tag_ids: Some(Json(req.tag_ids.unwrap_or_default())),
+        question_dimension_ids: Some(Json(req.dimension_ids.unwrap_or_default())),
         question_type_info: Json(question_types),
         difficulty_level_info: Json(DifficultyLevelInfo {
             basic: req.level_range.basic,
             improve: req.level_range.improve,
             expand: req.level_range.expand,
         }),
+        level_ids: Some(Json(req.level_ids.unwrap_or_default())),
+        scene_ids: Some(Json(req.scene_ids.unwrap_or_default())),
+        mistake_tip_ids: Some(Json(req.mistake_tip_ids.unwrap_or_default())),
     }
 }
 
 // 构建手动组卷题型和题目
 fn build_gen_groups_and_questions(
     paper_id: i64,
-    groups: &[PaperGenGroupReq],
+    groups: Vec<PaperGenGroupReq>,
 ) -> (Vec<PaperGroup>, Vec<PaperGenQuestion>) {
     let group_count = groups.len();
     let mut paper_groups = Vec::with_capacity(group_count);
@@ -790,25 +768,25 @@ fn build_gen_groups_and_questions(
     let total_questions: usize = groups.iter().map(|g| g.questions.len()).sum();
     let mut paper_questions = Vec::with_capacity(total_questions);
 
-    for (group_idx, group) in groups.iter().enumerate() {
+    for (group_idx, group) in groups.into_iter().enumerate() {
         // 生成 group_id: 使用更大的基数避免冲突
         let group_id = paper_id * 1000 + (group_idx + 1) as i64;
 
         paper_groups.push(PaperGroup {
             id: group_id,
             paper_id,
-            gen_id: group.gen_id.clone(),
-            type_name: group.type_name.clone(),
-            sub_title: group.sub_title.clone(),
+            gen_id: group.gen_id,
+            type_name: group.type_name,
+            sub_title: group.sub_title,
         });
 
         // 构建该题型下的所有题目
-        for question in &group.questions {
+        for question in group.questions {
             paper_questions.push(PaperGenQuestion {
                 id: 0,
                 paper_id,
                 group_id,
-                gen_id: question.gen_id.clone(),
+                gen_id: question.gen_id,
                 order_num: question.order_num,
                 question_id: question.question_id,
                 score: question.score,
@@ -828,39 +806,26 @@ async fn delete_gen_info(
     let del_config_rows = PaperGenConfig::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
-            error!("Failed {} to delete gen paper gen config: {}", source, err);
+            error!("Failed {source} to delete gen paper gen config: {err}");
             AppError::db_error("删除试卷题型配置失败")
         })?;
-    info!(
-        "Deleted {} gen paper gen config rows: {:?}",
-        source, del_config_rows
-    );
+    info!("Deleted {source} gen paper gen config rows: {del_config_rows}");
 
     let del_group_rows = PaperGroup::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
-            error!("Failed {} to delete gen paper group: {}", source, err);
+            error!("Failed {source} to delete gen paper group: {err}");
             AppError::db_error("删除试卷题型分类失败")
         })?;
-    info!(
-        "Deleted {} gen paper group rows: {:?}",
-        source, del_group_rows
-    );
+    info!("Deleted {source} gen paper group rows: {del_group_rows}");
 
     let del_question_rows = PaperGenQuestion::delete_by_paper_id(tx, paper_id)
         .await
         .map_err(|err| {
-            error!(
-                "Failed {} to delete gen paper gen question: {}",
-                source, err
-            );
+            error!("Failed {source} to delete gen paper gen question: {err}");
             AppError::db_error("删除试卷题目列表失败")
         })?;
-
-    info!(
-        "Deleted {} gen paper gen question rows: {:?}",
-        source, del_question_rows
-    );
+    info!("Deleted {source} gen paper gen question rows: {del_question_rows}");
 
     Ok(())
 }
@@ -873,11 +838,11 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
     let paper = Paper::find_by_id(db, id)
         .await
         .map_err(|err| {
-            error!("Select gen paper id: {}, error: {}", id, err);
+            error!("Select gen paper id: {id}, error: {err}");
             AppError::db_error("试卷信息查询错误")
         })?
         .ok_or_else(|| {
-            error!("Select gen paper id: {} is empty", id);
+            error!("Select gen paper id: {id} is empty");
             AppError::not_found("试卷不存在")
         })?;
 
@@ -885,11 +850,11 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
     let gen_conf = PaperGenConfig::find_by_paper_id(db, id)
         .await
         .map_err(|err| {
-            error!("Select gen paper gen config id: {}, error: {}", id, err);
+            error!("Select gen paper gen config id: {id}, error: {err}");
             AppError::db_error("试卷配置信息查询错误")
         })?
         .ok_or_else(|| {
-            error!("Select gen paper gen config id: {} is empty", id);
+            error!("Select gen paper gen config id: {id} is empty");
             AppError::not_found("试卷配置信息不存在")
         })?;
 
@@ -898,9 +863,8 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         .await
         .map_err(|err| {
             error!(
-                "Select gen paper group, paper_id: {}, error: {}",
-                paper.id.unwrap_or_default(),
-                err
+                "Select gen paper group, paper_id: {}, error: {err}",
+                paper.id.unwrap_or_default()
             );
             AppError::db_error("查询试卷题型失败")
         })?;
@@ -914,9 +878,8 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
             .await
             .map_err(|err| {
                 error!(
-                    "Select gen paper gen question paper_id: {}, error: {}",
-                    paper.id.unwrap_or_default(),
-                    err
+                    "Select gen paper gen question paper_id: {}, error: {err}",
+                    paper.id.unwrap_or_default()
                 );
                 AppError::db_error("查询试卷题目失败")
             })?
@@ -928,15 +891,14 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         .await
         .map_err(|err| {
             error!(
-                "Select gen paper gen question info paper_id: {}, error: {}",
-                paper.id.unwrap_or_default(),
-                err
+                "Select gen paper gen question info paper_id: {}, error: {err}",
+                paper.id.unwrap_or_default()
             );
             AppError::db_error("查询试卷题目详情失败")
         })?;
 
     // 收集题型标识和作者信息
-    let (question_map, author_ids) =
+    let (mut question_map, author_ids) =
         questions
             .into_iter()
             .fold((HashMap::new(), Vec::new()), |(mut map, mut ids), q| {
@@ -955,7 +917,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
         paper_groups,
         paper_gen_questions,
         &user_map,
-        &question_map,
+        &mut question_map,
     )
 }
 
@@ -966,7 +928,7 @@ fn to_gen_resp(
     paper_groups: Vec<PaperGroup>,
     paper_questions: Vec<PaperGenQuestion>,
     user_map: &HashMap<i64, String>,
-    question_raw_map: &HashMap<i64, Question>,
+    question_raw_map: &mut HashMap<i64, Question>,
 ) -> Result<GenPaperResp, AppError> {
     let mut resp = GenPaperResp {
         common: paper.into(),
@@ -976,8 +938,11 @@ fn to_gen_resp(
             dimension_ids: paper_gen_config.question_dimension_ids.map(|j| j.0),
             level_range: paper_gen_config.difficulty_level_info.0,
             question_types: paper_gen_config.question_type_info.0,
+            level_ids: paper_gen_config.level_ids.map(|j| j.0),
+            scene_ids: paper_gen_config.scene_ids.map(|j| j.0),
+            mistake_tip_ids: paper_gen_config.mistake_tip_ids.map(|j| j.0),
         },
-        groups: vec![],
+        groups: Vec::new(),
     };
 
     // 构建题型和题目的映射关系
@@ -985,13 +950,16 @@ fn to_gen_resp(
 
     for question in paper_questions {
         let group_id = question.group_id;
-        let raw = question_raw_map.get(&question.question_id).ok_or_else(|| {
-            error!(
-                "gen group_id {} question_id {} not found in map",
-                group_id, question.question_id
-            );
-            AppError::param_error("题目不存在")
-        })?;
+        // 严格来说一张试卷内的题目不能重复, 直接消费
+        let raw = question_raw_map
+            .remove(&question.question_id)
+            .ok_or_else(|| {
+                error!(
+                    "gen group_id {group_id} question_id {} not found in map",
+                    question.question_id
+                );
+                AppError::param_error("题目不存在")
+            })?;
 
         let question_resp = to_gen_paper_question_resp(question, raw, user_map);
         questions_map
@@ -1016,23 +984,15 @@ fn to_gen_resp(
 
 fn to_gen_paper_question_resp(
     gen_info: PaperGenQuestion,
-    row: &Question,
+    row: Question,
     user_map: &HashMap<i64, String>,
 ) -> GenPaperQuestionResp {
+    let author_name = user_map.get(&row.author_id).cloned().unwrap_or_default();
+    let approve_name = user_map.get(&row.approve_id).cloned().unwrap_or_default();
+
     GenPaperQuestionResp {
         common: gen_info.into(),
-
-        info: question::to_info_resp(
-            row,
-            user_map
-                .get(&row.author_id)
-                .cloned()
-                .unwrap_or_else(String::new),
-            user_map
-                .get(&row.approve_id)
-                .cloned()
-                .unwrap_or_else(String::new),
-        ),
+        info: (row, author_name, approve_name).into(),
     }
 }
 
@@ -1052,7 +1012,7 @@ pub async fn delete(
     let has_paper = Paper::find_by_id(db, req.id)
         .await
         .map_err(|err| {
-            error!("Failed to find paper: {}", err);
+            error!("Failed to find paper: {err}");
             AppError::db_error("试卷查询错误")
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
@@ -1066,13 +1026,13 @@ pub async fn delete(
     }
 
     let rows = Paper::delete(db, req.id).await.map_err(|err| {
-        error!("paper delete by id err: {:?}", err);
+        error!("paper delete by id err: {err}");
         AppError::db_error("删除失败")
     })?;
 
     // 开启事务
     let mut tx = db.begin().await.map_err(|e| {
-        error!("Failed delete to gen begin transaction: {}", e);
+        error!("Failed delete to gen begin transaction: {e}");
         AppError::db_error("启动事务失败")
     })?;
 
@@ -1094,7 +1054,7 @@ pub async fn delete(
 
     // 提交事务
     tx.commit().await.map_err(|e| {
-        error!("Failed delete to gen commit transaction: {}", e);
+        error!("Failed delete to gen commit transaction: {e}");
         AppError::db_error("提交事务失败")
     })?;
 
