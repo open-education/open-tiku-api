@@ -40,3 +40,46 @@ pub fn get_datetime(date_str: &str) -> Result<DateTime<Utc>, AppError> {
 
     Ok(local_datetime.with_timezone(&Utc))
 }
+
+// 相对时间描述
+pub fn to_time_ago(dt: Option<DateTime<Utc>>) -> String {
+    let Some(dt) = dt else {
+        return String::from("未知");
+    };
+
+    let secs = (Utc::now() - dt).num_seconds().max(0);
+
+    const MINUTE: i64 = 60;
+    const HOUR: i64 = 60 * MINUTE;
+    const DAY: i64 = 24 * HOUR;
+    const MONTH: i64 = 30 * DAY;
+    const YEAR: i64 = 365 * DAY;
+
+    if secs < MINUTE {
+        return String::from("1分钟前");
+    }
+    if secs < HOUR {
+        return format!("{}分钟前", secs / MINUTE);
+    }
+    if secs < DAY {
+        let hours = secs / HOUR;
+        let mins = (secs % HOUR) / MINUTE;
+        return if mins == 0 {
+            format!("{hours}小时前")
+        } else {
+            format!("{hours}小时{mins}分钟前")
+        };
+    }
+    if secs < MONTH {
+        return format!("{}天前", ceil_div(secs, DAY));
+    }
+    if secs < YEAR {
+        return format!("{}月前", ceil_div(secs, MONTH));
+    }
+    format!("{}年前", ceil_div(secs, YEAR))
+}
+
+#[inline]
+fn ceil_div(a: i64, b: i64) -> i64 {
+    (a + b - 1) / b
+}

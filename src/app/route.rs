@@ -2,7 +2,7 @@ use actix_web::web;
 
 use crate::api::{
     callback, chapter_knowledge, class, class_student, edit, file, homework, other_dict, paper,
-    question, question_cate, task, test, text, textbook, user,
+    question, question_cate, stat, task, test, text, textbook, user,
 };
 
 // web 服务路由配置
@@ -119,4 +119,8 @@ pub fn test(cfg: &mut web::ServiceConfig) {
         .service(test::attempt_latest)
         .service(test::answer_add)
         .service(test::attempts);
+}
+
+pub fn stat(cfg: &mut web::ServiceConfig) {
+    cfg.service(stat::board);
 }

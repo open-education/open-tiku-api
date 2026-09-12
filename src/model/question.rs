@@ -83,6 +83,14 @@ pub struct Question {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(FromRow)]
+pub struct LatestQuestion {
+    pub id: i64,
+    pub question_cate_id: i32,
+    pub title: String,
+    pub created_at: DateTime<Utc>,
+}
+
 // 普通题目列表请求
 pub struct CateAndTypeReq {
     pub cate_ids: Vec<i32>,
@@ -708,5 +716,18 @@ impl Question {
         qb.push(" ORDER BY RANDOM() LIMIT ").push_bind(limit);
 
         qb.build_query_as::<Self>().fetch_all(pool).await
+    }
+
+    pub async fn latest_question(
+        pool: &PgPool,
+        limit: i16,
+    ) -> Result<Vec<LatestQuestion>, sqlx::Error> {
+        sqlx::query_as::<_, LatestQuestion>(
+            "SELECT id, question_cate_id, title, created_at FROM question WHERE status = $1 ORDER BY id DESC LIMIT $2"
+        )
+            .bind(QuestionStatus::Published as i16)
+            .bind(limit)
+            .fetch_all(pool)
+            .await
     }
 }

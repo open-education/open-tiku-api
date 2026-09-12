@@ -398,3 +398,5 @@ CREATE TABLE test_answer
     -- 保证在同一次刷题/考试中 一道题有且仅有一行记录
     CONSTRAINT unique_attempt_question UNIQUE (attempt_id, question_id)
 );
+
+-- 8 统计面板, 均为统计上一天

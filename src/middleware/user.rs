@@ -148,6 +148,8 @@ const PREFIX_LIST: &[&str] = &[
     "/file/read/file/",
     // 题型父菜单列表
     "/question-cate/list/all",
+    // 统计
+    "/stat/board/"
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析
