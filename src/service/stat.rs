@@ -39,10 +39,11 @@ async fn latest_question(pool: &PgPool, ids: &[i64]) -> Result<Vec<LatestQuestio
         return Ok(Vec::new());
     }
 
-    let rows = Question::find_simple_by_ids(pool, ids).await.map_err(|e| {
+    let mut rows = Question::find_simple_by_ids(pool, ids).await.map_err(|e| {
         error!("board find latest question err: {e}");
         AppError::db_error("获取最新上传题目出错")
     })?;
+    rows.sort_by(|a, b| b.id.cmp(&a.id));
 
     Ok(rows.into_iter().map(Into::into).collect())
 }
