@@ -887,7 +887,7 @@ pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, App
 
     // 获取真正的题目信息
     let question_ids: Vec<i64> = paper_gen_questions.iter().map(|q| q.question_id).collect();
-    let questions = Question::find_by_ids(db, question_ids)
+    let questions = Question::find_by_ids(db, &question_ids)
         .await
         .map_err(|err| {
             error!(

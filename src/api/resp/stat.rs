@@ -1,4 +1,4 @@
-use crate::model::question::LatestQuestion;
+use crate::model::question::LightQuestion;
 use crate::util::local::{to_local_datetime, to_time_ago};
 use serde::Serialize;
 
@@ -21,8 +21,8 @@ pub struct LatestQuestionResp {
     pub time_desc: String,
 }
 
-impl From<LatestQuestion> for LatestQuestionResp {
-    fn from(raw: LatestQuestion) -> Self {
+impl From<LightQuestion> for LatestQuestionResp {
+    fn from(raw: LightQuestion) -> Self {
         Self {
             id: raw.id,
             question_cate_id: raw.question_cate_id,

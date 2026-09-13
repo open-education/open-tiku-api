@@ -83,3 +83,8 @@ pub fn to_time_ago(dt: Option<DateTime<Utc>>) -> String {
 fn ceil_div(a: i64, b: i64) -> i64 {
     (a + b - 1) / b
 }
+
+// 今天的日期
+pub fn get_today() -> NaiveDate {
+    Utc::now().with_timezone(&BJ_OFFSET).date_naive()
+}
