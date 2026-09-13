@@ -17,7 +17,7 @@ target
 .idea/
 
 # 配置文件不提交到代码库
-config.toml
+/config.toml
 
 # 日志目录
 log
