@@ -49,7 +49,7 @@ async fn latest_question(pool: &PgPool, ids: &[i64]) -> Result<Vec<LatestQuestio
 }
 
 // 记录最新的题目
-pub async fn add_lastest_question_id(pool: &PgPool, id: i64) -> Result<bool, AppError> {
+pub async fn add_lastest_question_id(pool: &PgPool, id: i64) -> Result<(), AppError> {
     let date = get_today();
     let mut row = Stat::find_by_id(pool, date)
         .await
@@ -81,5 +81,5 @@ pub async fn add_lastest_question_id(pool: &PgPool, id: i64) -> Result<bool, App
         AppError::db_error("最新题目统计信息增加出错")
     })?;
 
-    Ok(true)
+    Ok(())
 }
