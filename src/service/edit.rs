@@ -5,6 +5,7 @@ use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::paper::Paper;
 use crate::model::question::Question;
+use crate::service::stat;
 use crate::util::error::AppError;
 use tracing::error;
 
@@ -58,6 +59,15 @@ pub async fn question_status(
         error!("Update status by id: {} err: {e}", req.id);
         AppError::db_error("更新题目失败")
     })?;
+
+    // 审核通过后将题目追加到最新题目列表中
+    if status == QuestionStatus::Published {
+        let db = db.clone();
+        let q_id = req.id;
+        tokio::spawn(async move {
+            let _ = stat::add_lastest_question_id(&db, q_id).await;
+        });
+    }
 
     Ok(rows_affected > 0)
 }

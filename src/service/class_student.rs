@@ -350,7 +350,6 @@ pub async fn edit(
                 AppError::internal_error("生成学生密码失败, 请重试")
             })?;
 
-        // 更细密码
         edit_req.password = hashed;
     }
 

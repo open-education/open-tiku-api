@@ -202,8 +202,8 @@ pub async fn list_all(
     }
 
     let resp = QuestionCateListResp {
-        info_map,
-        parent_map,
+        cate_map: info_map,
+        textbook_map: parent_map,
     };
 
     Ok(resp)

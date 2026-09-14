@@ -83,6 +83,14 @@ pub struct Question {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(FromRow)]
+pub struct LightQuestion {
+    pub id: i64,
+    pub question_cate_id: i32,
+    pub title: String,
+    pub created_at: DateTime<Utc>,
+}
+
 // 普通题目列表请求
 pub struct CateAndTypeReq {
     pub cate_ids: Vec<i32>,
@@ -501,8 +509,18 @@ impl Question {
     }
 
     // 通过ids获取详情列表
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+    pub async fn find_by_ids(pool: &PgPool, ids: &[i64]) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>("SELECT * FROM question WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await
+    }
+
+    pub async fn find_simple_by_ids(
+        pool: &PgPool,
+        ids: &[i64],
+    ) -> Result<Vec<LightQuestion>, sqlx::Error> {
+        sqlx::query_as::<_, LightQuestion>("SELECT * FROM question WHERE id = ANY($1)")
             .bind(ids)
             .fetch_all(pool)
             .await

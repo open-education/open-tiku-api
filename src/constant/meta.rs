@@ -22,3 +22,5 @@ pub const STUDENT_LOGIN_TIME_WINDOW_MS: u64 = 60 * 1000;
 pub const MARKDOWN_BASE_TITLE_TAG: &str = "### 母题";
 // 拆分母题变式题的标题等级
 pub const MARKDOWN_PREFIX_TITLE_LIST: [&str; 2] = ["### ", "#### "];
+// 统计数据最大数量
+pub const STAT_MAX_NUM: usize = 10;

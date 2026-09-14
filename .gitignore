@@ -16,8 +16,8 @@ target
 # RustRover
 .idea/
 
-# 配置文件不提交到代码库
-config.toml
+# 项目根目录配置文件不提交到代码库
+/config.toml
 
 # 日志目录
 log
