@@ -1,6 +1,6 @@
 use crate::api::req::class_student::{ClassStudentEditReq, ClassStudentListReq, ClassStudentReq};
 use crate::api::resp::class_student::ClassStudentResp;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::student::StudentStatus;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
@@ -23,7 +23,7 @@ use tracing::{error, info};
 
 // 添加学生账户
 pub async fn add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ClassStudentReq,
     user_info: TeacherUserInfo,
 ) -> Result<u64, AppError> {
@@ -225,7 +225,7 @@ async fn build_student_req(
 
 // 发送学生账户密码文件给教师个人邮箱
 async fn send_account_email(
-    app_state: &AppState,
+    app_state: &WebAppState,
     class_info: Class,
     account_to_map: HashMap<String, String>,
 ) -> Result<(), AppError> {
@@ -263,7 +263,7 @@ async fn send_account_email(
 
 // 班级内学生账户列表
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ClassStudentListReq,
     user_info: TeacherUserInfo,
 ) -> Result<HashMap<i64, Vec<ClassStudentResp>>, AppError> {
@@ -300,7 +300,7 @@ pub async fn list(
 
 // 编辑用户信息
 pub async fn edit(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ClassStudentEditReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {

@@ -7,7 +7,7 @@ use crate::api::resp::paper::{
     GenPaperQuestionResp, GenPaperResp, PaperListResp, TopPaperGroupResp, TopPaperQuestionResp,
     TopPaperResp,
 };
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::paper::{PaperPageSource, PaperStatus, PaperType};
 use crate::middleware::user::UserInfo;
 use crate::model::paper::Paper;
@@ -28,7 +28,7 @@ use tracing::{error, info};
 // 添加精选试卷
 // 编辑试卷才用的模式是 主表 paper 根据主键更新, 字表 paper_group paper_question 采用先删除后重新写入的方法
 pub async fn top_add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: TopPaperReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
@@ -295,7 +295,7 @@ async fn delete_top_info(
 }
 
 // 精选试卷-试卷详情
-pub async fn top_info(app_state: &AppState, id: i64) -> Result<TopPaperResp, AppError> {
+pub async fn top_info(app_state: &WebAppState, id: i64) -> Result<TopPaperResp, AppError> {
     let db = &app_state.db;
 
     // 查询试卷主体
@@ -379,7 +379,7 @@ fn to_top_resp(
 
 // 列表查询
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: PaperListReq,
     user_info: Option<UserInfo>,
 ) -> Result<PaperListResp, AppError> {
@@ -454,7 +454,7 @@ pub async fn list(
 
 // 最新试卷
 pub async fn latest(
-    app_state: &AppState,
+    app_state: &WebAppState,
     path: (i16, i64),
 ) -> Result<Vec<CommonPaperResp>, AppError> {
     let papers = Paper::get_latest_papers(&app_state.db, path.0, path.1)
@@ -471,7 +471,7 @@ pub async fn latest(
 
 // 预览详情, 暂时还没有存表
 pub async fn preview(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: GenPaperPreviewReq,
     user_info: UserInfo,
 ) -> Result<GenPaperResp, AppError> {
@@ -597,7 +597,7 @@ pub async fn preview(
 
 // 保存手动生成的试卷
 pub async fn gen_add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: PaperGenReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
@@ -831,7 +831,7 @@ async fn delete_gen_info(
 }
 
 // 手动组卷-试卷详情
-pub async fn gen_info(app_state: &AppState, id: i64) -> Result<GenPaperResp, AppError> {
+pub async fn gen_info(app_state: &WebAppState, id: i64) -> Result<GenPaperResp, AppError> {
     let db = &app_state.db;
 
     // 查询试卷主体
@@ -998,7 +998,7 @@ fn to_gen_paper_question_resp(
 
 // 删除试卷
 pub async fn delete(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: DeleteReq,
     user_info: UserInfo,
 ) -> Result<bool, AppError> {

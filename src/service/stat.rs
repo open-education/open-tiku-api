@@ -1,5 +1,5 @@
 use crate::api::resp::stat::{BoardResp, LatestQuestionResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::meta::STAT_MAX_NUM;
 use crate::model::question::Question;
 use crate::model::stat::Stat;
@@ -9,7 +9,7 @@ use sqlx::PgPool;
 use tracing::error;
 
 // 首页面板数据
-pub async fn board(app_state: &AppState, limit: i16) -> Result<BoardResp, AppError> {
+pub async fn board(app_state: &WebAppState, limit: i16) -> Result<BoardResp, AppError> {
     if limit <= 0 || limit > 15 {
         return Err(AppError::param_error("非法的数量"));
     }

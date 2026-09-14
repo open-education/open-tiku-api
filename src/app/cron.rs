@@ -2,7 +2,7 @@ use crate::app::conf;
 use crate::app::log::init_logger;
 use crate::task;
 
-// 运行定时任务入口
+// cron 入口
 // 启动方式类似:
 // ./open-tiku-api task question-upload // 上传题目
 pub async fn run_cron(args: Vec<String>) {
@@ -10,7 +10,7 @@ pub async fn run_cron(args: Vec<String>) {
 
     let _logger_guard = init_logger("task.log");
 
-    let app_state = conf::init(true).await;
+    let app_state = conf::cron_init().await;
 
     // 将任务名称注册到匹配条件中
     match task_name.as_str() {

@@ -2,7 +2,7 @@ use crate::api::req::user::{
     ExchangeTokenReq, UserEditReq, UserListReq, UserLoginReq, UserSessionListReq,
 };
 use crate::api::resp::user::{UserListResp, UserSessionInfoResp, UserSessionListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::meta;
 use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::middleware::user::{ClientInfo, UserInfo};
@@ -23,7 +23,7 @@ use tracing::error;
 use uuid::Uuid;
 
 // 换取登录 token
-pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<String, AppError> {
+pub async fn exchange(app_state: &WebAppState, req: ExchangeTokenReq) -> Result<String, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -53,7 +53,7 @@ pub async fn exchange(app_state: &AppState, req: ExchangeTokenReq) -> Result<Str
 
 // 登录
 pub async fn login(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: UserLoginReq,
     client_info: ClientInfo,
 ) -> Result<UserInfo, AppError> {
@@ -203,7 +203,7 @@ async fn handle_student_login(
 }
 
 // 获取用户信息
-pub async fn info(app_state: &AppState, token: &str) -> Result<UserInfo, AppError> {
+pub async fn info(app_state: &WebAppState, token: &str) -> Result<UserInfo, AppError> {
     let db = &app_state.db;
 
     let session = get_user_session_by_token(db, token).await?;
@@ -239,7 +239,7 @@ pub async fn info(app_state: &AppState, token: &str) -> Result<UserInfo, AppErro
 }
 
 // 退出登录
-pub async fn logout(app_state: &AppState, user_info: UserInfo) -> Result<bool, AppError> {
+pub async fn logout(app_state: &WebAppState, user_info: UserInfo) -> Result<bool, AppError> {
     let db = &app_state.db;
 
     // session 信息
@@ -276,7 +276,7 @@ pub async fn get_user_map(
 
 // 第三方账户列表
 pub async fn account_list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: UserListReq,
 ) -> Result<UserListResp, AppError> {
     let db = &app_state.db;
@@ -313,7 +313,7 @@ pub async fn account_list(
 
 // session 列表
 pub async fn session_list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: UserSessionListReq,
 ) -> Result<UserSessionListResp, AppError> {
     let db = &app_state.db;
@@ -439,7 +439,7 @@ fn to_session_info_resp(
     resp_list
 }
 
-pub async fn edit(app_state: &AppState, req: UserEditReq) -> Result<bool, AppError> {
+pub async fn edit(app_state: &WebAppState, req: UserEditReq) -> Result<bool, AppError> {
     StatusType::from_i16(req.status).ok_or_else(|| AppError::param_error("用户状态错误"))?;
 
     let rows = UserIdentity::update_by_id(&app_state.db, req)

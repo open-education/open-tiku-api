@@ -11,7 +11,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::api::req::callback::CallbackQueryReq;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::meta;
 use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
 use crate::util::error::AppError;
@@ -65,7 +65,7 @@ fn verify_state(state: &str, secret: &str) -> Result<bool, std::io::Error> {
 }
 
 // 获取第三方登录地址
-pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<String, AppError> {
+pub fn login_url(app_state: &WebAppState, provider: i16) -> std::result::Result<String, AppError> {
     let provider_type = ProviderType::from_i16(provider).ok_or_else(|| {
         error!("Failed to parse provider type from provider: {provider}");
         AppError::param_error("不受支持的登录方式")
@@ -104,7 +104,7 @@ pub fn login_url(app_state: &AppState, provider: i16) -> std::result::Result<Str
 }
 
 // Github 登录
-pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
+pub async fn github(app_state: &WebAppState, query: CallbackQueryReq) -> Result<HttpResponse> {
     let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let github_user = get_github_user(
@@ -151,7 +151,7 @@ pub async fn github(app_state: &AppState, query: CallbackQueryReq) -> Result<Htt
 }
 
 // QQ 登录
-pub async fn qq(app_state: &AppState, query: CallbackQueryReq) -> Result<HttpResponse> {
+pub async fn qq(app_state: &WebAppState, query: CallbackQueryReq) -> Result<HttpResponse> {
     let code = get_query_code(&query, &app_state.config.login.oauth_state_secret)?;
 
     let (open_id, qq_user) = get_qq_user(

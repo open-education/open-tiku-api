@@ -1,5 +1,5 @@
 use crate::api::resp::class::ClassInfoResp;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::model::class_student::ClassStudent;
@@ -19,7 +19,7 @@ use tracing::{error, info};
 // 布置作业
 
 // 获取批次号
-pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppError> {
+pub async fn batch_no(app_state: &WebAppState, paper_id: i64) -> Result<i32, AppError> {
     let max_batch_no = Homework::find_max_batch_no(&app_state.db, paper_id)
         .await
         .map_err(|err| {
@@ -34,7 +34,7 @@ pub async fn batch_no(app_state: &AppState, paper_id: i64) -> Result<i32, AppErr
 }
 
 pub async fn add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: HomeworkAddReq,
     teacher_user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {
@@ -142,7 +142,7 @@ fn build_homework_add_req(
 }
 
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: HomeworkListReq,
     teacher_user_info: TeacherUserInfo,
 ) -> Result<HomeworkListResp, AppError> {

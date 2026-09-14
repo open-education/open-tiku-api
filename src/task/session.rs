@@ -1,10 +1,10 @@
-use crate::app::conf::AppState;
+use crate::app::conf::CronAppState;
 use crate::model::user_session::UserSession;
 use tracing::{error, info};
 
 // 删除过期的 sessions
 
-pub async fn cleanup(conf: &AppState) {
+pub async fn cleanup(conf: &CronAppState) {
     match UserSession::delete_expired_sessions(&conf.db).await {
         Ok(rows) => {
             info!("Deleting expired sessions: {:?}", rows);

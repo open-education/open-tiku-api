@@ -1,7 +1,7 @@
 use crate::api::req::test::{AttemptListReq, LatestAttemptReq, ListReq, TestAnswerAddReq};
 use crate::api::resp::paper::CommonPaperResp;
 use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, InfoResp, ListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::middleware::user::StudentUserInfo;
 use crate::model::homework::Homework;
@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use tracing::{error, info};
 
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ListReq,
     user_info: StudentUserInfo,
 ) -> Result<ListResp, AppError> {
@@ -130,7 +130,7 @@ pub async fn list(
 }
 
 pub async fn attempt_latest(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: LatestAttemptReq,
     user_info: StudentUserInfo,
 ) -> Result<AttemptInfoResp, AppError> {
@@ -280,7 +280,7 @@ async fn get_homework_class_by_homework_id(
 }
 
 pub async fn attempts(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: AttemptListReq,
     user_info: StudentUserInfo,
 ) -> Result<AttemptListResp, AppError> {
@@ -350,7 +350,7 @@ pub async fn attempts(
 }
 
 pub async fn answer_add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: TestAnswerAddReq,
     user_info: StudentUserInfo,
 ) -> Result<bool, AppError> {

@@ -1,6 +1,6 @@
 use crate::api::req::question::CreateQuestionReq;
 use crate::api::req::text::QuestionSnippetReq;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::service::question_upload;
 use crate::util::response::ApiResponse;
 use actix_web::{post, web};
@@ -8,7 +8,7 @@ use actix_web::{post, web};
 
 #[post("/question/snippet")]
 pub async fn question_snippet(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<QuestionSnippetReq>,
 ) -> ApiResponse<CreateQuestionReq> {
     ApiResponse::response(

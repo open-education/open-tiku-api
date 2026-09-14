@@ -2,7 +2,7 @@ use crate::api::req::user::{
     ExchangeTokenReq, UserEditReq, UserListReq, UserLoginReq, UserSessionListReq,
 };
 use crate::api::resp::user::{UserListResp, UserSessionListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::{ClientInfo, TeacherUserInfo, UserInfo};
 use crate::service::user;
 use crate::util::response::ApiResponse;
@@ -13,7 +13,7 @@ use actix_web::{get, post, web};
 // 换取用户登录 token
 #[post("exchange")]
 pub async fn exchange(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<ExchangeTokenReq>,
 ) -> ApiResponse<String> {
     ApiResponse::response(user::exchange(&app_state, req.into_inner()).await)
@@ -22,7 +22,7 @@ pub async fn exchange(
 // 用户登录
 #[post("login")]
 pub async fn login(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<UserLoginReq>,
     client_info: ClientInfo,
 ) -> ApiResponse<UserInfo> {
@@ -32,7 +32,7 @@ pub async fn login(
 // 通过 token 获取用户信息
 #[get("info/{token}")]
 pub async fn info(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     path: web::Path<(String,)>,
 ) -> ApiResponse<UserInfo> {
     ApiResponse::response(user::info(&app_state, path.into_inner().0.as_str()).await)
@@ -40,14 +40,14 @@ pub async fn info(
 
 // 退出登录
 #[get("logout")]
-pub async fn logout(app_state: web::Data<AppState>, user_info: UserInfo) -> ApiResponse<bool> {
+pub async fn logout(app_state: web::Data<WebAppState>, user_info: UserInfo) -> ApiResponse<bool> {
     ApiResponse::response(user::logout(&app_state, user_info).await)
 }
 
 // 第三方登录用户列表
 #[post("account/list")]
 pub async fn account_list(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<UserListReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<UserListResp> {
@@ -57,7 +57,7 @@ pub async fn account_list(
 // Session 列表
 #[post("session/list")]
 pub async fn session_list(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<UserSessionListReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<UserSessionListResp> {
@@ -66,7 +66,7 @@ pub async fn session_list(
 
 #[post("account/edit")]
 pub async fn edit(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<UserEditReq>,
     _user_info: TeacherUserInfo,
 ) -> ApiResponse<bool> {

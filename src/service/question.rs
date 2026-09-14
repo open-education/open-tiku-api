@@ -2,7 +2,7 @@ use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
 use crate::api::resp::question::{QuestionBaseResp, QuestionInfoResp, QuestionListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
 use crate::model::question::{CateAndTypeReq, Question, SimilarReq};
@@ -29,7 +29,7 @@ pub fn to_plain_text(title: &str) -> String {
 
 // 添加题目
 pub async fn add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     mut req: CreateQuestionReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
@@ -131,7 +131,7 @@ pub async fn add(
 }
 
 // 通过主键获取详情
-pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, AppError> {
+pub async fn info(app_state: &WebAppState, id: i64) -> Result<QuestionInfoResp, AppError> {
     let db = &app_state.db;
     let row = Question::find_by_id(db, id).await.map_err(|err| {
         error!("question get by id err: {err}");
@@ -163,7 +163,7 @@ pub async fn info(app_state: &AppState, id: i64) -> Result<QuestionInfoResp, App
 
 // 题目列表
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: QuestionListReq,
     user_info: Option<UserInfo>,
 ) -> Result<QuestionListResp, AppError> {
@@ -263,7 +263,7 @@ fn to_list_resp(rows: Vec<Question>, user_map: &HashMap<i64, String>) -> Vec<Que
 
 // 变式题题目列表
 pub async fn similar(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: QuestionSimilarListReq,
 ) -> Result<QuestionListResp, AppError> {
     let db = &app_state.db;
@@ -318,7 +318,7 @@ pub async fn similar(
 
 // 删除题目
 pub async fn delete(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: DeleteReq,
     user_info: UserInfo,
 ) -> Result<bool, AppError> {

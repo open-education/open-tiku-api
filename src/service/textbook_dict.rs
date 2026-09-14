@@ -1,6 +1,6 @@
 use crate::api::req::other_dict::{CreateTextbookDictReq, DictListReq};
 use crate::api::resp::other_dict::{DictListResp, TextbookDictResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::cache::TEXTBOOK_DICT_CACHE_PREFIX;
 use crate::enums::dict::TypeCode;
 use crate::model::other_dict::TextbookDict;
@@ -12,7 +12,7 @@ use std::time::Duration;
 use tracing::error;
 
 // 添加字典
-pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32, AppError> {
+pub async fn add(app_state: &WebAppState, req: CreateTextbookDictReq) -> Result<i32, AppError> {
     let db = &app_state.db;
 
     TypeCode::from_str(&req.type_code)
@@ -46,7 +46,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookDictReq) -> Result<i32
 
 // 根据类型获取字典列表
 pub async fn get_list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     textbook_id: i32,
     type_code: String,
 ) -> Result<Vec<TextbookDictResp>, AppError> {
@@ -63,7 +63,7 @@ pub async fn get_list(
     Ok(res)
 }
 
-pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictListResp, AppError> {
+pub async fn list_all(app_state: &WebAppState, req: DictListReq) -> Result<DictListResp, AppError> {
     let codes = req.codes.map(|mut v| {
         v.sort();
         v
@@ -116,7 +116,7 @@ pub async fn list_all(app_state: &AppState, req: DictListReq) -> Result<DictList
 }
 
 // 删除字典
-pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
+pub async fn delete(app_state: &WebAppState, id: i32) -> Result<bool, AppError> {
     let db = &app_state.db;
 
     let row = TextbookDict::find_by_id(db, id)
