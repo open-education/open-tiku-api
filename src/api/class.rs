@@ -1,6 +1,6 @@
 use crate::api::req::class::ClassInfoReq;
 use crate::api::resp::class::{ClassListReq, ClassListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::class;
 use crate::util::response::ApiResponse;
@@ -11,7 +11,7 @@ use actix_web::{post, web};
 // 班级添加
 #[post("/add")]
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<ClassInfoReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<i64> {
@@ -21,7 +21,7 @@ pub async fn add(
 // 班级列表
 #[post("/list")]
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<ClassListReq>,
     user_info: TeacherUserInfo,
 ) -> ApiResponse<ClassListResp> {

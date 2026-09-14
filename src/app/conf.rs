@@ -7,6 +7,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{PgPool, SqlitePool};
 use std::str::FromStr;
 use std::time::Duration;
+
 // 配置结构定义
 
 // 服务监听地址和端口配置
@@ -91,17 +92,8 @@ pub struct AppConfig {
     pub smtp: SmtpEmailConfig,
 }
 
-#[derive(Clone)]
-pub struct AppState {
-    pub config: AppConfig,
-    pub db: PgPool,
-    pub sqlite: SqlitePool,
-    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
-}
-
 // 公共初始化配置函数
-// 目前 web cron 服务共用一个数据库连接池, 后续有变更再拆分
-pub async fn init(is_task: bool) -> AppState {
+async fn init(is_task: bool) -> (AppConfig, PgPool) {
     let builder = Config::builder()
         .add_source(File::new("config", FileFormat::Toml))
         // 新增文件是覆盖关系
@@ -122,10 +114,25 @@ pub async fn init(is_task: bool) -> AppState {
             config.database.task_max_connections
         } else {
             config.database.web_max_connections
-        }) // 连接池最大数量 task 需要单独控制, 通常较小
+        })
         .connect_with(options)
         .await
         .expect("Failed to connect to database");
+
+    (config, db_pool)
+}
+
+// 初始化 web
+#[derive(Clone)]
+pub struct WebAppState {
+    pub config: AppConfig,
+    pub db: PgPool,
+    pub sqlite: SqlitePool,
+    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
+}
+
+pub async fn web_init() -> WebAppState {
+    let (config, db_pool) = init(false).await;
 
     // 使用 sqlx 内建的 sqlite
     let sqlite_connection_options = SqliteConnectOptions::from_str(&config.sqlite.db_path)
@@ -153,10 +160,25 @@ pub async fn init(is_task: bool) -> AppState {
         .credentials(creds)
         .build();
 
-    AppState {
+    WebAppState {
         config,
         db: db_pool,
         sqlite: sqlite_pool,
         mailer,
+    }
+}
+
+// 初始化 cron
+pub struct CronAppState {
+    pub config: AppConfig,
+    pub db: PgPool,
+}
+
+pub async fn cron_init() -> CronAppState {
+    let (config, db_pool) = init(true).await;
+
+    CronAppState {
+        config,
+        db: db_pool,
     }
 }

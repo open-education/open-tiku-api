@@ -11,11 +11,13 @@
 阅读 [conf.rs](src/app/conf.rs) 方法中的服务相关环境变量配置部分:
 
 ```rust
-// 服务相关环境变量配置
+// 服务相关环境变量配置, 区分 web/cron
 #[derive(Clone)]
-pub struct AppState {
+pub struct WebAppState {
     pub config: AppConfig,
     pub db: PgPool,
+    pub sqlite: SqlitePool,
+    pub mailer: AsyncSmtpTransport<Tokio1Executor>,
 }
 ```
 

@@ -2,7 +2,7 @@ use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
 use crate::api::resp::question::{QuestionInfoResp, QuestionListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
 use crate::service::question;
 use crate::util::response::ApiResponse;
@@ -13,7 +13,7 @@ use actix_web::{get, post, web};
 // 添加题目
 #[post("/add")]
 pub async fn add(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<CreateQuestionReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
@@ -22,7 +22,7 @@ pub async fn add(
 
 #[get("/info/{id}")]
 pub async fn info(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     path: web::Path<(i64,)>,
 ) -> ApiResponse<QuestionInfoResp> {
     ApiResponse::response(question::info(&app_state, path.into_inner().0).await)
@@ -31,7 +31,7 @@ pub async fn info(
 // 题目列表
 #[post("/list")]
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<QuestionListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<QuestionListResp> {
@@ -40,7 +40,7 @@ pub async fn list(
 
 #[post("/similar")]
 pub async fn similar(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<QuestionSimilarListReq>,
 ) -> ApiResponse<QuestionListResp> {
     ApiResponse::response(question::similar(&app_state, req.into_inner()).await)
@@ -48,7 +48,7 @@ pub async fn similar(
 
 #[post("/delete")]
 pub async fn delete(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<DeleteReq>,
     user_info: UserInfo,
 ) -> ApiResponse<bool> {

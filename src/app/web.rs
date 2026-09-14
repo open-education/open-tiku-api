@@ -12,7 +12,7 @@ pub async fn run_web() -> std::io::Result<()> {
     let guard = init_logger("app.log");
     Box::leak(Box::new(guard));
 
-    let app_state = conf::init(false).await;
+    let app_state = conf::web_init().await;
 
     // 初始化 cache
     cache::init(&app_state.sqlite)

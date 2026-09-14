@@ -1,7 +1,7 @@
 use crate::api::req::question_cate::{CreateQuestionCateReq, QuestionCateListReq};
 use crate::api::resp::question_cate::{QuestionCateListResp, QuestionCateResp};
 use crate::api::resp::textbook::TextbookResp;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question::Question;
@@ -15,7 +15,7 @@ use tracing::error;
 
 // 题型列表
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     related_id: i32,
 ) -> Result<Vec<QuestionCateResp>, AppError> {
     let db = &app_state.db;
@@ -93,7 +93,7 @@ fn build_seven_level_map(trees: Vec<TextbookResp>) -> HashMap<i32, TextbookResp>
     global_flat_map
 }
 
-async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, TextbookResp>, AppError> {
+async fn get_seven_level_map(app_state: &WebAppState) -> Result<HashMap<i32, TextbookResp>, AppError> {
     // 获取完整的七级菜单信息, 内部已处理过缓存
     let depth: u32 = 7;
     let seven_resp: Vec<TextbookResp> = textbook::list_all(app_state, depth).await?;
@@ -124,7 +124,7 @@ async fn get_seven_level_map(app_state: &AppState) -> Result<HashMap<i32, Textbo
 }
 
 pub async fn list_all(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: QuestionCateListReq,
 ) -> Result<QuestionCateListResp, AppError> {
     if req.ids.is_empty() {
@@ -210,7 +210,7 @@ pub async fn list_all(
 }
 
 // 添加题型
-pub async fn add(app_state: &AppState, req: CreateQuestionCateReq) -> Result<i32, AppError> {
+pub async fn add(app_state: &WebAppState, req: CreateQuestionCateReq) -> Result<i32, AppError> {
     let row_id = QuestionCate::save(&app_state.db, req)
         .await
         .map_err(|err| {
@@ -224,7 +224,7 @@ pub async fn add(app_state: &AppState, req: CreateQuestionCateReq) -> Result<i32
 }
 
 // 删除题型
-pub async fn remove(app_state: &AppState, id: i32) -> Result<bool, AppError> {
+pub async fn remove(app_state: &WebAppState, id: i32) -> Result<bool, AppError> {
     let db = &app_state.db;
 
     // 关联题目后就不允许删除了

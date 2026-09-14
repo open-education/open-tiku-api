@@ -1,6 +1,6 @@
 use crate::api::req::test::{AttemptListReq, LatestAttemptReq, ListReq, TestAnswerAddReq};
 use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, ListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::StudentUserInfo;
 use crate::service::test;
 use crate::util::response::ApiResponse;
@@ -9,7 +9,7 @@ use actix_web::{post, web};
 // 学生练习任务列表
 #[post("/list")]
 pub async fn list(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<ListReq>,
     user_info: StudentUserInfo,
 ) -> ApiResponse<ListResp> {
@@ -19,7 +19,7 @@ pub async fn list(
 // 进行中的做题记录
 #[post("/attempt/latest")]
 pub async fn attempt_latest(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<LatestAttemptReq>,
     user_info: StudentUserInfo,
 ) -> ApiResponse<AttemptInfoResp> {
@@ -29,7 +29,7 @@ pub async fn attempt_latest(
 // 保存答案
 #[post("/answer/add")]
 pub async fn answer_add(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<TestAnswerAddReq>,
     user_info: StudentUserInfo,
 ) -> ApiResponse<bool> {
@@ -39,7 +39,7 @@ pub async fn answer_add(
 // 做题记录列表
 #[post("/attempts")]
 pub async fn attempts(
-    app_state: web::Data<AppState>,
+    app_state: web::Data<WebAppState>,
     req: web::Json<AttemptListReq>,
     user_info: StudentUserInfo,
 ) -> ApiResponse<AttemptListResp> {

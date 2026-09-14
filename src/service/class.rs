@@ -1,6 +1,6 @@
 use crate::api::req::class::ClassInfoReq;
 use crate::api::resp::class::{ClassListReq, ClassListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::model::class::Class;
 use crate::util::error::AppError;
@@ -8,7 +8,7 @@ use tracing::error;
 
 // 添加班级
 pub async fn add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ClassInfoReq,
     user_info: TeacherUserInfo,
 ) -> Result<i64, AppError> {
@@ -69,7 +69,7 @@ fn build_class_req(req: ClassInfoReq, user_id: i64) -> Class {
 
 // 班级列表
 pub async fn list(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: ClassListReq,
     user_info: TeacherUserInfo,
 ) -> Result<ClassListResp, AppError> {

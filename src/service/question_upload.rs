@@ -1,6 +1,6 @@
 use crate::api::req::question::CreateQuestionReq;
 use crate::api::req::text::QuestionSnippetReq;
-use crate::app::conf::AppState;
+use crate::app::conf::{WebAppState, CronAppState};
 use crate::constant::meta;
 use crate::enums::question::{QuestionRelationType, QuestionStatus};
 use crate::enums::task::{TaskStatus, TaskType};
@@ -20,7 +20,7 @@ use std::str::FromStr;
 use tracing::{error, info};
 
 // 批量题目上传
-pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
+pub async fn batch(app_state: &CronAppState) -> Result<(), AppError> {
     let db = &app_state.db;
 
     // 查询所有待执行的任务
@@ -97,7 +97,7 @@ pub async fn batch(app_state: &AppState) -> Result<(), AppError> {
 
 // 上传单个题目文件
 async fn single(
-    app_state: &AppState,
+    app_state: &CronAppState,
     task_info: Task,
     map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
 ) -> Result<(), AppError> {
@@ -433,7 +433,7 @@ fn to_req(
 
 // 从markdown片段文本中解析出题目信息
 pub async fn parse_question_snippet(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: QuestionSnippetReq,
 ) -> Result<CreateQuestionReq, AppError> {
     if req.textbook_id <= 0 {

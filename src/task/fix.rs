@@ -1,6 +1,6 @@
 use crate::api::req::textbook::CreateTextbookReq;
 use crate::api::resp::textbook::TextbookResp;
-use crate::app::conf::AppState;
+use crate::app::conf::CronAppState;
 use crate::constant;
 use crate::model::textbook::Textbook;
 use crate::service::textbook::{get_levels_by_parent_id, to_level_map};
@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use tracing::error;
 
 // 补充导航 path 路径值
-pub async fn path(conf: &AppState) {
+pub async fn path(conf: &CronAppState) {
     // 限制获取数据的最大层级
     let safe_depth = constant::textbook::MAX_DEPTH;
     let Ok(rows) = Textbook::find_all_by_depth(&conf.db, safe_depth).await else {

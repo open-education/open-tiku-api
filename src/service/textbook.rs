@@ -1,6 +1,6 @@
 use crate::api::req::textbook::CreateTextbookReq;
 use crate::api::resp::textbook::TextbookResp;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::model::chapter_knowledge::ChapterKnowledge;
@@ -66,7 +66,7 @@ pub fn to_level_map(rows: Vec<Textbook>) -> HashMap<i32, Vec<Textbook>> {
 }
 
 // 根据深度获取菜单列表, 待数据稳定后该接口需要缓存, 暂时因为表比较小可以不关注
-pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookResp>, AppError> {
+pub async fn list_all(app_state: &WebAppState, depth: u32) -> Result<Vec<TextbookResp>, AppError> {
     // 限制获取数据的最大层级
     let safe_depth = depth.min(constant::textbook::MAX_DEPTH);
 
@@ -107,7 +107,7 @@ pub async fn list_all(app_state: &AppState, depth: u32) -> Result<Vec<TextbookRe
 
 // 根据父级标识获取子菜单列表
 pub async fn list_level(
-    app_state: &AppState,
+    app_state: &WebAppState,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, AppError> {
     let rows = Textbook::find_list_by_parent_id(&app_state.db, parent_id.cast_signed())
@@ -122,7 +122,7 @@ pub async fn list_level(
 
 // 根据父标识列出所有题型列表
 pub async fn list_children(
-    app_state: &AppState,
+    app_state: &WebAppState,
     parent_id: u32,
 ) -> Result<Vec<TextbookResp>, AppError> {
     let cache_key = format!("{TEXTBOOK_CACHE_PREFIX}:children:{parent_id}");
@@ -298,7 +298,7 @@ async fn check_parent_and_label_is_exists(
 }
 
 // 添加
-pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, AppError> {
+pub async fn add(app_state: &WebAppState, req: CreateTextbookReq) -> Result<i32, AppError> {
     let db = &app_state.db;
 
     check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), req.id).await?;
@@ -314,7 +314,7 @@ pub async fn add(app_state: &AppState, req: CreateTextbookReq) -> Result<i32, Ap
 }
 
 // 详情
-pub async fn info(app_state: &AppState, id: i32) -> Result<TextbookResp, AppError> {
+pub async fn info(app_state: &WebAppState, id: i32) -> Result<TextbookResp, AppError> {
     let row = Textbook::find_by_id(&app_state.db, id).await.map_err(|e| {
         error!("Error searching textbook: {e}");
         AppError::not_found("数据不存在")
@@ -324,7 +324,7 @@ pub async fn info(app_state: &AppState, id: i32) -> Result<TextbookResp, AppErro
 }
 
 // 删除菜单-没有子菜单的菜单可以被删除
-pub async fn delete(app_state: &AppState, id: i32) -> Result<bool, AppError> {
+pub async fn delete(app_state: &WebAppState, id: i32) -> Result<bool, AppError> {
     let info = info(app_state, id).await?;
 
     let db = &app_state.db;

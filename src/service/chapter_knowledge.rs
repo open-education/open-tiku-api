@@ -3,7 +3,7 @@ use crate::model::question_cate::QuestionCate;
 
 use crate::api::req::chapter_knowledge::{CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq};
 use crate::api::resp::chapter_knowledge::ChapterKnowledgeResp;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
 use crate::util::cache;
 use crate::util::error::AppError;
@@ -26,7 +26,7 @@ async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<
 }
 
 // 通过章节或者知识点获取关联信息
-pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeResp>, AppError> {
+pub async fn list(app_state: &WebAppState, id: i32) -> Result<Vec<ChapterKnowledgeResp>, AppError> {
     let rows = ChapterKnowledge::find_by_ck_ids(&app_state.db, &[id])
         .await
         .map_err(|err| {
@@ -42,7 +42,7 @@ pub async fn list(app_state: &AppState, id: i32) -> Result<Vec<ChapterKnowledgeR
 }
 
 // 绑定关联关系
-pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result<i32, AppError> {
+pub async fn add(app_state: &WebAppState, req: CreateChapterKnowledgeReq) -> Result<i32, AppError> {
     let db = &app_state.db;
 
     check_unique(db, &req).await?;
@@ -59,7 +59,7 @@ pub async fn add(app_state: &AppState, req: CreateChapterKnowledgeReq) -> Result
 
 // 解除关联关系
 pub async fn remove(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: RemoveChapterKnowledgeReq,
 ) -> Result<bool, AppError> {
     let chapter_id: i32 = req.chapter_id;

@@ -1,4 +1,4 @@
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::constant::meta;
 use crate::enums::user::{RoleType, UserSource};
 use crate::model::user_session::UserSession;
@@ -197,7 +197,7 @@ async fn validator(req: ServiceRequest) -> Result<ServiceRequest, (Error, Servic
     };
 
     // 获取全局配置
-    let Some(app_state) = req.app_data::<web::Data<AppState>>() else {
+    let Some(app_state) = req.app_data::<web::Data<WebAppState>>() else {
         let err = actix_web::error::ErrorInternalServerError("服务配置参数错误");
         return Err((err, req));
     };

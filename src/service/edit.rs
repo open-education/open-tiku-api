@@ -1,5 +1,5 @@
 use crate::api::req::edit::CommonEditStatusReq;
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::paper::PaperStatus;
 use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
@@ -11,7 +11,7 @@ use tracing::error;
 
 // 更新题目状态
 pub async fn question_status(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {
@@ -74,7 +74,7 @@ pub async fn question_status(
 
 // 更新试卷状态
 pub async fn paper_status(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: CommonEditStatusReq,
     user_info: TeacherUserInfo,
 ) -> Result<bool, AppError> {

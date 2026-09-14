@@ -1,6 +1,6 @@
 use crate::api::req::task::{TaskAddReq, TaskListReq};
 use crate::api::resp::task::{TaskInfoResp, TaskListResp};
-use crate::app::conf::AppState;
+use crate::app::conf::WebAppState;
 use crate::enums::task::TaskType;
 use crate::middleware::user::UserInfo;
 use crate::model::task::Task;
@@ -11,7 +11,7 @@ use tracing::error;
 
 // 添加任务
 pub async fn add(
-    app_state: &AppState,
+    app_state: &WebAppState,
     req: TaskAddReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
@@ -29,7 +29,7 @@ pub async fn add(
     Ok(row_id)
 }
 
-pub async fn list(app_state: &AppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
+pub async fn list(app_state: &WebAppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
     let total = Task::count_by_cate(db, req.question_cate_id, req.task_type)
