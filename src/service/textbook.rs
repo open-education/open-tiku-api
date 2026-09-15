@@ -3,6 +3,7 @@ use crate::api::resp::textbook::TextbookResp;
 use crate::app::conf::WebAppState;
 use crate::constant;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
+use crate::enums::textbook::PathType;
 use crate::model::chapter_knowledge::ChapterKnowledge;
 use crate::model::question_cate::QuestionCate;
 use crate::model::textbook::Textbook;
@@ -257,7 +258,7 @@ fn fill_question_cate(
 
                         row_children.push(TextbookResp {
                             id: q.id,
-                            path_type: String::from(constant::textbook::PATH_TYPE_COMMON),
+                            path_type: String::from(PathType::Common.desc()),
                             parent_id: None,
                             label: q.label.clone(),
                             key: key_buf.clone(),
@@ -299,6 +300,11 @@ async fn check_parent_and_label_is_exists(
 
 // 添加
 pub async fn add(app_state: &WebAppState, req: CreateTextbookReq) -> Result<i32, AppError> {
+    let Some(path_type) = req.path_type.as_deref() else {
+        return Err(AppError::param_error("菜单类型不能为空"));
+    };
+    PathType::from_str(path_type).ok_or_else(|| AppError::param_error("菜单类型不正确"))?;
+
     let db = &app_state.db;
 
     check_parent_and_label_is_exists(db, req.parent_id, req.label.as_str(), req.id).await?;

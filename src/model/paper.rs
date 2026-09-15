@@ -1,4 +1,5 @@
 use crate::api::req::paper::PaperListReq;
+use crate::enums::paper::PaperStatus;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction, query_as, query_scalar};
 
@@ -311,5 +312,14 @@ impl Paper {
             .await?;
 
         Ok(row.rows_affected())
+    }
+
+    // 审核通过的试卷套数
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_paper_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM paper WHERE status = $1")
+            .bind(PaperStatus::Published as i16)
+            .fetch_one(pool)
+            .await
     }
 }

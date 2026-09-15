@@ -1,4 +1,6 @@
 use crate::api::req::textbook::CreateTextbookReq;
+use crate::constant::textbook::TEXTBOOK_DEPTH;
+use crate::enums::textbook::PathType;
 use sqlx::{FromRow, PgPool};
 
 // 教材信息
@@ -172,5 +174,17 @@ impl Textbook {
         .await?;
 
         Ok(rows)
+    }
+
+    // 教材总数
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_textbook_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            r"SELECT COUNT(*) FROM textbook WHERE path_type = $1 AND path_depth = $2",
+        )
+        .bind(PathType::Chapter.desc())
+        .bind(TEXTBOOK_DEPTH)
+        .fetch_one(pool)
+        .await
     }
 }
