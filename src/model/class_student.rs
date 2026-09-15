@@ -189,4 +189,12 @@ impl ClassStudent {
 
         Ok(row)
     }
+
+    // 统计学生数量
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_student_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM class_student")
+            .fetch_one(pool)
+            .await
+    }
 }

@@ -1,5 +1,6 @@
 use crate::api::req::paper::GenPaperGenConfig;
 use crate::api::req::question::CreateQuestionReq;
+use crate::constant::meta::STAT_MAX_NUM;
 use crate::enums::dict::TypeCode;
 use crate::enums::question::{QuestionRelationType, QuestionStatus};
 use chrono::{DateTime, Utc};
@@ -83,12 +84,29 @@ pub struct Question {
     pub updated_at: DateTime<Utc>,
 }
 
+// 最新上传题目
 #[derive(FromRow)]
 pub struct LightQuestion {
     pub id: i64,
     pub question_cate_id: i32,
     pub title: String,
     pub created_at: DateTime<Utc>,
+}
+
+// 上传题目最多的作者信息
+#[derive(FromRow, Serialize, Deserialize, Default)]
+pub struct AuthorQuestion {
+    pub author_id: i64,
+    #[sqlx(default)]
+    pub author_name: String,
+    pub cnt: i64,
+}
+
+// 题目最多的教材
+#[derive(FromRow, Serialize, Deserialize, Default)]
+pub struct TopTextbook {
+    pub textbook_id: i32,
+    pub cnt: i64,
 }
 
 // 普通题目列表请求
@@ -726,5 +744,70 @@ impl Question {
         qb.push(" ORDER BY RANDOM() LIMIT ").push_bind(limit);
 
         qb.build_query_as::<Self>().fetch_all(pool).await
+    }
+
+    // 最新上传题目
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn latest_question_ids(pool: &PgPool) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            r"SELECT id FROM question WHERE status = $1 ORDER BY id DESC LIMIT $2",
+        )
+        .bind(QuestionStatus::Published as i16)
+        .bind(STAT_MAX_NUM as i64)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 审核通过的题目总数
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_question_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM question WHERE status = $1")
+            .bind(QuestionStatus::Published as i16)
+            .fetch_one(pool)
+            .await
+    }
+
+    // 传题最多的作者
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_author_top_question(
+        pool: &PgPool,
+    ) -> Result<Vec<AuthorQuestion>, sqlx::Error> {
+        sqlx::query_as::<_, AuthorQuestion>(
+            r"
+        SELECT author_id, COUNT(*) AS cnt
+        FROM question
+        WHERE status = $1
+        GROUP BY author_id
+        LIMIT $2
+        ",
+        )
+        .bind(QuestionStatus::Published as i16)
+        .bind(STAT_MAX_NUM)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 题目最多的教材
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_top_textbooks(pool: &PgPool) -> Result<Vec<TopTextbook>, sqlx::Error> {
+        sqlx::query_as::<_, TopTextbook>(
+            r"
+            SELECT split_part(t7.path, '/', 6)::int AS textbook_id,
+                   COUNT(*)                          AS cnt
+            FROM question q
+            JOIN question_cate     qc ON qc.id = q.question_cate_id
+            JOIN chapter_knowledge ck ON ck.id = qc.related_id
+            JOIN textbook          t7 ON t7.id = ck.chapter_id
+                                      AND t7.path_depth = 7
+            WHERE q.status = $1
+            GROUP BY textbook_id
+            ORDER BY cnt DESC
+            LIMIT $2
+        ",
+        )
+        .bind(QuestionStatus::Published as i16)
+        .bind(STAT_MAX_NUM)
+        .fetch_all(pool)
+        .await
     }
 }

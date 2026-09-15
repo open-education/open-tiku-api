@@ -31,7 +31,12 @@ pub async fn board(app_state: &WebAppState, limit: i16) -> Result<BoardResp, App
     // 最新上传题目
     let latest_questions = latest_question(db, &row.latest_question_ids.0).await?;
 
-    Ok(BoardResp { latest_questions })
+    Ok(BoardResp {
+        count_info: row.count_info.0.into(),
+        latest_questions,
+        top_teacher_questions: row.top_teacher_ids.0.into_iter().map(Into::into).collect(),
+        top_textbooks: row.top_textbook_ids.0.into_iter().map(Into::into).collect(),
+    })
 }
 
 async fn latest_question(pool: &PgPool, ids: &[i64]) -> Result<Vec<LatestQuestionResp>, AppError> {
@@ -62,7 +67,7 @@ pub async fn add_lastest_question_id(pool: &PgPool, id: i64) -> Result<(), AppEr
             ..Stat::default()
         });
 
-    if row.latest_question_ids.0.len() >= STAT_MAX_NUM {
+    if row.latest_question_ids.0.len() as i16 >= STAT_MAX_NUM {
         if let Some(idx) = row
             .latest_question_ids
             .0

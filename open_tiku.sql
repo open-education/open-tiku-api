@@ -407,5 +407,6 @@ CREATE TABLE stat
     top_question_ids    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门题目标识
     top_textbook_ids    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教材标识
     top_teacher_ids     JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教师, 包括普通用户标识
-    top_student_ids     JSONB NOT NULL DEFAULT '[]'::jsonb  -- 热门学生标识
+    top_student_ids     JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门学生标识
+    count_info          JSONB          DEFAULT '{}'::jsonb  -- 汇总统计
 );
