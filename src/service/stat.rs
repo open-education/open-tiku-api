@@ -34,8 +34,8 @@ pub async fn board(app_state: &WebAppState, limit: i16) -> Result<BoardResp, App
     Ok(BoardResp {
         count_info: row.count_info.0.into(),
         latest_questions,
-        top_teacher_questions: row.top_teacher_ids.0.into_iter().map(Into::into).collect(),
-        top_textbooks: row.top_textbook_ids.0.into_iter().map(Into::into).collect(),
+        top_teacher_questions: row.top_teacher_info.0.into_iter().map(Into::into).collect(),
+        top_textbooks: row.top_textbook_info.0.into_iter().map(Into::into).collect(),
     })
 }
 

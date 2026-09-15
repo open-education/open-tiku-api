@@ -19,9 +19,9 @@ pub struct Stat {
     pub date: Option<NaiveDate>,
     pub latest_question_ids: Json<Vec<i64>>,
     pub top_question_ids: Json<Vec<i64>>,
-    pub top_textbook_ids: Json<Vec<TopTextbook>>,
-    pub top_teacher_ids: Json<Vec<AuthorQuestion>>,
-    pub top_student_ids: Json<Vec<i64>>,
+    pub top_textbook_info: Json<Vec<TopTextbook>>,
+    pub top_teacher_info: Json<Vec<AuthorQuestion>>,
+    pub top_student_info: Json<Vec<i64>>,
     pub count_info: Json<CountInfo>,
 }
 
@@ -30,26 +30,27 @@ impl Stat {
         sqlx::query(
             r"
         INSERT INTO stat (date, latest_question_ids, top_question_ids,
-                          top_textbook_ids, top_teacher_ids, top_student_ids, count_info)
+                          top_textbook_info, top_teacher_info, top_student_info, count_info)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (date) DO UPDATE SET
             latest_question_ids = EXCLUDED.latest_question_ids,
             top_question_ids    = EXCLUDED.top_question_ids,
-            top_textbook_ids    = EXCLUDED.top_textbook_ids,
-            top_teacher_ids     = EXCLUDED.top_teacher_ids,
-            top_student_ids     = EXCLUDED.top_student_ids,
-            count_info = EXCLUDED.count_info
+            top_textbook_info   = EXCLUDED.top_textbook_info,
+            top_teacher_info    = EXCLUDED.top_teacher_info,
+            top_student_info    = EXCLUDED.top_student_info,
+            count_info          = EXCLUDED.count_info
         ",
         )
         .bind(req.date)
         .bind(&req.latest_question_ids)
         .bind(&req.top_question_ids)
-        .bind(&req.top_textbook_ids)
-        .bind(&req.top_teacher_ids)
-        .bind(&req.top_student_ids)
+        .bind(&req.top_textbook_info)
+        .bind(&req.top_teacher_info)
+        .bind(&req.top_student_info)
         .bind(&req.count_info)
         .execute(pool)
         .await?;
+
         Ok(())
     }
 

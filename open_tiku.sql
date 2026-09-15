@@ -405,8 +405,8 @@ CREATE TABLE stat
     date                DATE PRIMARY KEY,                   -- 统计该日期的数据, 部分是昨日概念, 部分是最近概念
     latest_question_ids JSONB NOT NULL DEFAULT '[]'::jsonb, -- 最新题目标识, 最近概念
     top_question_ids    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门题目标识
-    top_textbook_ids    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教材标识
-    top_teacher_ids     JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教师, 包括普通用户标识
-    top_student_ids     JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门学生标识
-    count_info          JSONB          DEFAULT '{}'::jsonb  -- 汇总统计
+    top_textbook_info   JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教材
+    top_teacher_info    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门教师, 包括普通用户
+    top_student_info    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门学生
+    count_info          JSONB NOT NULL DEFAULT '{}'::jsonb  -- 汇总统计
 );

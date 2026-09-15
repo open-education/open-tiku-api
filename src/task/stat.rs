@@ -47,14 +47,14 @@ pub async fn stat(conf: &CronAppState) {
         error!("stat top textbook num err: {e}");
         Vec::new()
     });
-    row.top_textbook_ids = Json(top_textbooks);
+    row.top_textbook_info = Json(top_textbooks);
 
     // 活跃教师-上传题目最多
     let author_questions = author_top_question(db).await.unwrap_or_else(|e| {
         error!("stat author question err: {}", e.msg);
         Vec::new()
     });
-    row.top_teacher_ids = Json(author_questions);
+    row.top_teacher_info = Json(author_questions);
 
     // 活跃学生-做题最多
 
