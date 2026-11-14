@@ -111,7 +111,7 @@ pub struct TopTextbook {
 
 // 普通题目列表请求
 pub struct CateAndTypeReq {
-    pub cate_ids: Vec<i32>,
+    pub cate_ids: Option<Vec<i32>>,
     pub status: i16,
     pub type_id: Option<i32>,
     pub ids: Option<Vec<i64>>,
@@ -184,11 +184,15 @@ trait QueryBuilderExt<'a> {
 // 为 sqlx::QueryBuilder 实现这个 Trait
 impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
     fn push_cate_and_type_where(mut self, req: &'a CateAndTypeReq) -> Self {
-        self.push(" WHERE question_cate_id = ANY(")
-            .push_bind(&req.cate_ids)
-            .push(")");
-        self.push(" AND status = ").push_bind(req.status);
+        self.push(" WHERE status = ").push_bind(req.status);
 
+        if let Some(ref cate_ids) = req.cate_ids
+            && !cate_ids.is_empty()
+        {
+            self.push(" AND question_cate_id = ANY(")
+                .push_bind(cate_ids)
+                .push(")");
+        }
         if let Some(type_id) = req.type_id
             && type_id > 0
         {

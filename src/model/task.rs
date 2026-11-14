@@ -1,6 +1,6 @@
 use crate::api::req::task::TaskAddReq;
 use crate::enums::task::TaskStatus;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 
 // 任务管理
 
@@ -69,45 +69,54 @@ impl Task {
 
     pub async fn count_by_cate(
         pool: &PgPool,
-        question_cate_id: i64,
+        question_cate_id: Option<i64>,
         task_type: i16,
+        author_id: i64,
     ) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(
-            r"
-            SELECT COUNT(*) FROM task
-            WHERE question_cate_id=$1
-              AND task_type = $2
-            ",
-        )
-        .bind(question_cate_id)
-        .bind(task_type)
-        .fetch_one(pool)
-        .await
+        let mut qb: QueryBuilder<Postgres> =
+            QueryBuilder::new("SELECT COUNT(*) FROM task WHERE author_id = ");
+        qb.push_bind(author_id);
+
+        qb.push(" AND task_type = ");
+        qb.push_bind(task_type);
+
+        // 只有当参数为 Some 时，才拼接该条件，保证索引高效命中
+        if let Some(cate_id) = question_cate_id {
+            qb.push(" AND question_cate_id = ");
+            qb.push_bind(cate_id);
+        }
+
+        qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
     pub async fn list_by_cate(
         pool: &PgPool,
-        question_cate_id: i64,
+        question_cate_id: Option<i64>,
         task_type: i16,
+        author_id: i64,
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>(
-            r"
-        SELECT *
-        FROM task
-        WHERE question_cate_id = $1
-          AND task_type = $2
-        ORDER BY id DESC
-        LIMIT $3 OFFSET $4
-        ",
-        )
-        .bind(question_cate_id)
-        .bind(task_type)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
+        let mut qb: QueryBuilder<Postgres> =
+            QueryBuilder::new("SELECT * FROM task WHERE author_id = ");
+        qb.push_bind(author_id);
+
+        qb.push(" AND task_type = ");
+        qb.push_bind(task_type);
+
+        // 动态拼接可选过滤条件
+        if let Some(cate_id) = question_cate_id {
+            qb.push(" AND question_cate_id = ");
+            qb.push_bind(cate_id);
+        }
+
+        qb.push(" ORDER BY id DESC LIMIT ");
+        qb.push_bind(limit);
+
+        qb.push(" OFFSET ");
+        qb.push_bind(offset);
+
+        qb.build_query_as::<Self>().fetch_all(pool).await
     }
 
     // 所有待执行的任务列表

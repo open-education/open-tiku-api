@@ -23,6 +23,7 @@ pub async fn add(
 pub async fn list(
     app_state: web::Data<WebAppState>,
     req: web::Json<TaskListReq>,
+    user_info: UserInfo,
 ) -> ApiResponse<TaskListResp> {
-    ApiResponse::response(task::list(&app_state, req.into_inner()).await)
+    ApiResponse::response(task::list(&app_state, req.into_inner(), user_info).await)
 }

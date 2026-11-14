@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS task
 );
 -- 查看作者自己的任务
 CREATE INDEX IF NOT EXISTS idx_cate_task ON task (question_cate_id, author_id, task_type);
+CREATE INDEX IF NOT EXISTS idx_cate_author_task ON task (author_id, task_type);
 
 -- 4. 试卷主表
 CREATE TABLE paper

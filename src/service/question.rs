@@ -175,6 +175,15 @@ pub async fn list(
 
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
+        // 通用列表题型分类不能为空
+        if req
+            .question_cate_ids
+            .as_deref()
+            .is_none_or(|ids| ids.is_empty())
+        {
+            return Err(AppError::param_error("通用查询时题型不能为空"));
+        }
+
         (None, QuestionStatus::Published as i16)
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;

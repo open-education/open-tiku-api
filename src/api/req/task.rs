@@ -14,7 +14,7 @@ pub struct TaskAddReq {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskListReq {
-    pub question_cate_id: i64,
+    pub question_cate_id: Option<i64>,
     pub task_type: i16,
     pub page_no: i32,
     pub page_size: i32,

@@ -29,10 +29,14 @@ pub async fn add(
     Ok(row_id)
 }
 
-pub async fn list(app_state: &WebAppState, req: TaskListReq) -> Result<TaskListResp, AppError> {
+pub async fn list(
+    app_state: &WebAppState,
+    req: TaskListReq,
+    user_info: UserInfo,
+) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
-    let total = Task::count_by_cate(db, req.question_cate_id, req.task_type)
+    let total = Task::count_by_cate(db, req.question_cate_id, req.task_type, user_info.user_id)
         .await
         .map_err(|e| {
             error!("task count by id err: {e}");
@@ -53,6 +57,7 @@ pub async fn list(app_state: &WebAppState, req: TaskListReq) -> Result<TaskListR
         db,
         req.question_cate_id,
         req.task_type,
+        user_info.user_id,
         req.page_size,
         offset,
     )

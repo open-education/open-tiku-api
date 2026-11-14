@@ -48,7 +48,7 @@ pub struct CreateQuestionReq {
 pub struct QuestionListReq {
     // 页面来源
     pub source: String,
-    pub question_cate_ids: Vec<i32>,
+    pub question_cate_ids: Option<Vec<i32>>,
     pub question_type_id: Option<i32>,
     pub dimension_ids: Option<Vec<i32>>, // 核心素养
     pub status: Option<i16>,
