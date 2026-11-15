@@ -1,7 +1,9 @@
 use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
-use crate::api::resp::question::{QuestionBaseResp, QuestionInfoResp, QuestionListResp};
+use crate::api::resp::question::{
+    CountQuestionResp, QuestionBaseResp, QuestionInfoResp, QuestionListResp,
+};
 use crate::app::conf::WebAppState;
 use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
@@ -175,15 +177,6 @@ pub async fn list(
 
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
-        // 通用列表题型分类不能为空
-        if req
-            .question_cate_ids
-            .as_deref()
-            .is_none_or(|ids| ids.is_empty())
-        {
-            return Err(AppError::param_error("通用查询时题型不能为空"));
-        }
-
         (None, QuestionStatus::Published as i16)
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
@@ -352,4 +345,22 @@ pub async fn delete(
     })?;
 
     Ok(rows > 0)
+}
+
+pub async fn count(
+    app_state: &WebAppState,
+    user_info: UserInfo,
+) -> Result<Vec<CountQuestionResp>, AppError> {
+    let db = &app_state.db;
+
+    let rows = Question::find_count_by_author_id(db, user_info.user_id)
+        .await
+        .map_err(|err| {
+            error!("question count by id err: {err}");
+            AppError::db_error("统计用户题目状态计数出错")
+        })?;
+
+    let result: Vec<CountQuestionResp> = rows.into_iter().map(Into::into).collect();
+
+    Ok(result)
 }

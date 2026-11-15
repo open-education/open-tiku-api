@@ -411,3 +411,15 @@ CREATE TABLE stat
     top_student_info    JSONB NOT NULL DEFAULT '[]'::jsonb, -- 热门学生
     count_info          JSONB NOT NULL DEFAULT '{}'::jsonb  -- 汇总统计
 );
+
+--9 个性化
+CREATE TABLE custom
+(
+    id          BIGSERIAL PRIMARY KEY,
+    author_id   BIGINT   NOT NULL DEFAULT 0,           -- 作者标识
+    custom_type SMALLINT NOT NULL,                     -- 个性化类型 1 教材菜单
+    textbook    JSONB    NOT NULL DEFAULT '{}'::jsonb, -- 教材层级菜单默认值
+    created_at  TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_author ON custom (author_id);

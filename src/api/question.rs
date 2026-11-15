@@ -1,7 +1,7 @@
 use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
-use crate::api::resp::question::{QuestionInfoResp, QuestionListResp};
+use crate::api::resp::question::{CountQuestionResp, QuestionInfoResp, QuestionListResp};
 use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
 use crate::service::question;
@@ -53,4 +53,12 @@ pub async fn delete(
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
     ApiResponse::response(question::delete(&app_state, req.into_inner(), user_info).await)
+}
+
+#[get("/count")]
+pub async fn count(
+    app_state: web::Data<WebAppState>,
+    user_info: UserInfo,
+) -> ApiResponse<Vec<CountQuestionResp>> {
+    ApiResponse::response(question::count(&app_state, user_info).await)
 }

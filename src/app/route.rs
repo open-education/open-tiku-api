@@ -1,8 +1,8 @@
 use actix_web::web;
 
 use crate::api::{
-    callback, chapter_knowledge, class, class_student, edit, file, homework, other_dict, paper,
-    question, question_cate, stat, task, test, text, textbook, user,
+    callback, chapter_knowledge, class, class_student, custom, edit, file, homework, other_dict,
+    paper, question, question_cate, stat, task, test, text, textbook, user,
 };
 
 // web 服务路由配置
@@ -22,7 +22,8 @@ pub fn question(cfg: &mut web::ServiceConfig) {
         .service(question::info)
         .service(question::list)
         .service(question::similar)
-        .service(question::delete);
+        .service(question::delete)
+        .service(question::count);
 }
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
@@ -123,4 +124,8 @@ pub fn test(cfg: &mut web::ServiceConfig) {
 
 pub fn stat(cfg: &mut web::ServiceConfig) {
     cfg.service(stat::board);
+}
+
+pub fn custom(cfg: &mut web::ServiceConfig) {
+    cfg.service(custom::add).service(custom::list);
 }

@@ -109,6 +109,13 @@ pub struct TopTextbook {
     pub cnt: i64,
 }
 
+// 统计用户题目计数
+#[derive(FromRow)]
+pub struct CountQuestion {
+    pub status: i16,
+    pub count: i64,
+}
+
 // 普通题目列表请求
 pub struct CateAndTypeReq {
     pub cate_ids: Option<Vec<i32>>,
@@ -811,6 +818,19 @@ impl Question {
         )
         .bind(QuestionStatus::Published as i16)
         .bind(STAT_MAX_NUM)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 我的题目状态统计
+    pub async fn find_count_by_author_id(
+        pool: &PgPool,
+        author_id: i64,
+    ) -> Result<Vec<CountQuestion>, sqlx::Error> {
+        sqlx::query_as::<_, CountQuestion>(
+            r"SELECT status, COUNT(*) FROM question WHERE author_id = $1 GROUP BY status",
+        )
+        .bind(author_id)
         .fetch_all(pool)
         .await
     }

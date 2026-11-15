@@ -1,4 +1,4 @@
-use crate::model::question::{Content, Question, QuestionOption, Step};
+use crate::model::question::{Content, CountQuestion, Question, QuestionOption, Step};
 use crate::util::local::to_local_datetime;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -120,4 +120,19 @@ pub struct QuestionListResp {
     pub page_no: i32,
     pub page_size: i32,
     pub total: i64,
+}
+
+#[derive(Serialize)]
+pub struct CountQuestionResp {
+    pub status: i16,
+    pub count: i64,
+}
+
+impl From<CountQuestion> for CountQuestionResp {
+    fn from(raw: CountQuestion) -> Self {
+        Self {
+            status: raw.status,
+            count: raw.count,
+        }
+    }
 }

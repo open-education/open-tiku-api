@@ -156,6 +156,8 @@ const OPTION_PREFIX_LIST: &[&str] = &[
     "/question/list",
     // 试卷
     "/paper/list",
+    // 个性化配置
+    "/custom/list",
 ];
 
 pub async fn auth(
