@@ -15,6 +15,7 @@ target
 
 # RustRover
 .idea/
+.DS_Store
 
 # 项目根目录配置文件不提交到代码库
 /config.toml
