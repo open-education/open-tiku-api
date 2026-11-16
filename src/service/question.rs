@@ -177,16 +177,15 @@ pub async fn list(
 
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
-        (None, QuestionStatus::Published as i16)
+        (None, Some(QuestionStatus::Published as i16))
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
-        let status = req.status.unwrap_or(QuestionStatus::Published as i16);
-
-        // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者
+        // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者, 后续审核查询条件重新指定
+        // 我的题目和审核状态由前端自己指定
         if req_source == QuestionPageSource::MyQuestion {
-            (Some(user_info.user_id), status)
+            (Some(user_info.user_id), req.status)
         } else {
-            (None, status)
+            (None, req.status)
         }
     };
 
