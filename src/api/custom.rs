@@ -1,10 +1,10 @@
-use crate::api::req::custom::CustomReq;
+use crate::api::req::custom::{AddReq, CustomListReq};
 use crate::api::resp::custom::CustomResp;
 use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
 use crate::service::custom;
 use crate::util::response::ApiResponse;
-use actix_web::{get, post, web};
+use actix_web::{post, web};
 
 // 个性化定制
 
@@ -12,16 +12,17 @@ use actix_web::{get, post, web};
 #[post("/add")]
 pub async fn add(
     app_state: web::Data<WebAppState>,
-    req: web::Json<CustomReq>,
+    req: web::Json<AddReq>,
     user_info: UserInfo,
 ) -> ApiResponse<i64> {
     ApiResponse::response(custom::add(&app_state, req.into_inner(), user_info).await)
 }
 
-#[get("/list")]
+#[post("/list")]
 pub async fn list(
     app_state: web::Data<WebAppState>,
+    req: web::Json<CustomListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<Vec<CustomResp>> {
-    ApiResponse::response(custom::list(&app_state, user_info).await)
+    ApiResponse::response(custom::list(&app_state, req.into_inner(), user_info).await)
 }

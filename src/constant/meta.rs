@@ -24,3 +24,5 @@ pub const MARKDOWN_BASE_TITLE_TAG: &str = "### 母题";
 pub const MARKDOWN_PREFIX_TITLE_LIST: [&str; 2] = ["### ", "#### "];
 // 统计数据最大数量
 pub const STAT_MAX_NUM: i16 = 10;
+// 系统用户标识, 该标识不应该被真实用户占用
+pub const SYSTEM_USER_ID: i64 = 1;
