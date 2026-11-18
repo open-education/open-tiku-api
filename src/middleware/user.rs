@@ -148,6 +148,8 @@ const PREFIX_LIST: &[&str] = &[
     "/question-cate/list/all",
     // 统计
     "/stat/board/",
+    // 城市列表
+    "/city/list",
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析
