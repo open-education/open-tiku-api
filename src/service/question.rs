@@ -190,6 +190,8 @@ pub async fn list(
     };
 
     let query_req: CateAndTypeReq = CateAndTypeReq {
+        two_level_id: req.two_level_id,
+        five_level_id: req.five_level_id,
         cate_ids: req.question_cate_ids,
         status,
         type_id: req.question_type_id,

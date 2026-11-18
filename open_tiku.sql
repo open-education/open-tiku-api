@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS question
     id                     BIGSERIAL PRIMARY KEY,
 
     -- 基础关联
+    two_level_id           INTEGER      NOT NULL DEFAULT 0,                                           -- 第2层菜单标识
+    five_level_id          INTEGER      NOT NULL DEFAULT 0,                                           -- 第5层菜单标识
     question_cate_id       INTEGER      NOT NULL,                                                     -- 题型标识
     question_type_id       INTEGER      NOT NULL,                                                     -- 题目类型ID (1:单选, 2:多选, 3:填空, 4:解答等)
     question_tag_ids       JSONB,                                                                     -- 题目标签IDs
@@ -111,11 +113,11 @@ CREATE TABLE IF NOT EXISTS question
 );
 
 -- 题型和题目类型联合索引
-CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (question_cate_id, question_type_id);
+CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (two_level_id, five_level_id, question_cate_id, question_type_id);
 -- 题型和审核状态联合索引
-CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (question_cate_id, status);
+CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (two_level_id, five_level_id, question_cate_id, status);
 -- 查看作者自己的题
-CREATE INDEX IF NOT EXISTS idx_author_status ON question (author_id, status);
+CREATE INDEX IF NOT EXISTS idx_author_status ON question (two_level_id, five_level_id, author_id, status);
 
 -- 2.1. 题目关联关系
 CREATE TABLE IF NOT EXISTS question_relation
@@ -132,21 +134,20 @@ CREATE TABLE IF NOT EXISTS question_relation
 CREATE TABLE IF NOT EXISTS task
 (
     id               BIGSERIAL PRIMARY KEY,
-    question_cate_id BIGINT       NOT NULL, -- 题型标识
-    task_type        SMALLINT     NOT NULL, -- 任务类型 1 题目上传
-    name             VARCHAR(128) NOT NULL, -- 文件名称
-    author_id        BIGINT       NOT NULL, -- 创作者标识
-    textbook_id      INTEGER      NOT NULL, -- 教材标识, 目前在第2层上, 跟题型标签一个维度
-    url              VARCHAR(128) NOT NULL, -- 文件路径
-    email            VARCHAR(128) NOT NULL, -- 接收任务结果的邮箱
-    status           SMALLINT     NOT NULL, -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
-    result           TEXT         NULL,     -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
-    created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    two_level_id     INTEGER      NOT NULL DEFAULT 0, -- 第2层菜单标识
+    five_level_id    INTEGER      NOT NULL DEFAULT 0, -- 第5层菜单标识
+    question_cate_id BIGINT       NOT NULL,           -- 题型标识
+    task_type        SMALLINT     NOT NULL,           -- 任务类型 1 题目上传
+    name             VARCHAR(128) NOT NULL,           -- 文件名称
+    author_id        BIGINT       NOT NULL,           -- 创作者标识
+    url              VARCHAR(128) NOT NULL,           -- 文件路径
+    email            VARCHAR(128) NOT NULL,           -- 接收任务结果的邮箱
+    status           SMALLINT     NOT NULL,           -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
+    result           TEXT         NULL,               -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
+    created_at       TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
--- 查看作者自己的任务
-CREATE INDEX IF NOT EXISTS idx_cate_task ON task (question_cate_id, author_id, task_type);
-CREATE INDEX IF NOT EXISTS idx_cate_author_task ON task (author_id, task_type);
+CREATE INDEX IF NOT EXISTS idx_cate_task ON task (author_id, two_level_id, five_level_id, question_cate_id, task_type);
 
 -- 4. 试卷主表
 CREATE TABLE paper

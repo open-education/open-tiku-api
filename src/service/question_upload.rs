@@ -1,6 +1,6 @@
 use crate::api::req::question::CreateQuestionReq;
 use crate::api::req::text::QuestionSnippetReq;
-use crate::app::conf::{WebAppState, CronAppState};
+use crate::app::conf::{CronAppState, WebAppState};
 use crate::constant::meta;
 use crate::enums::question::{QuestionRelationType, QuestionStatus};
 use crate::enums::task::{TaskStatus, TaskType};
@@ -38,7 +38,7 @@ pub async fn batch(app_state: &CronAppState) -> Result<(), AppError> {
     // 得到所有的教材通用字典
     let mut textbook_ids: Vec<i32> = waiting_task_list
         .iter()
-        .map(|item| item.textbook_id)
+        .map(|item| item.two_level_id)
         .collect();
     textbook_ids.sort_unstable();
     textbook_ids.dedup();
@@ -356,8 +356,8 @@ fn to_req(
     task_info: &Task,
     map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
 ) -> Result<CreateQuestionReq, AppError> {
-    let dict_map = map.get(&task_info.textbook_id).ok_or_else(|| {
-        error!("textbook_id: {} dict is empty", task_info.textbook_id);
+    let dict_map = map.get(&task_info.two_level_id).ok_or_else(|| {
+        error!("textbook_id: {} dict is empty", task_info.two_level_id);
         AppError::not_found("教材通用字典不存在")
     })?;
 
@@ -393,6 +393,8 @@ fn to_req(
 
     let req = CreateQuestionReq {
         id: None,
+        two_level_id: task_info.two_level_id,
+        five_level_id: task_info.five_level_id,
         question_cate_id: task_info.question_cate_id as i32,
         source_id: parent_id,
         relation_type: relation_type as i16,
@@ -499,6 +501,8 @@ pub async fn parse_question_snippet(
 
     Ok(CreateQuestionReq {
         id: None,
+        two_level_id: 0,
+        five_level_id: 0,
         question_cate_id: 0,
         source_id: None,
         relation_type: QuestionRelationType::Base as i16,

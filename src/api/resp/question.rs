@@ -9,6 +9,8 @@ use sqlx::types::Json;
 #[serde(rename_all = "camelCase")]
 pub struct QuestionBaseResp {
     pub id: i64,
+    pub two_level_id: i32,
+    pub five_level_id: i32,
     pub question_cate_id: i32,                          // 题型主键
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
@@ -74,6 +76,8 @@ impl From<(Question, String, String)> for QuestionInfoResp {
         Self {
             base_info: QuestionBaseResp {
                 id: raw.0.id,
+                two_level_id: raw.0.two_level_id,
+                five_level_id: raw.0.five_level_id,
                 question_cate_id: raw.0.question_cate_id,
                 question_type_id: raw.0.question_type_id,
                 question_tag_ids: raw.0.question_tag_ids,

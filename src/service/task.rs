@@ -36,12 +36,19 @@ pub async fn list(
 ) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
-    let total = Task::count_by_cate(db, req.question_cate_id, req.task_type, user_info.user_id)
-        .await
-        .map_err(|e| {
-            error!("task count by id err: {e}");
-            AppError::db_error("任务计数查询失败")
-        })?;
+    let total = Task::count_by_cate(
+        db,
+        req.two_level_id,
+        req.five_level_id,
+        req.question_cate_id,
+        req.task_type,
+        user_info.user_id,
+    )
+    .await
+    .map_err(|e| {
+        error!("task count by id err: {e}");
+        AppError::db_error("任务计数查询失败")
+    })?;
 
     let offset = (req.page_no - 1) * req.page_size;
     if offset >= total as i32 {
@@ -55,6 +62,8 @@ pub async fn list(
 
     let list_data = Task::list_by_cate(
         db,
+        req.two_level_id,
+        req.five_level_id,
         req.question_cate_id,
         req.task_type,
         user_info.user_id,

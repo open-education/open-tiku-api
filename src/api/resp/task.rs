@@ -7,6 +7,8 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct TaskInfoResp {
     pub id: i64,
+    pub two_level_id: i32,
+    pub five_level_id: i32,
     pub question_cate_id: i64,
     pub task_type: i16,
     pub name: String,
@@ -21,20 +23,22 @@ pub struct TaskInfoResp {
 }
 
 impl From<Task> for TaskInfoResp {
-    fn from(row: Task) -> Self {
+    fn from(raw: Task) -> Self {
         Self {
-            id: row.id,
-            question_cate_id: row.question_cate_id,
-            task_type: row.task_type,
-            name: row.name,
-            url: row.url,
+            id: raw.id,
+            two_level_id: raw.two_level_id,
+            five_level_id: raw.five_level_id,
+            question_cate_id: raw.question_cate_id,
+            task_type: raw.task_type,
+            name: raw.name,
+            url: raw.url,
             author: String::new(),
-            status: row.status,
-            status_desc: TaskStatus::desc(row.status).to_string(),
-            email: row.email,
-            result: row.result,
-            created_at: to_local_datetime(Some(row.created_at)),
-            updated_at: to_local_datetime(Some(row.updated_at)),
+            status: raw.status,
+            status_desc: TaskStatus::desc(raw.status).to_string(),
+            email: raw.email,
+            result: raw.result,
+            created_at: to_local_datetime(Some(raw.created_at)),
+            updated_at: to_local_datetime(Some(raw.updated_at)),
         }
     }
 }

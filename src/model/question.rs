@@ -36,6 +36,8 @@ pub struct Step {
 #[derive(FromRow)]
 pub struct Question {
     pub id: i64,
+    pub two_level_id: i32,
+    pub five_level_id: i32,
     pub question_cate_id: i32,                          // 题型主键
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
@@ -118,6 +120,8 @@ pub struct CountQuestion {
 
 // 普通题目列表请求
 pub struct CateAndTypeReq {
+    pub two_level_id: i32,
+    pub five_level_id: Option<i32>,
     pub cate_ids: Option<Vec<i32>>,
     pub status: Option<i16>,
     pub type_id: Option<i32>,
@@ -191,10 +195,17 @@ trait QueryBuilderExt<'a> {
 // 为 sqlx::QueryBuilder 实现这个 Trait
 impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
     fn push_cate_and_type_where(mut self, req: &'a CateAndTypeReq) -> Self {
+        self.push(" WHERE two_level_id = ")
+            .push_bind(req.two_level_id);
+
+        if let Some(five_level_id) = req.five_level_id
+            && five_level_id > 0
+        {
+            self.push(" AND five_level_id = ").push_bind(five_level_id);
+        }
         if let Some(status) = req.status {
             self.push(" AND status = ").push_bind(status);
         }
-
         if let Some(ref cate_ids) = req.cate_ids
             && !cate_ids.is_empty()
         {
@@ -336,13 +347,13 @@ impl Question {
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
             steps, question_dimension_ids, relation_type,
-            level_id, scene_ids, mistake_tip_ids
+            level_id, scene_ids, mistake_tip_ids, two_level_id, five_level_id
         )
         VALUES (
             COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
             $6, $7, $8, $9, $10, $11,
             $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-            $25, $26, $27
+            $25, $26, $27, $28, $29
         )
         ON CONFLICT (id) DO UPDATE SET
             question_cate_id = EXCLUDED.question_cate_id,
@@ -371,6 +382,8 @@ impl Question {
             level_id = EXCLUDED.level_id,
             scene_ids = EXCLUDED.scene_ids,
             mistake_tip_ids = EXCLUDED.mistake_tip_ids,
+            two_level_id = EXCLUDED.two_level_id,
+            five_level_id = EXCLUDED.five_level_id,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
         ",
@@ -402,6 +415,8 @@ impl Question {
         .bind(req.level_id)
         .bind(Json(req.scene_ids))
         .bind(Json(req.mistake_tip_ids))
+        .bind(req.two_level_id)
+        .bind(req.five_level_id)
         .fetch_one(pool)
         .await?;
 
@@ -423,10 +438,10 @@ impl Question {
             images, options, options_layout,
             answer, knowledge, analysis, process, remark, remark_ext,
             steps, question_dimension_ids, relation_type,
-            level_id, scene_ids, mistake_tip_ids
+            level_id, scene_ids, mistake_tip_ids, two_level_id, five_level_id
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
         RETURNING *
         ",
         )
@@ -456,6 +471,8 @@ impl Question {
         .bind(req.level_id)
         .bind(Json(req.scene_ids))
         .bind(Json(req.mistake_tip_ids))
+            .bind(req.two_level_id)
+            .bind(req.five_level_id)
         .fetch_one(&mut **tx)
         .await
     }
@@ -485,7 +502,7 @@ impl Question {
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark,remark_ext,
                 steps, question_dimension_ids, relation_type,
-                level_id, scene_ids, mistake_tip_ids
+                level_id, scene_ids, mistake_tip_ids, two_level_id, five_level_id
             )
             ",
             );
@@ -515,7 +532,9 @@ impl Question {
                     .push_bind(req.relation_type)
                     .push_bind(req.level_id)
                     .push_bind(Json(req.scene_ids.clone().unwrap_or_default()))
-                    .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
+                    .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()))
+                    .push_bind(req.two_level_id)
+                    .push_bind(req.five_level_id);
             });
 
             query_builder.push(" RETURNING id");
@@ -562,7 +581,7 @@ impl Question {
         pool: &PgPool,
         req: &CateAndTypeReq,
     ) -> Result<i64, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM question WHERE 1 = 1 ");
+        let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM question ");
 
         qb = qb.push_cate_and_type_where(req);
 
@@ -579,6 +598,8 @@ impl Question {
         let sql = r"
         SELECT
             id,
+            two_level_id,
+            five_level_id,
             question_cate_id,
             question_type_id,
             question_tag_ids,
@@ -605,7 +626,6 @@ impl Question {
             created_at,
             updated_at
         FROM question
-        WHERE 1 = 1
         ";
         let mut qb = QueryBuilder::new(sql);
 

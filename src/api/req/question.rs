@@ -7,6 +7,8 @@ use sqlx::types::Json;
 #[serde(rename_all = "camelCase")]
 pub struct CreateQuestionReq {
     pub id: Option<i64>,
+    pub two_level_id: i32,
+    pub five_level_id: i32,
     pub question_cate_id: i32,                    // 题型主键
     pub source_id: Option<i64>,                   // 变式题父主键
     pub relation_type: i16,                       // 题目归属类型
@@ -48,6 +50,8 @@ pub struct CreateQuestionReq {
 pub struct QuestionListReq {
     // 页面来源
     pub source: String,
+    pub two_level_id: i32,
+    pub five_level_id: Option<i32>,
     pub question_cate_ids: Option<Vec<i32>>,
     pub question_type_id: Option<i32>,
     pub dimension_ids: Option<Vec<i32>>, // 核心素养

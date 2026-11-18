@@ -7,12 +7,13 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 #[derive(FromRow)]
 pub struct Task {
     pub id: i64,
+    pub two_level_id: i32,
+    pub five_level_id: i32,
     pub question_cate_id: i64,
     pub task_type: i16,
     pub name: String,
     pub url: String,
     pub email: String,
-    pub textbook_id: i32,
     pub author_id: i64,
     pub status: i16,
     pub result: Option<String>,
@@ -28,8 +29,8 @@ impl Task {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
             r"
-        INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email, textbook_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email, two_level_id, five_level_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
         ",
         )
@@ -40,7 +41,8 @@ impl Task {
             .bind(author_id)
             .bind(TaskStatus::Waiting as i16)
             .bind(req.email)
-            .bind(req.textbook_id)
+            .bind(req.two_level_id)
+            .bind(req.five_level_id)
             .fetch_one(pool)
             .await
     }
@@ -69,6 +71,8 @@ impl Task {
 
     pub async fn count_by_cate(
         pool: &PgPool,
+        two_level_id: i32,
+        five_level_id: Option<i32>,
         question_cate_id: Option<i64>,
         task_type: i16,
         author_id: i64,
@@ -77,13 +81,20 @@ impl Task {
             QueryBuilder::new("SELECT COUNT(*) FROM task WHERE author_id = ");
         qb.push_bind(author_id);
 
-        qb.push(" AND task_type = ");
-        qb.push_bind(task_type);
+        qb.push(" AND two_level_id = ").push_bind(two_level_id);
+
+        qb.push(" AND task_type = ").push_bind(task_type);
 
         // 只有当参数为 Some 时，才拼接该条件，保证索引高效命中
-        if let Some(cate_id) = question_cate_id {
-            qb.push(" AND question_cate_id = ");
-            qb.push_bind(cate_id);
+        if let Some(five_id) = five_level_id
+            && five_id > 0
+        {
+            qb.push(" AND five_level_id = ").push_bind(five_id);
+        }
+        if let Some(cate_id) = question_cate_id
+            && cate_id > 0
+        {
+            qb.push(" AND question_cate_id = ").push_bind(cate_id);
         }
 
         qb.build_query_scalar::<i64>().fetch_one(pool).await
@@ -91,6 +102,8 @@ impl Task {
 
     pub async fn list_by_cate(
         pool: &PgPool,
+        two_level_id: i32,
+        five_level_id: Option<i32>,
         question_cate_id: Option<i64>,
         task_type: i16,
         author_id: i64,
@@ -101,13 +114,20 @@ impl Task {
             QueryBuilder::new("SELECT * FROM task WHERE author_id = ");
         qb.push_bind(author_id);
 
-        qb.push(" AND task_type = ");
-        qb.push_bind(task_type);
+        qb.push(" AND two_level_id = ").push_bind(two_level_id);
+
+        qb.push(" AND task_type = ").push_bind(task_type);
 
         // 动态拼接可选过滤条件
-        if let Some(cate_id) = question_cate_id {
-            qb.push(" AND question_cate_id = ");
-            qb.push_bind(cate_id);
+        if let Some(five_id) = five_level_id
+            && five_id > 0
+        {
+            qb.push(" AND five_level_id = ").push_bind(five_id);
+        }
+        if let Some(cate_id) = question_cate_id
+            && cate_id > 0
+        {
+            qb.push(" AND question_cate_id = ").push_bind(cate_id);
         }
 
         qb.push(" ORDER BY id DESC LIMIT ");
