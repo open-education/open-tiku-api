@@ -1,4 +1,4 @@
-use crate::api::resp::paper::CommonPaperResp;
+use crate::api::resp::paperv::CommonPaperResp;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::model::test_answer::TestAnswer;
 use crate::model::test_attempt::TestAttempt;

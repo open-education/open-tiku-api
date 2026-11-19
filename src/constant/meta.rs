@@ -7,7 +7,7 @@ pub const MAX_IMAGE_SIZE: usize = 2_097_152;
 /// 允许的文件扩展名
 pub const ALLOW_IMAGE_EXTENSION: [&str; 4] = ["jpg", "jpeg", "png", "gif"];
 /// 允许的其它文件扩展名
-pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
+pub const ALLOW_FILE_EXTENSION: [&str; 4] = ["md", "pdf", "doc", "docx"];
 /// 图片名称存储长度
 pub const IMAGE_NAME_LEN: usize = 20;
 /// 临时 token 有效过期分钟数

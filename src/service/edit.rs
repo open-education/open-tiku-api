@@ -1,9 +1,9 @@
 use crate::api::req::edit::CommonEditStatusReq;
 use crate::app::conf::WebAppState;
-use crate::enums::paper::PaperStatus;
+use crate::enums::paperv::PaperStatus;
 use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
-use crate::model::paper::Paper;
+use crate::model::paperv::Paperv;
 use crate::model::question::Question;
 use crate::service::stat;
 use crate::util::error::AppError;
@@ -86,7 +86,7 @@ pub async fn paper_status(
 
     let db = &app_state.db;
 
-    let paper = Paper::find_by_id(db, req.id)
+    let paper = Paperv::find_by_id(db, req.id)
         .await
         .map_err(|e| {
             error!("Select paper id: {} err: {e}", req.id);
@@ -118,7 +118,7 @@ pub async fn paper_status(
         }
     }
 
-    let rows_affected = Paper::update_status_by_id(
+    let rows_affected = Paperv::update_status_by_id(
         db,
         req.id,
         req.status,

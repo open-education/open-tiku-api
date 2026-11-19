@@ -1,6 +1,7 @@
 pub mod custom;
 pub mod dict;
 pub mod paper;
+pub mod paperv;
 pub mod question;
 pub mod student;
 pub mod task;

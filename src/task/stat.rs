@@ -1,6 +1,6 @@
 use crate::app::conf::CronAppState;
 use crate::model::class_student::ClassStudent;
-use crate::model::paper::Paper;
+use crate::model::paperv::Paperv;
 use crate::model::question::{AuthorQuestion, Question};
 use crate::model::stat::{CountInfo, Stat};
 use crate::model::textbook::Textbook;
@@ -98,7 +98,7 @@ async fn count_info(pool: &PgPool) -> Result<CountInfo, AppError> {
     })?;
 
     // 试卷套数
-    let paper_num = Paper::find_paper_num(pool).await.map_err(|e| {
+    let paper_num = Paperv::find_paper_num(pool).await.map_err(|e| {
         error!("get paper_num err: {e}");
         AppError::db_error("统计试卷数量出错")
     })?;

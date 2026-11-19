@@ -55,7 +55,7 @@ impl StatusType {
         match code {
             1 => Some(Self::Active),
             2 => Some(Self::Paused),
-            3 => Some(Self::Forbidden),
+            20 => Some(Self::Forbidden),
             _ => None,
         }
     }
@@ -89,6 +89,25 @@ impl UserSource {
         match code {
             1 => Some(Self::User),
             2 => Some(Self::Student),
+            _ => None,
+        }
+    }
+}
+
+// 试卷列表请求来源
+#[derive(PartialEq, Eq)]
+pub enum PaperPageSource {
+    List,     // 普通试卷列表请求
+    MyPaper,  // 我的试卷
+    MyReview, // 我的审核
+}
+
+impl PaperPageSource {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "list" => Some(Self::List),
+            "myPaper" => Some(Self::MyPaper),
+            "myReview" => Some(Self::MyReview),
             _ => None,
         }
     }

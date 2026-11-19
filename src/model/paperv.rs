@@ -1,0 +1,325 @@
+use crate::api::req::paperv::PaperListReq;
+use crate::enums::paperv::PaperStatus;
+use chrono::{DateTime, Utc};
+use sqlx::{FromRow, PgPool, Postgres, Transaction, query_as, query_scalar};
+
+// 试卷相关
+
+#[derive(FromRow, Clone)]
+pub struct Paperv {
+    pub id: Option<i64>,
+    pub related_id: i32,
+    pub related_name: String,
+    pub paper_type: i16,
+    pub tag: String,
+    pub year: String,
+    pub grade: String,
+    pub semester: String,
+    pub title: String,
+    pub score: i32,
+    pub source: String,
+    pub remark: Option<String>,
+    pub author_id: i64,
+    pub author_name: String,
+    pub count: i32,
+    pub remark_ext: Option<String>,
+    pub status: i16,
+    pub approve_id: i64,
+    pub reject_reason: Option<String>,
+    pub approve_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+// 试卷主表
+impl Paperv {
+    // 根据 id 主键判断是新增还是更新
+    pub async fn save(
+        tx: &mut Transaction<'_, Postgres>,
+        paper: &Self,
+    ) -> Result<i64, sqlx::Error> {
+        let row = sqlx::query(
+            r"
+            INSERT INTO paper (
+                id, related_id, related_name, tag, year, grade, semester,
+                title, score, source, remark, author_id, author_name,
+                count, remark_ext, status, approve_id, reject_reason, approve_at,
+                paper_type
+            ) VALUES (
+                COALESCE($1, nextval('paper_id_seq')), $2, $3, $4, $5, $6,
+                $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16, $17, $18, $19, $20
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                related_id = EXCLUDED.related_id,
+                related_name = EXCLUDED.related_name,
+                tag = EXCLUDED.tag,
+                year = EXCLUDED.year,
+                grade = EXCLUDED.grade,
+                semester = EXCLUDED.semester,
+                title = EXCLUDED.title,
+                score = EXCLUDED.score,
+                source = EXCLUDED.source,
+                remark = EXCLUDED.remark,
+                author_id = EXCLUDED.author_id,
+                author_name = EXCLUDED.author_name,
+                count = EXCLUDED.count,
+                remark_ext = EXCLUDED.remark_ext,
+                status = EXCLUDED.status,
+                approve_id = EXCLUDED.approve_id,
+                reject_reason = EXCLUDED.reject_reason,
+                approve_at = EXCLUDED.approve_at,
+                paper_type = EXCLUDED.paper_type,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING id
+        ",
+        )
+        .bind(paper.id)
+        .bind(paper.related_id)
+        .bind(&paper.related_name)
+        .bind(&paper.tag)
+        .bind(&paper.year)
+        .bind(&paper.grade)
+        .bind(&paper.semester)
+        .bind(&paper.title)
+        .bind(paper.score)
+        .bind(&paper.source)
+        .bind(&paper.remark)
+        .bind(paper.author_id)
+        .bind(&paper.author_name)
+        .bind(paper.count)
+        .bind(&paper.remark_ext)
+        .bind(paper.status)
+        .bind(paper.approve_id)
+        .bind(&paper.reject_reason)
+        .bind(paper.approve_at)
+        .bind(paper.paper_type)
+        .map(|row: sqlx::postgres::PgRow| {
+            use sqlx::Row;
+            row.get::<i64, _>("id")
+        })
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
+        let row = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = $1")
+            .bind(paper_id)
+            .fetch_optional(pool)
+            .await?;
+
+        Ok(row)
+    }
+
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows)
+    }
+
+    // 构建 WHERE 子句，返回 (where_clause, param_count)
+    // 参数顺序固定：related_id（必填），tag（可选），year（可选），grade（可选），semester（可选）
+    pub fn build_condition(req: &PaperListReq, author_id: Option<i64>) -> (String, usize) {
+        let mut conditions = Vec::new();
+        let mut param_count = 0;
+
+        // related_id 必填，占位符 $1
+        conditions.push(format!("related_id = ${}", param_count + 1));
+        param_count += 1;
+
+        conditions.push(format!("status = ${}", param_count + 1));
+        param_count += 1;
+
+        if req.paper_type.is_some() {
+            param_count += 1;
+            conditions.push(format!("paper_type = ${param_count}"));
+        }
+
+        if req.tag.is_some() {
+            param_count += 1;
+            conditions.push(format!("tag = ${param_count}"));
+        }
+        if req.year.is_some() {
+            param_count += 1;
+            conditions.push(format!("year = ${param_count}"));
+        }
+        if req.grade.is_some() {
+            param_count += 1;
+            conditions.push(format!("grade = ${param_count}"));
+        }
+        if req.semester.is_some() {
+            param_count += 1;
+            conditions.push(format!("semester = ${param_count}"));
+        }
+        // 是否存在用户信息
+        if author_id.is_some() {
+            param_count += 1;
+            conditions.push(format!("author_id = ${param_count}"));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        (where_clause, param_count)
+    }
+
+    // 查询总数，需要传入 where_clause 和 param_count（由 build_filter 返回）
+    pub async fn count(
+        pool: &PgPool,
+        req: &PaperListReq,
+        author_id: Option<i64>,
+        status: i16,
+        where_clause: &str,
+    ) -> Result<i64, sqlx::Error> {
+        let sql = format!("SELECT COUNT(*) FROM paper {where_clause}");
+        let mut query = query_scalar::<_, i64>(&sql);
+
+        // 按固定顺序绑定参数（与 build_filter 中的占位符顺序一致）
+        query = query.bind(req.related_id).bind(status);
+        if let Some(paper_type) = &req.paper_type {
+            query = query.bind(paper_type);
+        }
+        if let Some(tag) = &req.tag {
+            query = query.bind(tag);
+        }
+        if let Some(year) = &req.year {
+            query = query.bind(year);
+        }
+        if let Some(grade) = &req.grade {
+            query = query.bind(grade);
+        }
+        if let Some(semester) = &req.semester {
+            query = query.bind(semester);
+        }
+        if let Some(author_id) = &author_id {
+            query = query.bind(author_id);
+        }
+
+        let total = query.fetch_one(pool).await?;
+        Ok(total)
+    }
+
+    // 查询分页列表，需要传入 where_clause 和 param_count（由 build_filter 返回）
+    pub async fn list(
+        pool: &PgPool,
+        req: &PaperListReq,
+        author_id: Option<i64>,
+        status: i16,
+        where_clause: &str,
+        param_count: usize,
+        offset: i32,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        // LIMIT 和 OFFSET 占位符为 param_count+1 和 param_count+2
+        let sql = format!(
+            "SELECT * FROM paper {where_clause} ORDER BY id LIMIT ${} OFFSET ${}",
+            param_count + 1,
+            param_count + 2
+        );
+
+        let mut query = query_as::<_, Paperv>(&sql);
+
+        // 绑定过滤参数（顺序与 count_total 完全一致）
+        query = query.bind(req.related_id).bind(status);
+        if let Some(paper_type) = &req.paper_type {
+            query = query.bind(paper_type);
+        }
+        if let Some(tag) = &req.tag {
+            query = query.bind(tag);
+        }
+        if let Some(year) = &req.year {
+            query = query.bind(year);
+        }
+        if let Some(grade) = &req.grade {
+            query = query.bind(grade);
+        }
+        if let Some(semester) = &req.semester {
+            query = query.bind(semester);
+        }
+        if let Some(author_id) = &author_id {
+            query = query.bind(author_id);
+        }
+
+        // 绑定 LIMIT 和 OFFSET
+        query = query.bind(req.page_size);
+        query = query.bind(offset);
+
+        let papers = query.fetch_all(pool).await?;
+        Ok(papers)
+    }
+
+    // 获取最新的部分试卷
+    pub async fn get_latest_papers(
+        pool: &PgPool,
+        paper_type: i16,
+        limit: i64,
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        let papers = sqlx::query_as::<_, Self>(
+            "SELECT * FROM paper WHERE paper_type = $1 ORDER BY id DESC LIMIT $2",
+        )
+        .bind(paper_type)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(papers)
+    }
+
+    // 更新状态
+    pub async fn update_status_by_id(
+        pool: &PgPool,
+        id: i64,
+        status: i16,
+        approve_id: i64,
+        reject_reason: Option<String>,
+    ) -> Result<u64, sqlx::Error> {
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r"
+        UPDATE paper
+        SET status = $2,
+            approve_id = $3,
+            reject_reason = $4,
+            approve_at = $5,
+            updated_at = $5
+        WHERE id = $1
+        ",
+        )
+        .bind(id)
+        .bind(status)
+        .bind(approve_id)
+        .bind(reject_reason)
+        .bind(now)
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    // 根据 ID 删除记录
+    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+        let row = sqlx::query("DELETE FROM paper WHERE id = $1")
+            .bind(id)
+            .execute(pool)
+            .await?;
+
+        Ok(row.rows_affected())
+    }
+
+    // 审核通过的试卷套数
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_paper_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM paper WHERE status = $1")
+            .bind(PaperStatus::Published as i16)
+            .fetch_one(pool)
+            .await
+    }
+}

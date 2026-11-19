@@ -157,11 +157,45 @@ CREATE TABLE paper
     five_level_id   INTEGER      NOT NULL DEFAULT 0,           -- 第5层菜单标识
     paper_type      SMALLINT     NOT NULL DEFAULT 1,           -- 试卷类型 1 精选试卷 2 手动组卷
     file_type       SMALLINT     NOT NULL DEFAULT 0,           -- 文件类型 0 无意义 1 PDF 文件 2 Word 文件 3 图片 4 Markdown 文档
+    file_ids        JSONB        NOT NULL DEFAULT '[]'::jsonb, -- 文件地址信息
+    province_id     INTEGER      NOT NULL DEFAULT 0,           -- 省标识
+    city_id         INTEGER      NOT NULL DEFAULT 0,           -- 城市标识
+    school_name     VARCHAR(500) NOT NULL DEFAULT '',          -- 学校名称
+    exam_type       SMALLINT     NOT NULL DEFAULT 0,           -- 考试类型 1 单元测试 2 期中考试 3 期末考试 4 中考模拟 5 月考 6 专题卷
+    year            VARCHAR(10)  NOT NULL DEFAULT '',          -- 年份
+    title           VARCHAR(500) NOT NULL DEFAULT '',          -- 试卷标题
+    score           INTEGER      NOT NULL DEFAULT 0,           -- 总分
+    duration        SMALLINT     NOT NULL DEFAULT 0,           -- 时长, 秒
+    level_type      SMALLINT     NOT NULL DEFAULT 1,           -- 试卷类型 1 普通 2 精品
+    difficulty_type SMALLINT     NOT NULL DEFAULT 1,           -- 难度类型 1 容易 2 适中 3 困难
+    source          VARCHAR(500) NOT NULL DEFAULT '',          -- 来源, 需要记录试卷来源
+    remark          TEXT,                                      -- 试卷备注
+    author_id       BIGINT       NOT NULL DEFAULT 0,           -- 上传者
+    count           INTEGER      NOT NULL DEFAULT 0,           -- 小题数量
+    status          SMALLINT     NOT NULL DEFAULT 0,           -- 0 草稿 1 审核中 2 审核通过 3 拒绝
+    approve_id      BIGINT       NOT NULL DEFAULT 0,           -- 审核人
+    reject_reason   TEXT,                                      -- 审核拒绝后的反馈意见
+    approve_at      TIMESTAMPTZ           DEFAULT NULL,        -- 审核时间
+
+    -- 审计字段
+    created_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_paper_related ON paper (two_level_id, five_level_id);
+CREATE INDEX idx_author_paper_related ON paper (author_id, two_level_id, five_level_id);
+
+CREATE TABLE paperv
+(
+    id              BIGSERIAL PRIMARY KEY,
+    two_level_id    INTEGER      NOT NULL DEFAULT 0,           -- 第2层菜单标识
+    five_level_id   INTEGER      NOT NULL DEFAULT 0,           -- 第5层菜单标识
+    paper_type      SMALLINT     NOT NULL DEFAULT 1,           -- 试卷类型 1 精选试卷 2 手动组卷
+    file_type       SMALLINT     NOT NULL DEFAULT 0,           -- 文件类型 0 无意义 1 PDF 文件 2 Word 文件 3 图片 4 Markdown 文档
     file_ids        JSONB                 DEFAULT '[]'::jsonb, -- 文件地址信息
     province_id     SMALLINT     NOT NULL DEFAULT 0,           -- 省标识
     city_id         SMALLINT     NOT NULL DEFAULT 0,           -- 城市标识
     school_name     VARCHAR(500) NOT NULL DEFAULT '',          -- 学校名称
-    tag             VARCHAR(100) NOT NULL,                     -- 标签前端写死维护
+    tag             SMALLINT     NOT NULL DEFAULT 0,           -- 考试类型 1 单元测试 2 期中考试 3 期末考试 4 中考模拟 5 月考 6 专题卷
     year            VARCHAR(10)  NOT NULL,                     -- 年份
     grade           VARCHAR(50)  NOT NULL,                     -- 年级
     semester        VARCHAR(20)  NOT NULL,                     -- 学期
@@ -185,11 +219,11 @@ CREATE TABLE paper
     created_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_paper_related ON paper (two_level_id, five_level_id);
-CREATE INDEX idx_author_paper_related ON paper (author_id, two_level_id, five_level_id);
+CREATE INDEX idx_paperv_related ON paperv (two_level_id, five_level_id);
+CREATE INDEX idx_author_paperv_related ON paperv (author_id, two_level_id, five_level_id);
 
 -- 4.1. 题型分组表
-CREATE TABLE paper_group
+CREATE TABLE paperv_group
 (
     id        BIGINT PRIMARY KEY,    -- 业务自己生成, 不自增
     paper_id  BIGINT       NOT NULL, -- 试卷主表标识
@@ -197,10 +231,10 @@ CREATE TABLE paper_group
     type_name VARCHAR(100) NOT NULL, -- 题型名称, 比如 一 选择题
     sub_title VARCHAR(500)           -- 题型说明, 比如 本题共5小题...
 );
-CREATE INDEX idx_paper_group_paper_id ON paper_group (paper_id);
+CREATE INDEX idx_paperv_group_paper_id ON paperv_group (paper_id);
 
 -- 4.2 题目表
-CREATE TABLE paper_question
+CREATE TABLE paperv_question
 (
     id             BIGSERIAL PRIMARY KEY,
     paper_id       BIGINT      NOT NULL,                     -- 试卷主表标识
@@ -215,10 +249,10 @@ CREATE TABLE paper_question
     analysis       JSONB                DEFAULT '{}'::jsonb, -- 解题分析, 解题过程等
     score          INTEGER     NOT NULL DEFAULT 0            -- 题目分数, 不校验
 );
-CREATE INDEX idx_paper_question_group_id ON paper_question (paper_id, group_id);
+CREATE INDEX idx_paperv_question_group_id ON paperv_question (paper_id, group_id);
 
 -- 4.3 组卷题目生成规则
-CREATE TABLE paper_gen_config
+CREATE TABLE paperv_gen_config
 (
     id                     BIGSERIAL PRIMARY KEY,
     paper_id               BIGINT NOT NULL,                     -- 试卷主表标识
@@ -231,10 +265,10 @@ CREATE TABLE paper_gen_config
     scene_ids              JSONB  NOT NULL DEFAULT '[]'::jsonb, -- 适用场景
     mistake_tip_ids        JSONB  NOT NULL DEFAULT '[]'::jsonb  -- 常见错误
 );
-CREATE INDEX idx_paper_gen_config_paper_id ON paper_gen_config (paper_id);
+CREATE INDEX idx_paperv_gen_config_paper_id ON paperv_gen_config (paper_id);
 
 -- 4.4 试卷生成的题目信息
-CREATE TABLE paper_gen_question
+CREATE TABLE paperv_gen_question
 (
     id          BIGSERIAL PRIMARY KEY,
     paper_id    BIGINT      NOT NULL,           -- 试卷主表标识
@@ -244,7 +278,7 @@ CREATE TABLE paper_gen_question
     question_id BIGINT      NOT NULL,           -- 题目标识
     score       INTEGER     NOT NULL DEFAULT 0  -- 题目分数, 不校验
 );
-CREATE INDEX idx_paper_gen_question_group_id ON paper_gen_question (paper_id, group_id);
+CREATE INDEX idx_paperv_gen_question_group_id ON paperv_gen_question (paper_id, group_id);
 
 -- 5. 第三方身份认证表（存储所有OAuth登录源）
 CREATE TABLE user_identity

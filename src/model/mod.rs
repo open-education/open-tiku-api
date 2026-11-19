@@ -11,6 +11,7 @@ pub mod paper_gen_config;
 pub mod paper_gen_question;
 pub mod paper_group;
 pub mod paper_question;
+pub mod paperv;
 pub mod question;
 pub mod question_cate;
 pub mod question_relation;

@@ -1,107 +1,175 @@
+use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
-use crate::enums::paper::PaperStatus;
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool, Postgres, Transaction, query_as, query_scalar};
+use sqlx::types::Json;
+use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 
-// 试卷相关
-
-#[derive(FromRow, Clone)]
+#[derive(FromRow)]
 pub struct Paper {
     pub id: Option<i64>,
-    pub related_id: i32,
-    pub related_name: String,
+    pub two_level_id: i32,
+    pub five_level_id: Option<i32>,
     pub paper_type: i16,
-    pub tag: String,
+    pub file_type: i16,
+    pub file_ids: Option<Json<Vec<String>>>,
+    pub province_id: Option<i32>,
+    pub city_id: Option<i32>,
+    pub school_name: Option<String>,
+    pub exam_type: i16,
     pub year: String,
-    pub grade: String,
-    pub semester: String,
     pub title: String,
-    pub score: i32,
-    pub source: String,
-    pub remark: Option<String>,
+    pub score: Option<i32>,
+    pub duration: Option<i16>,
+    pub level_type: i16,
+    pub difficulty_type: i16,
+    pub source: Option<String>,
+    pub remark: String,
     pub author_id: i64,
-    pub author_name: String,
-    pub count: i32,
-    pub remark_ext: Option<String>,
+    pub count: Option<i32>,
     pub status: i16,
-    pub approve_id: i64,
+    pub approve_id: Option<i64>,
     pub reject_reason: Option<String>,
     pub approve_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-// 试卷主表
+// 统计用户试卷计数
+#[derive(FromRow)]
+pub struct CountPaper {
+    pub status: i16,
+    pub count: i64,
+}
+
+trait QueryBuilderExt<'a> {
+    fn push_list_where(self, req: &'a PaperListReq, author_id: Option<i64>) -> Self;
+}
+
+impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
+    fn push_list_where(mut self, req: &'a PaperListReq, author_id: Option<i64>) -> Self {
+        self.push(" WHERE two_level_id = ")
+            .push_bind(req.two_level_id);
+
+        if let Some(five_level_id) = req.five_level_id
+            && five_level_id > 0
+        {
+            self.push(" AND five_level_id = ").push_bind(five_level_id);
+        }
+        if let Some(ref year) = req.year
+            && !year.is_empty()
+        {
+            self.push(" AND year = ").push_bind(year);
+        }
+        if let Some(level_type) = req.level_type
+            && level_type > 0
+        {
+            self.push(" AND level_type = ").push_bind(level_type);
+        }
+        if let Some(difficulty_type) = req.difficulty_type
+            && difficulty_type > 0
+        {
+            self.push(" AND difficulty_type = ")
+                .push_bind(difficulty_type);
+        }
+        if let Some(province_id) = req.province_id
+            && province_id > 0
+        {
+            self.push(" AND province_id = ").push_bind(province_id);
+        }
+        if let Some(city_id) = req.city_id
+            && city_id > 0
+        {
+            self.push(" AND city_id = ").push_bind(city_id);
+        }
+        if let Some(ref school_name) = req.school_name
+            && !school_name.is_empty()
+        {
+            self.push(" AND school_name LIKE ")
+                .push_bind(format!("%{school_name}%"));
+        }
+
+        // 搜索用户的试卷
+        if let Some(uid) = author_id
+            && uid > 0
+        {
+            self.push(" AND author_id = ").push_bind(uid);
+        }
+        self
+    }
+}
+
 impl Paper {
-    // 根据 id 主键判断是新增还是更新
     pub async fn save(
         tx: &mut Transaction<'_, Postgres>,
-        paper: &Self,
+        req: &PaperAddReq,
+        author_id: i64,
     ) -> Result<i64, sqlx::Error> {
-        let row = sqlx::query(
+        let id = sqlx::query(
             r"
             INSERT INTO paper (
-                id, related_id, related_name, tag, year, grade, semester,
-                title, score, source, remark, author_id, author_name,
-                count, remark_ext, status, approve_id, reject_reason, approve_at,
-                paper_type
+                id, two_level_id, five_level_id, paper_type, file_type,
+                file_ids, province_id, city_id, school_name, exam_type,
+                year, title, score, duration, level_type,
+                difficulty_type, source, remark, author_id, count,
+                status
             ) VALUES (
-                COALESCE($1, nextval('paper_id_seq')), $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20
+                COALESCE($1, nextval(pg_get_serial_sequence('paper', 'id'))),
+                $2, $3, $4, $5,
+                $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15,
+                $16, $17, $18, $19, $20,
+                $21
             )
             ON CONFLICT (id) DO UPDATE SET
-                related_id = EXCLUDED.related_id,
-                related_name = EXCLUDED.related_name,
-                tag = EXCLUDED.tag,
+                two_level_id = EXCLUDED.two_level_id,
+                five_level_id = EXCLUDED.five_level_id,
+                paper_type = EXCLUDED.paper_type,
+                file_type = EXCLUDED.file_type,
+                file_ids = EXCLUDED.file_ids,
+                province_id = EXCLUDED.province_id,
+                city_id = EXCLUDED.city_id,
+                school_name = EXCLUDED.school_name,
+                exam_type = EXCLUDED.exam_type,
                 year = EXCLUDED.year,
-                grade = EXCLUDED.grade,
-                semester = EXCLUDED.semester,
                 title = EXCLUDED.title,
                 score = EXCLUDED.score,
+                duration = EXCLUDED.duration,
+                level_type = EXCLUDED.level_type,
+                difficulty_type = EXCLUDED.difficulty_type,
                 source = EXCLUDED.source,
                 remark = EXCLUDED.remark,
-                author_id = EXCLUDED.author_id,
-                author_name = EXCLUDED.author_name,
                 count = EXCLUDED.count,
-                remark_ext = EXCLUDED.remark_ext,
                 status = EXCLUDED.status,
-                approve_id = EXCLUDED.approve_id,
-                reject_reason = EXCLUDED.reject_reason,
-                approve_at = EXCLUDED.approve_at,
-                paper_type = EXCLUDED.paper_type,
                 updated_at = CURRENT_TIMESTAMP
             RETURNING id
-        ",
+            ",
         )
-        .bind(paper.id)
-        .bind(paper.related_id)
-        .bind(&paper.related_name)
-        .bind(&paper.tag)
-        .bind(&paper.year)
-        .bind(&paper.grade)
-        .bind(&paper.semester)
-        .bind(&paper.title)
-        .bind(paper.score)
-        .bind(&paper.source)
-        .bind(&paper.remark)
-        .bind(paper.author_id)
-        .bind(&paper.author_name)
-        .bind(paper.count)
-        .bind(&paper.remark_ext)
-        .bind(paper.status)
-        .bind(paper.approve_id)
-        .bind(&paper.reject_reason)
-        .bind(paper.approve_at)
-        .bind(paper.paper_type)
-        .map(|row: sqlx::postgres::PgRow| {
-            use sqlx::Row;
-            row.get::<i64, _>("id")
-        })
+        .bind(req.id)
+        .bind(req.two_level_id)
+        .bind(req.five_level_id.unwrap_or_default())
+        .bind(req.paper_type)
+        .bind(req.file_type)
+        .bind(Json(req.file_ids.as_deref().unwrap_or_default()))
+        .bind(req.province_id.unwrap_or_default())
+        .bind(req.city_id.unwrap_or_default())
+        .bind(req.school_name.as_deref().unwrap_or_default())
+        .bind(req.exam_type)
+        .bind(&req.year)
+        .bind(&req.title)
+        .bind(req.score.unwrap_or_default())
+        .bind(req.duration.unwrap_or_default())
+        .bind(req.level_type)
+        .bind(req.difficulty_type)
+        .bind(req.source.as_deref().unwrap_or_default())
+        .bind(&req.remark)
+        .bind(author_id)
+        .bind(req.count.unwrap_or_default())
+        .bind(req.status)
+        .map(|row: sqlx::postgres::PgRow| row.get::<i64, _>("id"))
         .fetch_one(&mut **tx)
         .await?;
 
-        Ok(row)
+        Ok(id)
     }
 
     pub async fn find_by_id(pool: &PgPool, paper_id: i64) -> Result<Option<Self>, sqlx::Error> {
@@ -113,213 +181,46 @@ impl Paper {
         Ok(row)
     }
 
-    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(pool)
-            .await?;
-
-        Ok(rows)
+    // 我的题目状态统计
+    pub async fn find_count_by_author_id(
+        pool: &PgPool,
+        author_id: i64,
+    ) -> Result<Vec<CountPaper>, sqlx::Error> {
+        sqlx::query_as::<_, CountPaper>(
+            r"SELECT status, COUNT(*) FROM paper WHERE author_id = $1 GROUP BY status",
+        )
+        .bind(author_id)
+        .fetch_all(pool)
+        .await
     }
 
-    // 构建 WHERE 子句，返回 (where_clause, param_count)
-    // 参数顺序固定：related_id（必填），tag（可选），year（可选），grade（可选），semester（可选）
-    pub fn build_condition(req: &PaperListReq, author_id: Option<i64>) -> (String, usize) {
-        let mut conditions = Vec::new();
-        let mut param_count = 0;
-
-        // related_id 必填，占位符 $1
-        conditions.push(format!("related_id = ${}", param_count + 1));
-        param_count += 1;
-
-        conditions.push(format!("status = ${}", param_count + 1));
-        param_count += 1;
-
-        if req.paper_type.is_some() {
-            param_count += 1;
-            conditions.push(format!("paper_type = ${param_count}"));
-        }
-
-        if req.tag.is_some() {
-            param_count += 1;
-            conditions.push(format!("tag = ${param_count}"));
-        }
-        if req.year.is_some() {
-            param_count += 1;
-            conditions.push(format!("year = ${param_count}"));
-        }
-        if req.grade.is_some() {
-            param_count += 1;
-            conditions.push(format!("grade = ${param_count}"));
-        }
-        if req.semester.is_some() {
-            param_count += 1;
-            conditions.push(format!("semester = ${param_count}"));
-        }
-        // 是否存在用户信息
-        if author_id.is_some() {
-            param_count += 1;
-            conditions.push(format!("author_id = ${param_count}"));
-        }
-
-        let where_clause = if conditions.is_empty() {
-            String::new()
-        } else {
-            format!("WHERE {}", conditions.join(" AND "))
-        };
-
-        (where_clause, param_count)
-    }
-
-    // 查询总数，需要传入 where_clause 和 param_count（由 build_filter 返回）
     pub async fn count(
         pool: &PgPool,
         req: &PaperListReq,
         author_id: Option<i64>,
-        status: i16,
-        where_clause: &str,
     ) -> Result<i64, sqlx::Error> {
-        let sql = format!("SELECT COUNT(*) FROM paper {where_clause}");
-        let mut query = query_scalar::<_, i64>(&sql);
+        let mut qb = QueryBuilder::new("SELECT COUNT(*) FROM paper ");
 
-        // 按固定顺序绑定参数（与 build_filter 中的占位符顺序一致）
-        query = query.bind(req.related_id).bind(status);
-        if let Some(paper_type) = &req.paper_type {
-            query = query.bind(paper_type);
-        }
-        if let Some(tag) = &req.tag {
-            query = query.bind(tag);
-        }
-        if let Some(year) = &req.year {
-            query = query.bind(year);
-        }
-        if let Some(grade) = &req.grade {
-            query = query.bind(grade);
-        }
-        if let Some(semester) = &req.semester {
-            query = query.bind(semester);
-        }
-        if let Some(author_id) = &author_id {
-            query = query.bind(author_id);
-        }
+        qb = qb.push_list_where(req, author_id);
 
-        let total = query.fetch_one(pool).await?;
-        Ok(total)
+        qb.build_query_scalar::<i64>().fetch_one(pool).await
     }
 
-    // 查询分页列表，需要传入 where_clause 和 param_count（由 build_filter 返回）
     pub async fn list(
         pool: &PgPool,
         req: &PaperListReq,
         author_id: Option<i64>,
-        status: i16,
-        where_clause: &str,
-        param_count: usize,
-        offset: i32,
-    ) -> Result<Vec<Self>, sqlx::Error> {
-        // LIMIT 和 OFFSET 占位符为 param_count+1 和 param_count+2
-        let sql = format!(
-            "SELECT * FROM paper {where_clause} ORDER BY id LIMIT ${} OFFSET ${}",
-            param_count + 1,
-            param_count + 2
-        );
-
-        let mut query = query_as::<_, Paper>(&sql);
-
-        // 绑定过滤参数（顺序与 count_total 完全一致）
-        query = query.bind(req.related_id).bind(status);
-        if let Some(paper_type) = &req.paper_type {
-            query = query.bind(paper_type);
-        }
-        if let Some(tag) = &req.tag {
-            query = query.bind(tag);
-        }
-        if let Some(year) = &req.year {
-            query = query.bind(year);
-        }
-        if let Some(grade) = &req.grade {
-            query = query.bind(grade);
-        }
-        if let Some(semester) = &req.semester {
-            query = query.bind(semester);
-        }
-        if let Some(author_id) = &author_id {
-            query = query.bind(author_id);
-        }
-
-        // 绑定 LIMIT 和 OFFSET
-        query = query.bind(req.page_size);
-        query = query.bind(offset);
-
-        let papers = query.fetch_all(pool).await?;
-        Ok(papers)
-    }
-
-    // 获取最新的部分试卷
-    pub async fn get_latest_papers(
-        pool: &PgPool,
-        paper_type: i16,
         limit: i64,
+        offset: i64,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let papers = sqlx::query_as::<_, Self>(
-            "SELECT * FROM paper WHERE paper_type = $1 ORDER BY id DESC LIMIT $2",
-        )
-        .bind(paper_type)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?;
+        let sql = r"SELECT * FROM paper ";
+        let mut qb = QueryBuilder::new(sql);
 
-        Ok(papers)
-    }
+        qb = qb.push_list_where(req, author_id);
 
-    // 更新状态
-    pub async fn update_status_by_id(
-        pool: &PgPool,
-        id: i64,
-        status: i16,
-        approve_id: i64,
-        reject_reason: Option<String>,
-    ) -> Result<u64, sqlx::Error> {
-        let now = Utc::now();
+        qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit);
+        qb.push(" OFFSET ").push_bind(offset);
 
-        let result = sqlx::query(
-            r"
-        UPDATE paper
-        SET status = $2,
-            approve_id = $3,
-            reject_reason = $4,
-            approve_at = $5,
-            updated_at = $5
-        WHERE id = $1
-        ",
-        )
-        .bind(id)
-        .bind(status)
-        .bind(approve_id)
-        .bind(reject_reason)
-        .bind(now)
-        .execute(pool)
-        .await?;
-
-        Ok(result.rows_affected())
-    }
-
-    // 根据 ID 删除记录
-    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
-        let row = sqlx::query("DELETE FROM paper WHERE id = $1")
-            .bind(id)
-            .execute(pool)
-            .await?;
-
-        Ok(row.rows_affected())
-    }
-
-    // 审核通过的试卷套数
-    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
-    pub async fn find_paper_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM paper WHERE status = $1")
-            .bind(PaperStatus::Published as i16)
-            .fetch_one(pool)
-            .await
+        qb.build_query_as::<Self>().fetch_all(pool).await
     }
 }

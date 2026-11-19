@@ -1,4 +1,4 @@
-use crate::api::req::paper::GenPaperGenConfig;
+use crate::api::req::paperv::GenPaperGenConfig;
 use crate::api::req::question::CreateQuestionReq;
 use crate::constant::meta::STAT_MAX_NUM;
 use crate::enums::dict::TypeCode;
