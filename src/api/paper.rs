@@ -1,7 +1,8 @@
+use crate::api::req::paper::DeleteReq;
 use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
-use crate::api::resp::paper::CountPaperResp;
 use crate::api::resp::paper::PaperListResp;
+use crate::api::resp::paper::{CountPaperResp, PaperResp};
 use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
 use crate::service::paper;
@@ -34,4 +35,22 @@ pub async fn list(
     user_info: Option<UserInfo>,
 ) -> ApiResponse<PaperListResp> {
     ApiResponse::response(paper::list(&app_state, req.into_inner(), user_info).await)
+}
+
+// 查看试卷详情
+#[get("/info/{id}")]
+pub async fn info(
+    app_state: web::Data<WebAppState>,
+    path: web::Path<(i64,)>,
+) -> ApiResponse<PaperResp> {
+    ApiResponse::response(paper::info(&app_state, path.into_inner().0).await)
+}
+
+#[post("/delete")]
+pub async fn delete(
+    app_state: web::Data<WebAppState>,
+    req: web::Json<DeleteReq>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(paper::delete(&app_state, req.into_inner(), user_info).await)
 }

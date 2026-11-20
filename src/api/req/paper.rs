@@ -44,3 +44,8 @@ pub struct PaperListReq {
     pub page_no: i64,
     pub page_size: i64,
 }
+
+#[derive(Deserialize)]
+pub struct DeleteReq {
+    pub id: i64,
+}

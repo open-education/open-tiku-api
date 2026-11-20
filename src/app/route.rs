@@ -2,9 +2,8 @@ use actix_web::web;
 
 use crate::api::{
     callback, chapter_knowledge, city, class, class_student, custom, edit, file, homework,
-    other_dict, paper, paperv, question, question_cate, stat, task, test, text, textbook, user,
+    other_dict, paper, question, question_cate, stat, task, test, text, textbook, user,
 };
-
 // web 服务路由配置
 
 // 图片等资源
@@ -68,21 +67,12 @@ pub fn task(cfg: &mut web::ServiceConfig) {
     cfg.service(task::add).service(task::list);
 }
 
-pub fn paperv(cfg: &mut web::ServiceConfig) {
-    cfg.service(paperv::top_add)
-        .service(paperv::top_info)
-        .service(paperv::list)
-        .service(paperv::latest)
-        .service(paperv::preview)
-        .service(paperv::gen_add)
-        .service(paperv::gen_info)
-        .service(paperv::delete);
-}
-
 pub fn paper(cfg: &mut web::ServiceConfig) {
     cfg.service(paper::upload_add)
         .service(paper::count)
-        .service(paper::list);
+        .service(paper::list)
+        .service(paper::info)
+        .service(paper::delete);
 }
 
 pub fn text(cfg: &mut web::ServiceConfig) {

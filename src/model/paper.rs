@@ -1,11 +1,12 @@
 use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
+use crate::enums::paper::PaperStatus;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct Paper {
     pub id: Option<i64>,
     pub two_level_id: i32,
@@ -36,7 +37,7 @@ pub struct Paper {
 }
 
 // 文件信息
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileInfo {
     pub id: i32,
     pub name: String,
@@ -201,6 +202,15 @@ impl Paper {
         Ok(row)
     }
 
+    pub async fn find_by_ids(pool: &PgPool, ids: Vec<i64>) -> Result<Vec<Self>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, Self>(r"SELECT * FROM paper WHERE id = ANY($1)")
+            .bind(ids)
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows)
+    }
+
     // 我的题目状态统计
     pub async fn find_count_by_author_id(
         pool: &PgPool,
@@ -242,5 +252,56 @@ impl Paper {
         qb.push(" OFFSET ").push_bind(offset);
 
         qb.build_query_as::<Self>().fetch_all(pool).await
+    }
+
+    // 更新状态
+    pub async fn update_status_by_id(
+        pool: &PgPool,
+        id: i64,
+        status: i16,
+        approve_id: i64,
+        reject_reason: Option<String>,
+    ) -> Result<u64, sqlx::Error> {
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r"
+        UPDATE paper
+        SET status = $2,
+            approve_id = $3,
+            reject_reason = $4,
+            approve_at = $5,
+            updated_at = $5
+        WHERE id = $1
+        ",
+        )
+        .bind(id)
+        .bind(status)
+        .bind(approve_id)
+        .bind(reject_reason)
+        .bind(now)
+        .execute(pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    // 根据 ID 删除记录
+    pub async fn delete(pool: &PgPool, id: i64) -> Result<u64, sqlx::Error> {
+        let row = sqlx::query("DELETE FROM paper WHERE id = $1")
+            .bind(id)
+            .execute(pool)
+            .await?;
+
+        Ok(row.rows_affected())
+    }
+
+    // 审核通过的试卷套数
+    // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
+    pub async fn find_paper_num(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(r"SELECT COUNT(*) FROM paper WHERE status = $1")
+            .bind(PaperStatus::Published as i16)
+            .fetch_one(pool)
+            .await
     }
 }

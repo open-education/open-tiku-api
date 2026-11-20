@@ -8,7 +8,6 @@ pub mod edit;
 pub mod file;
 pub mod homework;
 pub mod paper;
-pub mod paperv;
 pub mod question;
 pub mod question_cate;
 pub mod question_upload;

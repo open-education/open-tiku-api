@@ -1,3 +1,4 @@
+use crate::api::req::paper::DeleteReq;
 use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
 use crate::api::resp::paper::{CountPaperResp, PaperListResp, PaperResp};
@@ -199,4 +200,55 @@ fn to_list_resp(rows: Vec<Paper>, user_map: &HashMap<i64, String>) -> Vec<PaperR
     }
 
     list
+}
+
+// 试卷详情
+pub async fn info(app_state: &WebAppState, id: i64) -> Result<PaperResp, AppError> {
+    let db = &app_state.db;
+
+    let row = Paper::find_by_id(db, id)
+        .await
+        .map_err(|err| {
+            error!("Select paper info by id: {id} error: {err}");
+            AppError::db_error("查询试卷详情出错")
+        })?
+        .ok_or_else(|| AppError::business_error("试卷不存在"))?;
+
+    Ok(row.into())
+}
+
+pub async fn delete(
+    app_state: &WebAppState,
+    req: DeleteReq,
+    user_info: UserInfo,
+) -> Result<bool, AppError> {
+    if req.id <= 0 {
+        return Err(AppError::param_error("试卷标识为空"));
+    }
+
+    let db = &app_state.db;
+
+    // 只允许删除自己的试卷
+    let has_paper = Paper::find_by_id(db, req.id)
+        .await
+        .map_err(|err| {
+            error!("Failed to find paper: {err}");
+            AppError::db_error("试卷查询错误")
+        })?
+        .ok_or_else(|| AppError::not_found("试卷不存在"))?;
+    if has_paper.author_id != user_info.user_id {
+        return Err(AppError::permission_denied("只允许删除自己的试卷"));
+    }
+
+    // 只有草稿的试卷可以删除
+    if has_paper.status != PaperStatus::Draft as i16 {
+        return Err(AppError::business_error("只允许删除草稿中的试卷"));
+    }
+
+    let rows = Paper::delete(db, req.id).await.map_err(|err| {
+        error!("paper delete by id err: {err}");
+        AppError::db_error("删除失败")
+    })?;
+
+    Ok(rows >= 1)
 }

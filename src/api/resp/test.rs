@@ -1,4 +1,4 @@
-use crate::api::resp::paperv::CommonPaperResp;
+use crate::api::resp::paper::PaperResp;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::model::test_answer::TestAnswer;
 use crate::model::test_attempt::TestAttempt;
@@ -15,7 +15,7 @@ pub struct InfoResp {
     pub deadline: String,
     pub created_at: String,
     pub updated_at: String,
-    pub paper_info: CommonPaperResp,
+    pub paper_info: PaperResp,
 }
 
 // 任务信息列表

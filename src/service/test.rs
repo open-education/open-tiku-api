@@ -1,12 +1,12 @@
 use crate::api::req::test::{AttemptListReq, LatestAttemptReq, ListReq, TestAnswerAddReq};
-use crate::api::resp::paperv::CommonPaperResp;
+use crate::api::resp::paper::PaperResp;
 use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, InfoResp, ListResp};
 use crate::app::conf::WebAppState;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
 use crate::middleware::user::StudentUserInfo;
 use crate::model::homework::Homework;
 use crate::model::homework_student::HomeworkStudent;
-use crate::model::paperv::Paperv;
+use crate::model::paper::Paper;
 use crate::model::test_answer::TestAnswer;
 use crate::model::test_attempt::TestAttempt;
 use crate::service::class_student::get_student_by_user_id;
@@ -80,12 +80,12 @@ pub async fn list(
     let mut paper_ids: Vec<i64> = homework_rows.iter().map(|row| row.paper_id).collect();
     paper_ids.sort_unstable();
     paper_ids.dedup();
-    let paper_list = Paperv::find_by_ids(db, paper_ids).await.map_err(|e| {
+    let paper_list = Paper::find_by_ids(db, paper_ids).await.map_err(|e| {
         error!("test list paper rows error: {e}");
         AppError::db_error("获取学生作业试卷信息出错")
     })?;
     // 试卷id->试卷详情
-    let paper_map: HashMap<i64, &Paperv> = paper_list
+    let paper_map: HashMap<i64, &Paper> = paper_list
         .iter()
         .map(|item| (item.id.unwrap_or_default(), item))
         .collect();
@@ -107,7 +107,7 @@ pub async fn list(
             (**paper).clone().into()
         } else {
             error!("test list paper info is empty: {paper_id}");
-            CommonPaperResp::default()
+            PaperResp::default()
         };
 
         resp.push(InfoResp {

@@ -9,7 +9,6 @@ pub mod file;
 pub mod homework;
 pub mod other_dict;
 pub mod paper;
-pub mod paperv;
 pub mod question;
 pub mod question_cate;
 pub mod req;

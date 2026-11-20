@@ -1,9 +1,9 @@
 use crate::api::req::edit::CommonEditStatusReq;
 use crate::app::conf::WebAppState;
-use crate::enums::paperv::PaperStatus;
+use crate::enums::paper::PaperStatus;
 use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
-use crate::model::paperv::Paperv;
+use crate::model::paper::Paper;
 use crate::model::question::Question;
 use crate::service::stat;
 use crate::util::error::AppError;
@@ -82,11 +82,12 @@ pub async fn paper_status(
         return Err(AppError::param_error("试卷标识不存在"));
     }
 
-    let status = PaperStatus::from_i16(req.status);
+    let status = PaperStatus::from_i16(req.status)
+        .ok_or_else(|| AppError::param_error("不支持的状态变更"))?;
 
     let db = &app_state.db;
 
-    let paper = Paperv::find_by_id(db, req.id)
+    let paper = Paper::find_by_id(db, req.id)
         .await
         .map_err(|e| {
             error!("Select paper id: {} err: {e}", req.id);
@@ -110,15 +111,9 @@ pub async fn paper_status(
                 return Err(AppError::business_error("拒绝审核必须说明原因"));
             }
         }
-        // 其他状态（如布置作业）暂不支持
-        PaperStatus::Homework => {
-            return Err(AppError::business_error(
-                format!("不支持的状态变更: {}", req.status).as_str(),
-            ));
-        }
     }
 
-    let rows_affected = Paperv::update_status_by_id(
+    let rows_affected = Paper::update_status_by_id(
         db,
         req.id,
         req.status,
