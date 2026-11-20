@@ -3,9 +3,8 @@ use crate::api::req::paper::PaperListReq;
 use crate::api::resp::paper::{CountPaperResp, PaperListResp, PaperResp};
 use crate::app::conf::WebAppState;
 use crate::enums::paper::{
-    ExamType, PaperDifficultyType, PaperLevelType, PaperType, UploadFileType,
+    ExamType, PaperDifficultyType, PaperLevelType, PaperStatus, PaperType, UploadFileType,
 };
-use crate::enums::question::QuestionStatus;
 use crate::enums::user::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::Paper;
@@ -67,7 +66,7 @@ fn check_paper_add_req(req: &PaperAddReq) -> Result<(), AppError> {
     if req.two_level_id <= 0 {
         return Err(AppError::param_error("第2层菜单不能为空"));
     }
-    if req.file_ids.as_ref().is_none_or(Vec::is_empty) {
+    if req.file_list.as_ref().is_none_or(Vec::is_empty) {
         return Err(AppError::param_error("上传文件不能为空"));
     }
     if req.title.is_empty() {
@@ -116,7 +115,7 @@ pub async fn count(
 
 pub async fn list(
     app_state: &WebAppState,
-    req: PaperListReq,
+    mut req: PaperListReq,
     user_info: Option<UserInfo>,
 ) -> Result<PaperListResp, AppError> {
     let db = &app_state.db;
@@ -127,7 +126,7 @@ pub async fn list(
 
     // 我的试卷等时需要登录
     let (author_id, status) = if req_source == PaperPageSource::List {
-        (None, Some(QuestionStatus::Published as i16))
+        (None, Some(PaperStatus::Published as i16))
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
         // 目前我的试卷需要指定作者, 其它情况下暂时不需要指定作者, 后续审核查询条件重新指定
@@ -138,6 +137,7 @@ pub async fn list(
             (None, req.status)
         }
     };
+    req.status = status;
 
     // 查询总数
     let total = Paper::count(db, &req, author_id).await.map_err(|e| {

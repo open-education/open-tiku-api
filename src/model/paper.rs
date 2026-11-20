@@ -1,6 +1,7 @@
 use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 
@@ -11,7 +12,7 @@ pub struct Paper {
     pub five_level_id: Option<i32>,
     pub paper_type: i16,
     pub file_type: i16,
-    pub file_ids: Option<Json<Vec<String>>>,
+    pub file_list: Option<Json<Vec<FileInfo>>>,
     pub province_id: Option<i32>,
     pub city_id: Option<i32>,
     pub school_name: Option<String>,
@@ -32,6 +33,15 @@ pub struct Paper {
     pub approve_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+// 文件信息
+#[derive(Serialize, Deserialize)]
+pub struct FileInfo {
+    pub id: i32,
+    pub name: String,
+    pub url: String,
+    pub size: i32,
 }
 
 // 统计用户试卷计数
@@ -60,6 +70,11 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
         {
             self.push(" AND year = ").push_bind(year);
         }
+        if let Some(exam_type) = req.exam_type
+            && exam_type > 0
+        {
+            self.push(" AND exam_type = ").push_bind(exam_type);
+        }
         if let Some(level_type) = req.level_type
             && level_type > 0
         {
@@ -87,6 +102,11 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
             self.push(" AND school_name LIKE ")
                 .push_bind(format!("%{school_name}%"));
         }
+        if let Some(status) = req.status
+            && status > 0
+        {
+            self.push(" AND status = ").push_bind(status);
+        }
 
         // 搜索用户的试卷
         if let Some(uid) = author_id
@@ -108,7 +128,7 @@ impl Paper {
             r"
             INSERT INTO paper (
                 id, two_level_id, five_level_id, paper_type, file_type,
-                file_ids, province_id, city_id, school_name, exam_type,
+                file_list, province_id, city_id, school_name, exam_type,
                 year, title, score, duration, level_type,
                 difficulty_type, source, remark, author_id, count,
                 status
@@ -125,7 +145,7 @@ impl Paper {
                 five_level_id = EXCLUDED.five_level_id,
                 paper_type = EXCLUDED.paper_type,
                 file_type = EXCLUDED.file_type,
-                file_ids = EXCLUDED.file_ids,
+                file_list = EXCLUDED.file_list,
                 province_id = EXCLUDED.province_id,
                 city_id = EXCLUDED.city_id,
                 school_name = EXCLUDED.school_name,
@@ -149,7 +169,7 @@ impl Paper {
         .bind(req.five_level_id.unwrap_or_default())
         .bind(req.paper_type)
         .bind(req.file_type)
-        .bind(Json(req.file_ids.as_deref().unwrap_or_default()))
+        .bind(Json(req.file_list.as_deref().unwrap_or_default()))
         .bind(req.province_id.unwrap_or_default())
         .bind(req.city_id.unwrap_or_default())
         .bind(req.school_name.as_deref().unwrap_or_default())

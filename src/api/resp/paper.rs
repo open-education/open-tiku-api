@@ -1,4 +1,4 @@
-use crate::model::paper::{CountPaper, Paper};
+use crate::model::paper::{CountPaper, FileInfo, Paper};
 use crate::util::local::to_local_datetime;
 use serde::Serialize;
 use sqlx::types::Json;
@@ -26,7 +26,7 @@ pub struct PaperResp {
     pub five_level_id: Option<i32>,
     pub paper_type: i16,
     pub file_type: i16,
-    pub file_ids: Option<Json<Vec<String>>>,
+    pub file_list: Option<Json<Vec<FileInfo>>>,
     pub province_id: Option<i32>,
     pub city_id: Option<i32>,
     pub school_name: Option<String>,
@@ -60,7 +60,7 @@ impl From<(Paper, String, String)> for PaperResp {
             five_level_id: raw.five_level_id,
             paper_type: raw.paper_type,
             file_type: raw.file_type,
-            file_ids: raw.file_ids,
+            file_list: raw.file_list,
             province_id: raw.province_id,
             city_id: raw.city_id,
             school_name: raw.school_name,

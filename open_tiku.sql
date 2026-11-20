@@ -157,7 +157,7 @@ CREATE TABLE paper
     five_level_id   INTEGER      NOT NULL DEFAULT 0,           -- 第5层菜单标识
     paper_type      SMALLINT     NOT NULL DEFAULT 1,           -- 试卷类型 1 精选试卷 2 手动组卷
     file_type       SMALLINT     NOT NULL DEFAULT 0,           -- 文件类型 0 无意义 1 PDF 文件 2 Word 文件 3 图片 4 Markdown 文档
-    file_ids        JSONB        NOT NULL DEFAULT '[]'::jsonb, -- 文件地址信息
+    file_list       JSONB        NOT NULL DEFAULT '[]'::jsonb, -- 文件地址信息
     province_id     INTEGER      NOT NULL DEFAULT 0,           -- 省标识
     city_id         INTEGER      NOT NULL DEFAULT 0,           -- 城市标识
     school_name     VARCHAR(500) NOT NULL DEFAULT '',          -- 学校名称
