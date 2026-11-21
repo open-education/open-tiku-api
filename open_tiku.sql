@@ -19,18 +19,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS uni_idx_parent_label ON textbook (parent_id, l
 -- 普通索引：深度查询优化
 CREATE INDEX IF NOT EXISTS idx_textbook_depth ON textbook (path_depth);
 
--- 1.1. 章节小节和知识点关联
+-- 1.1. 章节小节和知识点关联-只能是一对一绑定
 CREATE TABLE IF NOT EXISTS chapter_knowledge
 (
-    id           SERIAL PRIMARY KEY,                                  -- 自增主键
-    chapter_id   INTEGER NOT NULL,                                    -- 教材章节id
-    knowledge_id INTEGER NOT NULL,                                    -- 知识点分类id
-    created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,               -- 自动写入创建时间
-    CONSTRAINT uq_chapter_knowledge UNIQUE (chapter_id, knowledge_id) -- 约束：chapter_id + knowledge_id 必须唯一
+    id           SERIAL PRIMARY KEY,                                   -- 自增主键
+    chapter_id   INTEGER NOT NULL,                                     -- 教材章节id
+    knowledge_id INTEGER NOT NULL,                                     -- 知识点分类id
+    created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,                -- 自动写入创建时间
+    CONSTRAINT uq_chapter_knowledge UNIQUE (chapter_id, knowledge_id), -- 约束：chapter_id + knowledge_id 必须唯一
+    CONSTRAINT uq_knowledge_chapter UNIQUE (knowledge_id, chapter_id)  -- 约束：knowledge_id + chapter_id  必须唯一
 );
-
--- 为单个 knowledge_id 查询创建索引 (chapter_id 作为联合唯一索引的第一列通常已自带索引)
-CREATE INDEX IF NOT EXISTS idx_knowledge_id ON chapter_knowledge (knowledge_id);
 
 -- 1.2. 题型列表存储
 CREATE TABLE IF NOT EXISTS question_cate
@@ -65,8 +63,10 @@ CREATE TABLE IF NOT EXISTS question
     id                     BIGSERIAL PRIMARY KEY,
 
     -- 基础关联
-    two_level_id           INTEGER      NOT NULL DEFAULT 0,                                           -- 第2层菜单标识
-    five_level_id          INTEGER      NOT NULL DEFAULT 0,                                           -- 第5层菜单标识
+    chapter_id             INTEGER      NOT NULL DEFAULT 0,                                           -- 直连章节叶子节点 ID 精确匹配某一节的题目
+    chapter_path           VARCHAR(500) NOT NULL DEFAULT '',                                          -- 章节完整路径（如 1/5/23/108/）
+    knowledge_id           INTEGER      NOT NULL DEFAULT 0,                                           -- 直连知识点叶子节点 ID                                               -- 知识点分类id
+    knowledge_path         VARCHAR(500) NOT NULL DEFAULT '',                                          -- 知识点完整路径（如 1/9/44/302/）
     question_cate_id       INTEGER      NOT NULL,                                                     -- 题型标识
     question_type_id       INTEGER      NOT NULL,                                                     -- 题目类型ID (1:单选, 2:多选, 3:填空, 4:解答等)
     question_tag_ids       JSONB,                                                                     -- 题目标签IDs
@@ -111,13 +111,12 @@ CREATE TABLE IF NOT EXISTS question
     created_at             TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
     updated_at             TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
-
--- 题型和题目类型联合索引
-CREATE INDEX IF NOT EXISTS idx_question_cate_type ON question (two_level_id, five_level_id, question_cate_id, question_type_id);
--- 题型和审核状态联合索引
-CREATE INDEX IF NOT EXISTS idx_question_cate_status ON question (two_level_id, five_level_id, question_cate_id, status);
--- 查看作者自己的题
-CREATE INDEX IF NOT EXISTS idx_author_status ON question (two_level_id, five_level_id, author_id, status);
+CREATE INDEX IF NOT EXISTS idx_question_chapter_cate_type ON question (chapter_path, question_cate_id, question_type_id);
+CREATE INDEX IF NOT EXISTS idx_question_knowledge_cate_type ON question (knowledge_path, question_cate_id, question_type_id);
+CREATE INDEX IF NOT EXISTS idx_question_chapter_cate_status ON question (chapter_path, question_cate_id, status);
+CREATE INDEX IF NOT EXISTS idx_question_knowledge_cate_status ON question (knowledge_path, question_cate_id, status);
+CREATE INDEX IF NOT EXISTS idx_author_chapter_status ON question (author_id, chapter_path, status);
+CREATE INDEX IF NOT EXISTS idx_author_knowledge_status ON question (author_id, knowledge_path, status);
 
 -- 2.1. 题目关联关系
 CREATE TABLE IF NOT EXISTS question_relation
@@ -134,27 +133,29 @@ CREATE TABLE IF NOT EXISTS question_relation
 CREATE TABLE IF NOT EXISTS task
 (
     id               BIGSERIAL PRIMARY KEY,
-    two_level_id     INTEGER      NOT NULL DEFAULT 0, -- 第2层菜单标识
-    five_level_id    INTEGER      NOT NULL DEFAULT 0, -- 第5层菜单标识
-    question_cate_id BIGINT       NOT NULL,           -- 题型标识
-    task_type        SMALLINT     NOT NULL,           -- 任务类型 1 题目上传
-    name             VARCHAR(128) NOT NULL,           -- 文件名称
-    author_id        BIGINT       NOT NULL,           -- 创作者标识
-    url              VARCHAR(128) NOT NULL,           -- 文件路径
-    email            VARCHAR(128) NOT NULL,           -- 接收任务结果的邮箱
-    status           SMALLINT     NOT NULL,           -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
-    result           TEXT         NULL,               -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
+    question_cate_id BIGINT       NOT NULL,            -- 题型标识
+    chapter_id       INTEGER      NOT NULL DEFAULT 0,  -- 直连章节叶子节点 ID 精确匹配某一节的题目
+    chapter_path     VARCHAR(500) NOT NULL DEFAULT '', -- 章节完整路径（如 1/5/23/108/）
+    knowledge_id     INTEGER      NOT NULL DEFAULT 0,  -- 直连知识点叶子节点 ID                                               -- 知识点分类id
+    knowledge_path   VARCHAR(500) NOT NULL DEFAULT '', -- 知识点完整路径（如 1/9/44/302/）
+    task_type        SMALLINT     NOT NULL,            -- 任务类型 1 题目上传
+    name             VARCHAR(128) NOT NULL,            -- 文件名称
+    author_id        BIGINT       NOT NULL,            -- 创作者标识
+    url              VARCHAR(128) NOT NULL,            -- 文件路径
+    email            VARCHAR(128) NOT NULL,            -- 接收任务结果的邮箱
+    status           SMALLINT     NOT NULL,            -- 任务处理状态 1 待处理 2 处理中 3 处理成功 10 处理失败
+    result           TEXT         NULL,                -- 处理结果, 成功时记录处理数量, 失败时记录错误信息, 可能不全
     created_at       TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_cate_task ON task (author_id, two_level_id, five_level_id, question_cate_id, task_type);
+CREATE INDEX IF NOT EXISTS idx_cate_chapter_task ON task (author_id, chapter_path, question_cate_id, task_type);
+CREATE INDEX IF NOT EXISTS idx_cate_knowledge_task ON task (author_id, knowledge_path, question_cate_id, task_type);
 
 -- 4. 试卷主表
 CREATE TABLE paper
 (
     id              BIGSERIAL PRIMARY KEY,
-    two_level_id    INTEGER      NOT NULL DEFAULT 0,           -- 第2层菜单标识
-    five_level_id   INTEGER      NOT NULL DEFAULT 0,           -- 第5层菜单标识
+    textbook_path   VARCHAR(500) NOT NULL DEFAULT '',          -- 完整父路径
     paper_type      SMALLINT     NOT NULL DEFAULT 1,           -- 试卷类型 1 精选试卷 2 手动组卷
     file_type       SMALLINT     NOT NULL DEFAULT 0,           -- 文件类型 0 无意义 1 PDF 文件 2 Word 文件 3 图片 4 Markdown 文档
     file_list       JSONB        NOT NULL DEFAULT '[]'::jsonb, -- 文件地址信息
@@ -181,8 +182,8 @@ CREATE TABLE paper
     created_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_paper_related ON paper (two_level_id, five_level_id);
-CREATE INDEX idx_author_paper_related ON paper (author_id, two_level_id, five_level_id);
+CREATE INDEX idx_paper_path_related ON paper (textbook_path);
+CREATE INDEX idx_author_paper_path_related ON paper (author_id, textbook_path);
 
 -- 5. 第三方身份认证表（存储所有OAuth登录源）
 CREATE TABLE user_identity

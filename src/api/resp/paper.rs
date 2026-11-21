@@ -22,8 +22,7 @@ impl From<CountPaper> for CountPaperResp {
 #[serde(rename_all = "camelCase")]
 pub struct PaperResp {
     pub id: i64,
-    pub two_level_id: i32,
-    pub five_level_id: Option<i32>,
+    pub textbook_path: String,
     pub paper_type: i16,
     pub file_type: i16,
     pub file_list: Option<Json<Vec<FileInfo>>>,
@@ -56,8 +55,7 @@ impl From<(Paper, String, String)> for PaperResp {
         let raw = row.0;
         Self {
             id: raw.id.unwrap_or_default(),
-            two_level_id: raw.two_level_id,
-            five_level_id: raw.five_level_id,
+            textbook_path: raw.textbook_path,
             paper_type: raw.paper_type,
             file_type: raw.file_type,
             file_list: raw.file_list,
@@ -91,8 +89,7 @@ impl From<Paper> for PaperResp {
     fn from(raw: Paper) -> Self {
         Self {
             id: raw.id.unwrap_or_default(),
-            two_level_id: raw.two_level_id,
-            five_level_id: raw.five_level_id,
+            textbook_path: raw.textbook_path,
             paper_type: raw.paper_type,
             file_type: raw.file_type,
             file_list: raw.file_list,

@@ -9,8 +9,7 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder, Row, Transaction};
 #[derive(FromRow, Clone)]
 pub struct Paper {
     pub id: Option<i64>,
-    pub two_level_id: i32,
-    pub five_level_id: Option<i32>,
+    pub textbook_path: String,
     pub paper_type: i16,
     pub file_type: i16,
     pub file_list: Option<Json<Vec<FileInfo>>>,
@@ -58,14 +57,9 @@ trait QueryBuilderExt<'a> {
 
 impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
     fn push_list_where(mut self, req: &'a PaperListReq, author_id: Option<i64>) -> Self {
-        self.push(" WHERE two_level_id = ")
-            .push_bind(req.two_level_id);
+        self.push(" WHERE textbook_path LIKE ")
+            .push_bind(format!("{}%", req.textbook_path));
 
-        if let Some(five_level_id) = req.five_level_id
-            && five_level_id > 0
-        {
-            self.push(" AND five_level_id = ").push_bind(five_level_id);
-        }
         if let Some(ref year) = req.year
             && !year.is_empty()
         {
@@ -128,22 +122,19 @@ impl Paper {
         let id = sqlx::query(
             r"
             INSERT INTO paper (
-                id, two_level_id, five_level_id, paper_type, file_type,
-                file_list, province_id, city_id, school_name, exam_type,
-                year, title, score, duration, level_type,
-                difficulty_type, source, remark, author_id, count,
-                status
+                id, textbook_path, paper_type, file_type, file_list,
+                province_id, city_id, school_name, exam_type, year,
+                title, score, duration, level_type, difficulty_type,
+                source, remark, author_id, count, status
             ) VALUES (
                 COALESCE($1, nextval(pg_get_serial_sequence('paper', 'id'))),
                 $2, $3, $4, $5,
                 $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20,
-                $21
+                $16, $17, $18, $19, $20
             )
             ON CONFLICT (id) DO UPDATE SET
-                two_level_id = EXCLUDED.two_level_id,
-                five_level_id = EXCLUDED.five_level_id,
+                textbook_path = EXCLUDED.textbook_path,
                 paper_type = EXCLUDED.paper_type,
                 file_type = EXCLUDED.file_type,
                 file_list = EXCLUDED.file_list,
@@ -166,8 +157,7 @@ impl Paper {
             ",
         )
         .bind(req.id)
-        .bind(req.two_level_id)
-        .bind(req.five_level_id.unwrap_or_default())
+        .bind(&req.textbook_path)
         .bind(req.paper_type)
         .bind(req.file_type)
         .bind(Json(req.file_list.as_deref().unwrap_or_default()))

@@ -10,7 +10,7 @@ use crate::util::error::AppError;
 use sqlx::PgPool;
 use tracing::error;
 
-// 查询唯一绑定关系是否一存在
+// 查询唯一绑定关系是否已存在
 async fn check_unique(pool: &PgPool, req: &CreateChapterKnowledgeReq) -> Result<(), AppError> {
     match ChapterKnowledge::find_unique(pool, req.chapter_id, req.knowledge_id)
         .await

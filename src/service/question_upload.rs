@@ -38,8 +38,9 @@ pub async fn batch(app_state: &CronAppState) -> Result<(), AppError> {
     // 得到所有的教材通用字典
     let mut textbook_ids: Vec<i32> = waiting_task_list
         .iter()
-        .map(|item| item.two_level_id)
-        .collect();
+        .map(|item| get_two_level_id(&item.chapter_path))
+        .collect::<Result<Vec<i32>, AppError>>()?;
+
     textbook_ids.sort_unstable();
     textbook_ids.dedup();
     let rows = TextbookDict::find_by_textbook_ids(db, &textbook_ids, None)
@@ -93,6 +94,17 @@ pub async fn batch(app_state: &CronAppState) -> Result<(), AppError> {
     info!("Waiting task list all done");
 
     Ok(())
+}
+
+// 解析 第二层 标识 id
+fn get_two_level_id(chapter_path: &str) -> Result<i32, AppError> {
+    let path = chapter_path
+        .split('/')
+        .nth(2)
+        .ok_or_else(|| AppError::business_error("章节路径缺少第2层级"))?;
+
+    path.parse::<i32>()
+        .map_err(|_| AppError::business_error("章节路径第2层级不是有效的数字ID"))
 }
 
 // 上传单个题目文件
@@ -356,8 +368,9 @@ fn to_req(
     task_info: &Task,
     map: &HashMap<i32, HashMap<String, Vec<TextbookDict>>>,
 ) -> Result<CreateQuestionReq, AppError> {
-    let dict_map = map.get(&task_info.two_level_id).ok_or_else(|| {
-        error!("textbook_id: {} dict is empty", task_info.two_level_id);
+    let id = get_two_level_id(&task_info.chapter_path)?;
+    let dict_map = map.get(&id).ok_or_else(|| {
+        error!("textbook_id: {} dict is empty", task_info.chapter_id);
         AppError::not_found("教材通用字典不存在")
     })?;
 
@@ -393,9 +406,17 @@ fn to_req(
 
     let req = CreateQuestionReq {
         id: None,
-        two_level_id: task_info.two_level_id,
-        five_level_id: task_info.five_level_id,
         question_cate_id: task_info.question_cate_id as i32,
+        chapter_id: Some(task_info.chapter_id),
+        chapter_path: Some(format!(
+            "{}/{}/",
+            task_info.chapter_path, task_info.chapter_id
+        )),
+        knowledge_id: Some(task_info.knowledge_id),
+        knowledge_path: Some(format!(
+            "{}/{}",
+            task_info.knowledge_path, task_info.knowledge_id
+        )),
         source_id: parent_id,
         relation_type: relation_type as i16,
         question_type_id,
@@ -501,9 +522,11 @@ pub async fn parse_question_snippet(
 
     Ok(CreateQuestionReq {
         id: None,
-        two_level_id: 0,
-        five_level_id: 0,
         question_cate_id: 0,
+        chapter_id: None,
+        chapter_path: None,
+        knowledge_id: None,
+        knowledge_path: None,
         source_id: None,
         relation_type: QuestionRelationType::Base as i16,
         question_type_id,

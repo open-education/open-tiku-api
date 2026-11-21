@@ -4,6 +4,7 @@ use crate::app::conf::WebAppState;
 use crate::enums::task::TaskType;
 use crate::middleware::user::UserInfo;
 use crate::model::task::Task;
+use crate::service::question::{check_chapter_knowledge_is_full, get_path_info_by_cate_id};
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use std::collections::HashMap;
@@ -12,12 +13,19 @@ use tracing::error;
 // 添加任务
 pub async fn add(
     app_state: &WebAppState,
-    req: TaskAddReq,
+    mut req: TaskAddReq,
     user_info: UserInfo,
 ) -> Result<i64, AppError> {
     TaskType::from_i16(req.task_type).ok_or_else(|| AppError::param_error("不受支持的任务类型"))?;
 
     let db = &app_state.db;
+
+    // 填充章节和知识点路径
+    let path_info = get_path_info_by_cate_id(db, req.question_cate_id).await?;
+    req.chapter_id = Some(path_info.c_id);
+    req.chapter_path = Some(format!("{}/{}/", path_info.c_path, path_info.c_id));
+    req.knowledge_id = Some(path_info.k_id);
+    req.knowledge_path = Some(format!("{}/{}/", path_info.k_path, path_info.k_id));
 
     let row_id = Task::insert(db, req, user_info.user_id)
         .await
@@ -36,10 +44,12 @@ pub async fn list(
 ) -> Result<TaskListResp, AppError> {
     let db = &app_state.db;
 
+    check_chapter_knowledge_is_full(&req.chapter_path, &req.knowledge_path)?;
+
     let total = Task::count_by_cate(
         db,
-        req.two_level_id,
-        req.five_level_id,
+        req.chapter_path.clone(),
+        req.knowledge_path.clone(),
         req.question_cate_id,
         req.task_type,
         user_info.user_id,
@@ -62,8 +72,8 @@ pub async fn list(
 
     let list_data = Task::list_by_cate(
         db,
-        req.two_level_id,
-        req.five_level_id,
+        req.chapter_path,
+        req.knowledge_path,
         req.question_cate_id,
         req.task_type,
         user_info.user_id,

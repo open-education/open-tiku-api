@@ -7,9 +7,11 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct TaskInfoResp {
     pub id: i64,
-    pub two_level_id: i32,
-    pub five_level_id: i32,
     pub question_cate_id: i64,
+    pub chapter_id: i32,        // 末级章节标识
+    pub chapter_path: String,   // 末级章节完整父路径
+    pub knowledge_id: i32,      // 末级知识点标识
+    pub knowledge_path: String, // 末级知识点完整父路径
     pub task_type: i16,
     pub name: String,
     pub url: String,
@@ -26,8 +28,10 @@ impl From<Task> for TaskInfoResp {
     fn from(raw: Task) -> Self {
         Self {
             id: raw.id,
-            two_level_id: raw.two_level_id,
-            five_level_id: raw.five_level_id,
+            chapter_id: raw.chapter_id,
+            chapter_path: raw.chapter_path,
+            knowledge_id: raw.knowledge_id,
+            knowledge_path: raw.knowledge_path,
             question_cate_id: raw.question_cate_id,
             task_type: raw.task_type,
             name: raw.name,

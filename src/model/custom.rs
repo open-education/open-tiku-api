@@ -15,9 +15,9 @@ pub struct Custom {
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomTextbook {
-    two_level_id: Option<i32>,            // 是否选择第2层菜单
-    five_level_id: Option<i32>,           // 是否选择了第5层菜单, 用户展开题型列表
-    five_level_keys: Option<Vec<String>>, // 前5层菜单 key
+    pub mode: i16,                 // 1 是章节 2 是知识点, 通用模式前2层默认章节
+    pub path: Option<String>,      // 完整路径标识, 末尾 / 结束
+    pub keys: Option<Vec<String>>, // 完整路径 key 集合
 }
 
 impl Custom {

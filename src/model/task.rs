@@ -7,9 +7,11 @@ use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
 #[derive(FromRow)]
 pub struct Task {
     pub id: i64,
-    pub two_level_id: i32,
-    pub five_level_id: i32,
     pub question_cate_id: i64,
+    pub chapter_id: i32,        // 末级章节标识
+    pub chapter_path: String,   // 末级章节完整父路径
+    pub knowledge_id: i32,      // 末级知识点标识
+    pub knowledge_path: String, // 末级知识点完整父路径
     pub task_type: i16,
     pub name: String,
     pub url: String,
@@ -29,22 +31,28 @@ impl Task {
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar(
             r"
-        INSERT INTO task (question_cate_id, task_type, name, url, author_id, status, email, two_level_id, five_level_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO task (question_cate_id, task_type, name, url, author_id,
+                          status, email, chapter_id, chapter_path, knowledge_id,
+                          knowledge_path)
+        VALUES ($1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10,
+                $11)
         RETURNING id
         ",
         )
-            .bind(req.question_cate_id)
-            .bind(req.task_type)
-            .bind(req.name)
-            .bind(req.url)
-            .bind(author_id)
-            .bind(TaskStatus::Waiting as i16)
-            .bind(req.email)
-            .bind(req.two_level_id)
-            .bind(req.five_level_id)
-            .fetch_one(pool)
-            .await
+        .bind(req.question_cate_id)
+        .bind(req.task_type)
+        .bind(req.name)
+        .bind(req.url)
+        .bind(author_id)
+        .bind(TaskStatus::Waiting as i16)
+        .bind(req.email)
+        .bind(req.chapter_id.unwrap_or_default())
+        .bind(req.chapter_path.unwrap_or_default())
+        .bind(req.knowledge_id.unwrap_or_default())
+        .bind(req.knowledge_path.unwrap_or_default())
+        .fetch_one(pool)
+        .await
     }
 
     pub async fn update_by_id(
@@ -71,8 +79,8 @@ impl Task {
 
     pub async fn count_by_cate(
         pool: &PgPool,
-        two_level_id: i32,
-        five_level_id: Option<i32>,
+        chapter_path: Option<String>,
+        knowledge_path: Option<String>,
         question_cate_id: Option<i64>,
         task_type: i16,
         author_id: i64,
@@ -81,15 +89,20 @@ impl Task {
             QueryBuilder::new("SELECT COUNT(*) FROM task WHERE author_id = ");
         qb.push_bind(author_id);
 
-        qb.push(" AND two_level_id = ").push_bind(two_level_id);
-
         qb.push(" AND task_type = ").push_bind(task_type);
 
         // 只有当参数为 Some 时，才拼接该条件，保证索引高效命中
-        if let Some(five_id) = five_level_id
-            && five_id > 0
+        if let Some(c_path) = chapter_path
+            && !c_path.is_empty()
         {
-            qb.push(" AND five_level_id = ").push_bind(five_id);
+            qb.push(" AND chapter_path LIKE ")
+                .push_bind(format!("{c_path}%"));
+        }
+        if let Some(k_path) = knowledge_path
+            && !k_path.is_empty()
+        {
+            qb.push(" AND knowledge_path LIKE ")
+                .push_bind(format!("{k_path}%"));
         }
         if let Some(cate_id) = question_cate_id
             && cate_id > 0
@@ -102,8 +115,8 @@ impl Task {
 
     pub async fn list_by_cate(
         pool: &PgPool,
-        two_level_id: i32,
-        five_level_id: Option<i32>,
+        chapter_path: Option<String>,
+        knowledge_path: Option<String>,
         question_cate_id: Option<i64>,
         task_type: i16,
         author_id: i64,
@@ -114,15 +127,20 @@ impl Task {
             QueryBuilder::new("SELECT * FROM task WHERE author_id = ");
         qb.push_bind(author_id);
 
-        qb.push(" AND two_level_id = ").push_bind(two_level_id);
-
         qb.push(" AND task_type = ").push_bind(task_type);
 
         // 动态拼接可选过滤条件
-        if let Some(five_id) = five_level_id
-            && five_id > 0
+        if let Some(c_path) = chapter_path
+            && !c_path.is_empty()
         {
-            qb.push(" AND five_level_id = ").push_bind(five_id);
+            qb.push(" AND chapter_path LIKE ")
+                .push_bind(format!("{c_path}%"));
+        }
+        if let Some(k_path) = knowledge_path
+            && !k_path.is_empty()
+        {
+            qb.push(" AND knowledge_path LIKE ")
+                .push_bind(format!("{k_path}%"));
         }
         if let Some(cate_id) = question_cate_id
             && cate_id > 0

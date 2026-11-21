@@ -5,8 +5,7 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct PaperAddReq {
     pub id: Option<i64>,
-    pub two_level_id: i32,
-    pub five_level_id: Option<i32>,
+    pub textbook_path: String,
     pub paper_type: i16,
     pub file_type: i16,
     pub file_list: Option<Vec<FileInfo>>,
@@ -31,8 +30,7 @@ pub struct PaperAddReq {
 #[serde(rename_all = "camelCase")]
 pub struct PaperListReq {
     pub source: String,
-    pub two_level_id: i32,
-    pub five_level_id: Option<i32>,
+    pub textbook_path: String,
     pub year: Option<String>,
     pub exam_type: Option<i16>,
     pub level_type: Option<i16>,

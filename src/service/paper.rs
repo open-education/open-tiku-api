@@ -64,8 +64,15 @@ fn check_paper_add_req(req: &PaperAddReq) -> Result<(), AppError> {
     PaperDifficultyType::from_i16(req.difficulty_type)
         .ok_or_else(|| AppError::param_error("不受支持的难度级别"))?;
 
-    if req.two_level_id <= 0 {
-        return Err(AppError::param_error("第2层菜单不能为空"));
+    let status =
+        PaperStatus::from_i16(req.status).ok_or_else(|| AppError::param_error("试卷状态错误"))?;
+    // 只有草稿可以添加
+    if status != PaperStatus::Draft {
+        return Err(AppError::business_error("只有草稿中的数据可以添加"));
+    }
+
+    if req.textbook_path.is_empty() {
+        return Err(AppError::param_error("菜单不能为空"));
     }
     if req.file_list.as_ref().is_none_or(Vec::is_empty) {
         return Err(AppError::param_error("上传文件不能为空"));
@@ -124,6 +131,10 @@ pub async fn list(
     // 页面来源
     let req_source = PaperPageSource::from_str(&req.source)
         .ok_or_else(|| AppError::param_error("不清楚的查询来源"))?;
+
+    if req.textbook_path.is_empty() {
+        return Err(AppError::param_error("菜单不能为空"));
+    }
 
     // 我的试卷等时需要登录
     let (author_id, status) = if req_source == PaperPageSource::List {
