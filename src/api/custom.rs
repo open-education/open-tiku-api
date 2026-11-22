@@ -1,4 +1,4 @@
-use crate::api::req::custom::{AddReq, CustomListReq};
+use crate::api::req::custom::{AddReq, ListReq};
 use crate::api::resp::custom::CustomResp;
 use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
@@ -21,7 +21,7 @@ pub async fn add(
 #[post("/list")]
 pub async fn list(
     app_state: web::Data<WebAppState>,
-    req: web::Json<CustomListReq>,
+    req: web::Json<ListReq>,
     user_info: Option<UserInfo>,
 ) -> ApiResponse<Vec<CustomResp>> {
     ApiResponse::response(custom::list(&app_state, req.into_inner(), user_info).await)

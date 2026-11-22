@@ -12,7 +12,7 @@ pub struct AddReq {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CustomListReq {
+pub struct ListReq {
     pub page_source: i16,
     pub user_source: i16,
 }

@@ -1,4 +1,4 @@
-use crate::api::req::custom::{AddReq, CustomListReq};
+use crate::api::req::custom::{AddReq, ListReq};
 use crate::api::resp::custom::CustomResp;
 use crate::app::conf::WebAppState;
 use crate::constant::meta;
@@ -51,7 +51,7 @@ pub async fn add(
 // 个性化配置列表
 pub async fn list(
     app_state: &WebAppState,
-    req: CustomListReq,
+    req: ListReq,
     user_info: Option<UserInfo>,
 ) -> Result<Vec<CustomResp>, AppError> {
     PageSource::from_i16(req.page_source)
