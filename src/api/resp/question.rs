@@ -1,4 +1,4 @@
-use crate::model::question::{Content, Question, QuestionOption, Step};
+use crate::model::question::{Content, CountQuestion, Question, QuestionOption, Step};
 use crate::util::local::to_local_datetime;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -10,6 +10,10 @@ use sqlx::types::Json;
 pub struct QuestionBaseResp {
     pub id: i64,
     pub question_cate_id: i32,                          // 题型主键
+    pub chapter_id: i32,                                // 末级章节标识
+    pub chapter_path: String,                           // 末级章节完整父路径
+    pub knowledge_id: i32,                              // 末级知识点标识
+    pub knowledge_path: String,                         // 末级知识点完整父路径
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养
@@ -75,6 +79,10 @@ impl From<(Question, String, String)> for QuestionInfoResp {
             base_info: QuestionBaseResp {
                 id: raw.0.id,
                 question_cate_id: raw.0.question_cate_id,
+                chapter_id: raw.0.chapter_id,
+                chapter_path: raw.0.chapter_path,
+                knowledge_id: raw.0.knowledge_id,
+                knowledge_path: raw.0.knowledge_path,
                 question_type_id: raw.0.question_type_id,
                 question_tag_ids: raw.0.question_tag_ids,
                 question_dimension_ids: raw.0.question_dimension_ids,
@@ -120,4 +128,19 @@ pub struct QuestionListResp {
     pub page_no: i32,
     pub page_size: i32,
     pub total: i64,
+}
+
+#[derive(Serialize)]
+pub struct CountQuestionResp {
+    pub status: i16,
+    pub count: i64,
+}
+
+impl From<CountQuestion> for CountQuestionResp {
+    fn from(raw: CountQuestion) -> Self {
+        Self {
+            status: raw.status,
+            count: raw.count,
+        }
+    }
 }

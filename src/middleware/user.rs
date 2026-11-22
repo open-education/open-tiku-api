@@ -131,8 +131,6 @@ const PREFIX_LIST: &[&str] = &[
     "/textbook/list/",
     // 通过字典
     "/other/dict/list/",
-    // 任务
-    "/task/list",
     // 试卷
     "/paper/top/info/",
     "/paper/gen/info/",
@@ -149,7 +147,9 @@ const PREFIX_LIST: &[&str] = &[
     // 题型父菜单列表
     "/question-cate/list/all",
     // 统计
-    "/stat/board/"
+    "/stat/board/",
+    // 城市列表
+    "/city/list",
 ];
 
 // 如果有登录信息时需要解析的白名单, 没有则不需要解析
@@ -158,6 +158,8 @@ const OPTION_PREFIX_LIST: &[&str] = &[
     "/question/list",
     // 试卷
     "/paper/list",
+    // 个性化配置
+    "/custom/list",
 ];
 
 pub async fn auth(

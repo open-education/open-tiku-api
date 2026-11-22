@@ -1,4 +1,3 @@
-use crate::api::req::paper::GenPaperGenConfig;
 use crate::api::req::question::CreateQuestionReq;
 use crate::constant::meta::STAT_MAX_NUM;
 use crate::enums::dict::TypeCode;
@@ -37,6 +36,10 @@ pub struct Step {
 pub struct Question {
     pub id: i64,
     pub question_cate_id: i32,                          // 题型主键
+    pub chapter_id: i32,                                // 末级章节标识
+    pub chapter_path: String,                           // 末级章节完整父路径
+    pub knowledge_id: i32,                              // 末级知识点标识
+    pub knowledge_path: String,                         // 末级知识点完整父路径
     pub question_type_id: i32,                          // 题型类型主键
     pub question_tag_ids: Option<Json<Vec<i32>>>,       // 题型标签主键
     pub question_dimension_ids: Option<Json<Vec<i32>>>, // 核心素养标识
@@ -109,10 +112,28 @@ pub struct TopTextbook {
     pub cnt: i64,
 }
 
+// 统计用户题目计数
+#[derive(FromRow)]
+pub struct CountQuestion {
+    pub status: i16,
+    pub count: i64,
+}
+
+// 章节和知识点完整父路径
+#[derive(FromRow)]
+pub struct TextbookPathInfo {
+    pub c_id: i32,
+    pub c_path: String,
+    pub k_id: i32,
+    pub k_path: String,
+}
+
 // 普通题目列表请求
 pub struct CateAndTypeReq {
-    pub cate_ids: Vec<i32>,
-    pub status: i16,
+    pub chapter_path: Option<String>,
+    pub knowledge_path: Option<String>,
+    pub cate_ids: Option<Vec<i32>>,
+    pub status: Option<i16>,
     pub type_id: Option<i32>,
     pub ids: Option<Vec<i64>>,
     pub title_val: Option<String>,
@@ -168,7 +189,7 @@ impl ExtIdReq {
 // 变式题列表请求
 pub struct SimilarReq {
     pub question_id: i64,
-    pub status: i16,
+    pub status: Option<i16>,
     pub cate_id: i32,
     pub type_id: Option<i32>,
     pub tag_ids: Option<Vec<i32>>,
@@ -178,17 +199,35 @@ pub struct SimilarReq {
 trait QueryBuilderExt<'a> {
     fn push_cate_and_type_where(self, req: &'a CateAndTypeReq) -> Self;
     fn push_similar_where(self, req: &'a SimilarReq) -> Self;
-    fn push_random_where(self, req: &'a GenPaperGenConfig) -> Self;
 }
 
 // 为 sqlx::QueryBuilder 实现这个 Trait
 impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
     fn push_cate_and_type_where(mut self, req: &'a CateAndTypeReq) -> Self {
-        self.push(" WHERE question_cate_id = ANY(")
-            .push_bind(&req.cate_ids)
-            .push(")");
-        self.push(" AND status = ").push_bind(req.status);
+        // 章节和知识点不能同时为空但是只会存在其中一个, 不再这里做判断失败直接错误即可
+        if let Some(ref chapter_path) = req.chapter_path
+            && !chapter_path.is_empty()
+        {
+            self.push(" WHERE chapter_path LIKE ")
+                .push_bind(format!("{chapter_path}%"));
+        }
+        if let Some(ref knowledge_path) = req.knowledge_path
+            && !knowledge_path.is_empty()
+        {
+            self.push(" WHERE knowledge_path LIKE ")
+                .push_bind(format!("{knowledge_path}%"));
+        }
 
+        if let Some(status) = req.status {
+            self.push(" AND status = ").push_bind(status);
+        }
+        if let Some(ref cate_ids) = req.cate_ids
+            && !cate_ids.is_empty()
+        {
+            self.push(" AND question_cate_id = ANY(")
+                .push_bind(cate_ids)
+                .push(")");
+        }
         if let Some(type_id) = req.type_id
             && type_id > 0
         {
@@ -246,11 +285,15 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
     fn push_similar_where(mut self, req: &'a SimilarReq) -> Self {
         self.push(" WHERE qs.question_id = ")
             .push_bind(req.question_id);
-        self.push(" AND q.status = ").push_bind(req.status);
         self.push(" AND q.question_cate_id = ")
             .push_bind(req.cate_id);
         self.push(" AND qs.question_type = ")
             .push_bind(QuestionRelationType::Similar as i16);
+
+        // 状态0是草稿中
+        if let Some(status) = req.status {
+            self.push(" AND q.status = ").push_bind(status);
+        }
         if let Some(type_id) = req.type_id
             && type_id > 0
         {
@@ -270,45 +313,6 @@ impl<'a> QueryBuilderExt<'a> for QueryBuilder<'a, Postgres> {
         }
         self
     }
-
-    fn push_random_where(mut self, req: &'a GenPaperGenConfig) -> Self {
-        self.push(" AND question_cate_id = ANY(")
-            .push_bind(&req.question_cate_ids)
-            .push(")");
-        self.push(" AND status = ")
-            .push_bind(QuestionStatus::Published as i16);
-
-        if let Some(ref tags) = req.tag_ids
-            && !tags.is_empty()
-        {
-            self.push(" AND question_tag_ids @> ").push_bind(Json(tags));
-        }
-        if let Some(ref dimensions) = req.dimension_ids
-            && !dimensions.is_empty()
-        {
-            self.push(" AND question_dimension_ids @> ")
-                .push_bind(Json(dimensions));
-        }
-        if let Some(ref level_ids) = req.level_ids
-            && !level_ids.is_empty()
-        {
-            self.push(" AND level_id = ANY(")
-                .push_bind(level_ids)
-                .push(")");
-        }
-        if let Some(ref scene_ids) = req.scene_ids
-            && !scene_ids.is_empty()
-        {
-            self.push(" AND scene_ids @> ").push_bind(Json(scene_ids));
-        }
-        if let Some(ref mistake_tip_ids) = req.mistake_tip_ids
-            && !mistake_tip_ids.is_empty()
-        {
-            self.push(" AND mistake_tip_ids @> ")
-                .push_bind(Json(mistake_tip_ids));
-        }
-        self
-    }
 }
 
 impl Question {
@@ -318,18 +322,21 @@ impl Question {
             r"
         INSERT INTO question (
             id, question_cate_id, question_type_id, question_tag_ids, author_id,
-            source, original_name, status,
-            title, content_plain, comment, difficulty_level,
-            images, options, options_layout,
-            answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids, relation_type,
-            level_id, scene_ids, mistake_tip_ids
+            source, original_name, status, title, content_plain,
+            comment, difficulty_level, images, options, options_layout,
+            answer, knowledge, analysis, process, remark,
+            remark_ext, steps, question_dimension_ids, relation_type, level_id,
+            scene_ids, mistake_tip_ids, chapter_id, chapter_path, knowledge_id,
+            knowledge_path
         )
         VALUES (
             COALESCE($1, nextval('question_id_seq')), $2, $3, $4, $5,
-            $6, $7, $8, $9, $10, $11,
-            $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-            $25, $26, $27
+            $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25,
+            $26, $27, $28, $29, $30,
+            $31
         )
         ON CONFLICT (id) DO UPDATE SET
             question_cate_id = EXCLUDED.question_cate_id,
@@ -358,6 +365,10 @@ impl Question {
             level_id = EXCLUDED.level_id,
             scene_ids = EXCLUDED.scene_ids,
             mistake_tip_ids = EXCLUDED.mistake_tip_ids,
+            chapter_id = EXCLUDED.chapter_id,
+            chapter_path = EXCLUDED.chapter_path,
+            knowledge_id = EXCLUDED.knowledge_id,
+            knowledge_path = EXCLUDED.knowledge_path,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
         ",
@@ -389,6 +400,10 @@ impl Question {
         .bind(req.level_id)
         .bind(Json(req.scene_ids))
         .bind(Json(req.mistake_tip_ids))
+        .bind(req.chapter_id.unwrap_or_default())
+        .bind(req.chapter_path.unwrap_or_default())
+        .bind(req.knowledge_id.unwrap_or_default())
+        .bind(req.knowledge_path.unwrap_or_default())
         .fetch_one(pool)
         .await?;
 
@@ -404,16 +419,19 @@ impl Question {
         sqlx::query_as::<_, Question>(
             r"
         INSERT INTO question (
-            question_cate_id, question_type_id, question_tag_ids, author_id,
-            source, original_name, status,
-            title, content_plain, comment, difficulty_level,
-            images, options, options_layout,
-            answer, knowledge, analysis, process, remark, remark_ext,
-            steps, question_dimension_ids, relation_type,
-            level_id, scene_ids, mistake_tip_ids
+            question_cate_id, question_type_id, question_tag_ids, author_id, source,
+            original_name, status, title, content_plain, comment,
+            difficulty_level, images, options, options_layout, answer,
+            knowledge, analysis, process, remark, remark_ext,
+            steps, question_dimension_ids, relation_type, level_id, scene_ids,
+            mistake_tip_ids, chapter_id, chapter_path, knowledge_id, knowledge_path
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        VALUES ($1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15,
+                $16, $17, $18, $19, $20,
+                $21, $22, $23, $24, $25,
+                $26, $27, $28, $29, $30)
         RETURNING *
         ",
         )
@@ -443,6 +461,10 @@ impl Question {
         .bind(req.level_id)
         .bind(Json(req.scene_ids))
         .bind(Json(req.mistake_tip_ids))
+        .bind(req.chapter_id.unwrap_or_default())
+        .bind(req.chapter_path.unwrap_or_default())
+        .bind(req.knowledge_id.unwrap_or_default())
+        .bind(req.knowledge_path.unwrap_or_default())
         .fetch_one(&mut **tx)
         .await
     }
@@ -472,7 +494,8 @@ impl Question {
                 images, options, options_layout,
                 answer, knowledge, analysis, process, remark,remark_ext,
                 steps, question_dimension_ids, relation_type,
-                level_id, scene_ids, mistake_tip_ids
+                level_id, scene_ids, mistake_tip_ids, chapter_id, chapter_path,
+                knowledge_id, knowledge_path
             )
             ",
             );
@@ -502,7 +525,11 @@ impl Question {
                     .push_bind(req.relation_type)
                     .push_bind(req.level_id)
                     .push_bind(Json(req.scene_ids.clone().unwrap_or_default()))
-                    .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()));
+                    .push_bind(Json(req.mistake_tip_ids.clone().unwrap_or_default()))
+                    .push_bind(req.chapter_id.unwrap_or_default())
+                    .push_bind(req.chapter_path.clone().unwrap_or_default())
+                    .push_bind(req.knowledge_id.unwrap_or_default())
+                    .push_bind(req.knowledge_path.clone().unwrap_or_default());
             });
 
             query_builder.push(" RETURNING id");
@@ -523,14 +550,6 @@ impl Question {
         sqlx::query_as::<_, Self>("SELECT * FROM question WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
-            .await
-    }
-
-    // 通过ids获取详情列表
-    pub async fn find_by_ids(pool: &PgPool, ids: &[i64]) -> Result<Vec<Self>, sqlx::Error> {
-        sqlx::query_as::<_, Self>("SELECT * FROM question WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(pool)
             .await
     }
 
@@ -563,36 +582,7 @@ impl Question {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let sql = r"
-        SELECT
-            id,
-            question_cate_id,
-            question_type_id,
-            question_tag_ids,
-            question_dimension_ids,
-            relation_type,
-            level_id,
-            scene_ids,
-            mistake_tip_ids,
-            author_id,
-            source,
-            original_name,
-            title,
-            content_plain,
-            comment,
-            difficulty_level,
-            images,
-            options,
-            status,
-            options_layout,
-            steps,
-            approve_id,
-            reject_reason,
-            approve_at,
-            created_at,
-            updated_at
-        FROM question
-        ";
+        let sql = r"SELECT * FROM question ";
         let mut qb = QueryBuilder::new(sql);
 
         qb = qb.push_cate_and_type_where(req);
@@ -729,23 +719,6 @@ impl Question {
         Ok(row.rows_affected())
     }
 
-    // 题型等条件下题目列表
-    pub async fn list_by_ext(
-        pool: &PgPool,
-        type_id: i16,
-        req: &GenPaperGenConfig,
-        limit: i16,
-    ) -> Result<Vec<Self>, sqlx::Error> {
-        let mut qb = QueryBuilder::new("SELECT * FROM question ");
-        qb.push(" WHERE question_type_id = ").push_bind(type_id);
-
-        qb = qb.push_random_where(req);
-
-        qb.push(" ORDER BY RANDOM() LIMIT ").push_bind(limit);
-
-        qb.build_query_as::<Self>().fetch_all(pool).await
-    }
-
     // 最新上传题目
     // task cron 统计用其它方法不要使用, 可能没有针对性创建索引存在性能问题
     pub async fn latest_question_ids(pool: &PgPool) -> Result<Vec<i64>, sqlx::Error> {
@@ -807,6 +780,44 @@ impl Question {
         )
         .bind(QuestionStatus::Published as i16)
         .bind(STAT_MAX_NUM)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 我的题目状态统计
+    pub async fn find_count_by_author_id(
+        pool: &PgPool,
+        author_id: i64,
+    ) -> Result<Vec<CountQuestion>, sqlx::Error> {
+        sqlx::query_as::<_, CountQuestion>(
+            r"SELECT status, COUNT(*) FROM question WHERE author_id = $1 GROUP BY status",
+        )
+        .bind(author_id)
+        .fetch_all(pool)
+        .await
+    }
+
+    // 通过题型获取关联章节和知识点的完整路径
+    // 需要通过结果判断只能存在一条数据, 否则关联关系维护错误, 需要终止业务流程
+    pub async fn find_path_info_by_cate_id(
+        pool: &PgPool,
+        cate_id: i32,
+    ) -> Result<Vec<TextbookPathInfo>, sqlx::Error> {
+        sqlx::query_as::<_, TextbookPathInfo>(
+            r"
+        SELECT
+            tc.id    AS c_id,
+            tc.path  AS c_path,
+            tk.id    AS k_id,
+            tk.path  AS k_path
+        FROM question_cate qc
+        INNER JOIN chapter_knowledge ck ON qc.related_id = ck.id
+        INNER JOIN textbook tc ON ck.chapter_id = tc.id
+        INNER JOIN textbook tk ON ck.knowledge_id = tk.id
+        WHERE qc.id = $1
+        ",
+        )
+        .bind(cate_id)
         .fetch_all(pool)
         .await
     }

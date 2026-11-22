@@ -1,3 +1,4 @@
+pub mod custom;
 pub mod dict;
 pub mod paper;
 pub mod question;

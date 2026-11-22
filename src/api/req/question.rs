@@ -7,6 +7,10 @@ use sqlx::types::Json;
 #[serde(rename_all = "camelCase")]
 pub struct CreateQuestionReq {
     pub id: Option<i64>,
+    pub chapter_id: Option<i32>,                  // 末级章节标识
+    pub chapter_path: Option<String>,             // 末级章节完整父路径
+    pub knowledge_id: Option<i32>,                // 末级知识点标识
+    pub knowledge_path: Option<String>,           // 末级知识点完整父路径
     pub question_cate_id: i32,                    // 题型主键
     pub source_id: Option<i64>,                   // 变式题父主键
     pub relation_type: i16,                       // 题目归属类型
@@ -46,9 +50,10 @@ pub struct CreateQuestionReq {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionListReq {
-    // 页面来源
     pub source: String,
-    pub question_cate_ids: Vec<i32>,
+    pub chapter_path: Option<String>,
+    pub knowledge_path: Option<String>,
+    pub question_cate_ids: Option<Vec<i32>>,
     pub question_type_id: Option<i32>,
     pub dimension_ids: Option<Vec<i32>>, // 核心素养
     pub status: Option<i16>,
@@ -65,6 +70,7 @@ pub struct QuestionListReq {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionSimilarListReq {
+    pub source: String,
     pub question_id: i64,
     pub question_cate_id: i32,
     pub question_type_id: Option<i32>,

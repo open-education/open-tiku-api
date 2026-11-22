@@ -2,12 +2,12 @@
 pub const IMAGE_NAME: &str = "images";
 /// 其它文件存储路径
 pub const FILE_NAME: &str = "files";
-/// 最大文件大小（字节）1*1024*1024=1048576 kb=1M
-pub const MAX_IMAGE_SIZE: usize = 1_048_576;
+/// 最大文件大小（字节）4*1024*1024=4194304 kb=4M
+pub const MAX_IMAGE_SIZE: usize = 4_194_304;
 /// 允许的文件扩展名
 pub const ALLOW_IMAGE_EXTENSION: [&str; 4] = ["jpg", "jpeg", "png", "gif"];
 /// 允许的其它文件扩展名
-pub const ALLOW_FILE_EXTENSION: [&str; 1] = ["md"];
+pub const ALLOW_FILE_EXTENSION: [&str; 4] = ["md", "pdf", "doc", "docx"];
 /// 图片名称存储长度
 pub const IMAGE_NAME_LEN: usize = 20;
 /// 临时 token 有效过期分钟数
@@ -24,3 +24,5 @@ pub const MARKDOWN_BASE_TITLE_TAG: &str = "### 母题";
 pub const MARKDOWN_PREFIX_TITLE_LIST: [&str; 2] = ["### ", "#### "];
 // 统计数据最大数量
 pub const STAT_MAX_NUM: i16 = 10;
+// 系统用户标识, 该标识不应该被真实用户占用
+pub const SYSTEM_USER_ID: i64 = 1;

@@ -1,14 +1,12 @@
 pub mod chapter_knowledge;
+pub mod city;
 pub mod class;
 pub mod class_student;
+pub mod custom;
 pub mod homework;
 pub mod homework_student;
 pub mod other_dict;
 pub mod paper;
-pub mod paper_gen_config;
-pub mod paper_gen_question;
-pub mod paper_group;
-pub mod paper_question;
 pub mod question;
 pub mod question_cate;
 pub mod question_relation;

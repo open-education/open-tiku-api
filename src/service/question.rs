@@ -1,15 +1,18 @@
 use crate::api::req::question::{
     CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
 };
-use crate::api::resp::question::{QuestionBaseResp, QuestionInfoResp, QuestionListResp};
+use crate::api::resp::question::{
+    CountQuestionResp, QuestionBaseResp, QuestionInfoResp, QuestionListResp,
+};
 use crate::app::conf::WebAppState;
 use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
-use crate::model::question::{CateAndTypeReq, Question, SimilarReq};
+use crate::model::question::{CateAndTypeReq, Question, SimilarReq, TextbookPathInfo};
 use crate::model::question_relation::QuestionRelation;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use regex::Regex;
+use sqlx::PgPool;
 use std::collections::{HashMap, HashSet};
 use tracing::error;
 
@@ -40,13 +43,9 @@ pub async fn add(
     let req_id = req.id.unwrap_or_default();
     let is_add = req.id.is_none();
 
-    // 题目上传只能上传草稿中和待审核的题目
-    let is_valid_status =
-        req.status == QuestionStatus::Draft as i16 || req.status == QuestionStatus::Pending as i16;
-    if !is_valid_status {
-        return Err(AppError::param_error(
-            "题目状态错误: 仅支持上传草稿或待审核状态",
-        ));
+    // 题目上传只能上传草稿中的题目
+    if req.status != QuestionStatus::Draft as i16 {
+        return Err(AppError::param_error("仅支持添加草稿中的题目"));
     }
 
     // 从请求信息中解析出题目归属类型
@@ -70,6 +69,13 @@ pub async fn add(
             ));
         }
     }
+
+    // 填充章节和知识点路径
+    let path_info = get_path_info_by_cate_id(db, req.question_cate_id).await?;
+    req.chapter_id = Some(path_info.c_id);
+    req.chapter_path = Some(format!("{}/{}/", path_info.c_path, path_info.c_id));
+    req.knowledge_id = Some(path_info.k_id);
+    req.knowledge_path = Some(format!("{}/{}/", path_info.k_path, path_info.k_id));
 
     // 如果是新增课本原题, 母题只能关联一个课本原题, 编辑它自己不需要处理
     if is_add && relation_type == QuestionRelationType::Original {
@@ -130,6 +136,31 @@ pub async fn add(
     Ok(id)
 }
 
+// 填充章节和知识点信息
+pub async fn get_path_info_by_cate_id(
+    pool: &PgPool,
+    cate_id: i32,
+) -> Result<TextbookPathInfo, AppError> {
+    // 获取章节和知识点父级路径信息
+    let mut path_info_rows = Question::find_path_info_by_cate_id(pool, cate_id)
+        .await
+        .map_err(|err| {
+            error!("Question add find textbook path info err: {err}");
+            AppError::db_error("查询题型父路径信息出错")
+        })?;
+    let path_info = match path_info_rows.pop() {
+        Some(info) if path_info_rows.is_empty() => info, // 弹出1个后变空，说明严格等于1条
+        None => return Err(AppError::business_error("题型关联信息不存在")),
+        Some(_) => {
+            return Err(AppError::business_error(
+                "题型关联的父路径信息维护异常(存在多条记录)",
+            ));
+        }
+    };
+
+    Ok(path_info)
+}
+
 // 通过主键获取详情
 pub async fn info(app_state: &WebAppState, id: i64) -> Result<QuestionInfoResp, AppError> {
     let db = &app_state.db;
@@ -173,22 +204,26 @@ pub async fn list(
     let req_source = QuestionPageSource::from_str(&req.source)
         .ok_or_else(|| AppError::param_error("不清楚的查询来源"))?;
 
+    // 章节或知识点不能同时为空
+    check_chapter_knowledge_is_full(&req.chapter_path, &req.knowledge_path)?;
+
     // 我的题目等时需要登录
     let (author_id, status) = if req_source == QuestionPageSource::List {
-        (None, QuestionStatus::Published as i16)
+        (None, Some(QuestionStatus::Published as i16))
     } else {
         let user_info = user_info.ok_or_else(|| AppError::permission_denied("需要登录方能访问"))?;
-        let status = req.status.unwrap_or(QuestionStatus::Published as i16);
-
-        // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者
+        // 目前我的题目需要指定作者, 其它情况下暂时不需要指定作者, 后续审核查询条件重新指定
+        // 我的题目和审核状态由前端自己指定
         if req_source == QuestionPageSource::MyQuestion {
-            (Some(user_info.user_id), status)
+            (Some(user_info.user_id), req.status)
         } else {
-            (None, status)
+            (None, req.status)
         }
     };
 
     let query_req: CateAndTypeReq = CateAndTypeReq {
+        chapter_path: req.chapter_path,
+        knowledge_path: req.knowledge_path,
         cate_ids: req.question_cate_ids,
         status,
         type_id: req.question_type_id,
@@ -249,6 +284,24 @@ pub async fn list(
     })
 }
 
+// 检查章节和知识点不能同时为空
+pub fn check_chapter_knowledge_is_full(
+    chapter_path: &Option<String>,
+    knowledge_path: &Option<String>,
+) -> Result<(), AppError> {
+    let has_chapter = chapter_path
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty());
+    let has_knowledge = knowledge_path
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty());
+    if !has_chapter && !has_knowledge {
+        return Err(AppError::business_error("章节路径和知识点路径不能同时为空"));
+    }
+
+    Ok(())
+}
+
 fn to_list_resp(rows: Vec<Question>, user_map: &HashMap<i64, String>) -> Vec<QuestionBaseResp> {
     let mut list: Vec<QuestionBaseResp> = Vec::with_capacity(rows.len());
     for row in rows {
@@ -268,7 +321,16 @@ pub async fn similar(
 ) -> Result<QuestionListResp, AppError> {
     let db = &app_state.db;
 
-    let status: i16 = req.status.unwrap_or(QuestionStatus::Published as i16);
+    // 页面来源
+    let req_source = QuestionPageSource::from_str(&req.source)
+        .ok_or_else(|| AppError::param_error("不清楚的查询来源"))?;
+
+    // 我的题目等不关注状态按前端为准
+    let status = if req_source == QuestionPageSource::List {
+        Some(QuestionStatus::Published as i16)
+    } else {
+        req.status
+    };
 
     let query_req: SimilarReq = SimilarReq {
         question_id: req.question_id,
@@ -337,10 +399,33 @@ pub async fn delete(
         return Err(AppError::permission_denied("只允许删除自己的题目"));
     }
 
+    // 只有草稿的题目可以删除
+    if has_question.status != QuestionStatus::Draft as i16 {
+        return Err(AppError::business_error("只允许删除草稿中的题目"));
+    }
+
     let rows = Question::delete_by_id(db, req.id).await.map_err(|err| {
         error!("question delete by id err: {err}");
         AppError::db_error("题目删除失败")
     })?;
 
     Ok(rows > 0)
+}
+
+pub async fn count(
+    app_state: &WebAppState,
+    user_info: UserInfo,
+) -> Result<Vec<CountQuestionResp>, AppError> {
+    let db = &app_state.db;
+
+    let rows = Question::find_count_by_author_id(db, user_info.user_id)
+        .await
+        .map_err(|err| {
+            error!("question count by id err: {err}");
+            AppError::db_error("统计用户题目状态计数出错")
+        })?;
+
+    let result: Vec<CountQuestionResp> = rows.into_iter().map(Into::into).collect();
+
+    Ok(result)
 }

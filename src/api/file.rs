@@ -44,7 +44,7 @@ pub async fn read_file(
     service::file::read_file(&app_state, path.into_inner().0.as_str())
 }
 
-// 图片删除
+// 图片删除, 需要控制权限, 否则会删除别人的文件
 #[post("/delete/file")]
 pub async fn delete_file(
     app_state: web::Data<WebAppState>,

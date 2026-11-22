@@ -1,5 +1,5 @@
 use crate::api::req::test::{AttemptListReq, LatestAttemptReq, ListReq, TestAnswerAddReq};
-use crate::api::resp::paper::CommonPaperResp;
+use crate::api::resp::paper::PaperResp;
 use crate::api::resp::test::{AttemptInfoResp, AttemptListResp, InfoResp, ListResp};
 use crate::app::conf::WebAppState;
 use crate::enums::test::{TestMethod, TestResult, TestStatus};
@@ -107,7 +107,7 @@ pub async fn list(
             (**paper).clone().into()
         } else {
             error!("test list paper info is empty: {paper_id}");
-            CommonPaperResp::default()
+            PaperResp::default()
         };
 
         resp.push(InfoResp {
