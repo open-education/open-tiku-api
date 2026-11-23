@@ -399,6 +399,11 @@ pub async fn delete(
         return Err(AppError::permission_denied("只允许删除自己的题目"));
     }
 
+    // 只有草稿的题目可以删除
+    if has_question.status != QuestionStatus::Draft as i16 {
+        return Err(AppError::business_error("只允许删除草稿中的题目"));
+    }
+
     let rows = Question::delete_by_id(db, req.id).await.map_err(|err| {
         error!("question delete by id err: {err}");
         AppError::db_error("题目删除失败")
