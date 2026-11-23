@@ -1,6 +1,7 @@
 use crate::api::req::paper::DeleteReq;
 use crate::api::req::paper::PaperAddReq;
 use crate::api::req::paper::PaperListReq;
+use crate::api::req::paper::UndoReq;
 use crate::api::resp::paper::{CountPaperResp, PaperListResp, PaperResp};
 use crate::app::conf::WebAppState;
 use crate::enums::paper::{
@@ -262,4 +263,45 @@ pub async fn delete(
     })?;
 
     Ok(rows >= 1)
+}
+
+pub async fn undo(
+    app_state: &WebAppState,
+    req: UndoReq,
+    user_info: UserInfo,
+) -> Result<bool, AppError> {
+    if req.id <= 0 {
+        return Err(AppError::param_error("试卷标识不存在"));
+    }
+
+    let db = &app_state.db;
+
+    let paper = Paper::find_by_id(db, req.id)
+        .await
+        .map_err(|e| {
+            error!("Select paper id: {} err: {e}", req.id);
+            AppError::db_error("查询试卷失败")
+        })?
+        .ok_or_else(|| AppError::not_found("试卷不存在"))?;
+    if paper.author_id != user_info.user_id {
+        return Err(AppError::permission_denied("只能撤回自己的题目"));
+    }
+    if paper.status != PaperStatus::Published as i16 {
+        return Err(AppError::business_error("只有已发布的试卷需要撤回"));
+    }
+
+    let rows_affected = Paper::update_status_by_id(
+        db,
+        req.id,
+        PaperStatus::Draft as i16,
+        0,
+        Some(String::new()),
+    )
+    .await
+    .map_err(|e| {
+        error!("Update status by id: {} err: {e}", req.id);
+        AppError::db_error("更新试卷失败")
+    })?;
+
+    Ok(rows_affected > 0)
 }

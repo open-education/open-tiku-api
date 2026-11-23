@@ -557,10 +557,16 @@ impl Question {
         pool: &PgPool,
         ids: &[i64],
     ) -> Result<Vec<LightQuestion>, sqlx::Error> {
-        sqlx::query_as::<_, LightQuestion>("SELECT * FROM question WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(pool)
-            .await
+        sqlx::query_as::<_, LightQuestion>(
+            "
+            SELECT
+                id, question_cate_id, title, created_at
+            FROM question
+            WHERE id = ANY($1)",
+        )
+        .bind(ids)
+        .fetch_all(pool)
+        .await
     }
 
     // 题型下题目数量
@@ -582,7 +588,15 @@ impl Question {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
-        let sql = r"SELECT * FROM question ";
+        let sql = r"
+        SELECT
+            id, question_cate_id, chapter_id, chapter_path, knowledge_id,
+            knowledge_path, question_type_id, question_tag_ids, question_dimension_ids,
+            relation_type, level_id, scene_ids, mistake_tip_ids, author_id,
+            source, original_name, title, content_plain, comment, difficulty_level,
+            images, options, options_layout, status, approve_id, reject_reason,
+            approve_at, steps, created_at, updated_at
+        FROM question ";
         let mut qb = QueryBuilder::new(sql);
 
         qb = qb.push_cate_and_type_where(req);
@@ -634,9 +648,7 @@ impl Question {
     // 题型下是否存在题目
     pub async fn exist_by_cate_id(pool: &PgPool, cate_id: i32) -> Result<bool, sqlx::Error> {
         let exists = sqlx::query_scalar::<_, bool>(
-            r"
-        SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)
-        ",
+            r"SELECT EXISTS(SELECT 1 FROM question WHERE question_cate_id = $1)",
         )
         .bind(cate_id)
         .fetch_one(pool)
@@ -699,7 +711,17 @@ impl Question {
         offset: i32,
     ) -> Result<Vec<Self>, sqlx::Error> {
         let mut qb = QueryBuilder::new(
-            "SELECT q.* FROM question q INNER JOIN question_relation qs ON q.id = qs.child_id",
+            "
+            SELECT
+                q.id, q.question_cate_id, q.chapter_id, q.chapter_path, q.knowledge_id,
+                q.knowledge_path, q.question_type_id, q.question_tag_ids, q.question_dimension_ids,
+                q.relation_type, q.level_id, q.scene_ids, q.mistake_tip_ids, q.author_id,
+                q.source, q.original_name, q.title, q.content_plain, q.comment, q.difficulty_level,
+                q.images, q.options, q.options_layout, q.status, q.approve_id, q.reject_reason,
+                q.approve_at, q.steps, q.created_at, q.updated_at
+            FROM question q
+            INNER JOIN question_relation qs ON q.id = qs.child_id
+            ",
         );
 
         qb = qb.push_similar_where(req);
@@ -765,8 +787,9 @@ impl Question {
     pub async fn find_top_textbooks(pool: &PgPool) -> Result<Vec<TopTextbook>, sqlx::Error> {
         sqlx::query_as::<_, TopTextbook>(
             r"
-            SELECT split_part(t7.path, '/', 6)::int AS textbook_id,
-                   COUNT(*)                          AS cnt
+            SELECT
+                split_part(t7.path, '/', 6)::int AS textbook_id,
+                COUNT(*)                          AS cnt
             FROM question q
             JOIN question_cate     qc ON qc.id = q.question_cate_id
             JOIN chapter_knowledge ck ON ck.id = qc.related_id

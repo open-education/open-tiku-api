@@ -81,7 +81,14 @@ pub struct QuestionSimilarListReq {
     pub page_size: i32,
 }
 
+// 删除请求
 #[derive(Deserialize)]
 pub struct DeleteReq {
+    pub id: i64,
+}
+
+// 撤回草稿
+#[derive(Deserialize)]
+pub struct UndoReq {
     pub id: i64,
 }

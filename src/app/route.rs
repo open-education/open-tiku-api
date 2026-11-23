@@ -22,7 +22,8 @@ pub fn question(cfg: &mut web::ServiceConfig) {
         .service(question::list)
         .service(question::similar)
         .service(question::delete)
-        .service(question::count);
+        .service(question::count)
+        .service(question::undo);
 }
 
 // 编辑问题, 考虑到冲突将其拆分到尽可能小的片段
@@ -72,7 +73,8 @@ pub fn paper(cfg: &mut web::ServiceConfig) {
         .service(paper::count)
         .service(paper::list)
         .service(paper::info)
-        .service(paper::delete);
+        .service(paper::delete)
+        .service(paper::undo);
 }
 
 pub fn text(cfg: &mut web::ServiceConfig) {

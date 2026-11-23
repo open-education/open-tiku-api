@@ -47,3 +47,9 @@ pub struct PaperListReq {
 pub struct DeleteReq {
     pub id: i64,
 }
+
+// 撤回草稿
+#[derive(Deserialize)]
+pub struct UndoReq {
+    pub id: i64,
+}
