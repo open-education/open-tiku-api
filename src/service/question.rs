@@ -1,5 +1,5 @@
 use crate::api::req::question::{
-    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq, UndoReq,
 };
 use crate::api::resp::question::{
     CountQuestionResp, QuestionBaseResp, QuestionInfoResp, QuestionListResp,
@@ -423,4 +423,42 @@ pub async fn count(
     let result: Vec<CountQuestionResp> = rows.into_iter().map(Into::into).collect();
 
     Ok(result)
+}
+
+pub async fn undo(
+    app_state: &WebAppState,
+    req: UndoReq,
+    user_info: UserInfo,
+) -> Result<bool, AppError> {
+    if req.id <= 0 {
+        return Err(AppError::param_error("题目标识不存在"));
+    }
+
+    let db = &app_state.db;
+
+    let question = Question::find_by_id(db, req.id).await.map_err(|e| {
+        error!("Select question id: {} err: {e}", req.id);
+        AppError::db_error("查询题目失败")
+    })?;
+    if question.author_id != user_info.user_id {
+        return Err(AppError::permission_denied("只能撤回自己的题目"));
+    }
+    if question.status != QuestionStatus::Published as i16 {
+        return Err(AppError::business_error("只有已发布的题目需要撤回"));
+    }
+
+    let rows_affected = Question::update_status_by_id(
+        db,
+        req.id,
+        QuestionStatus::Draft as i16,
+        0,
+        Some(String::new()),
+    )
+    .await
+    .map_err(|e| {
+        error!("Update status by id: {} err: {e}", req.id);
+        AppError::db_error("更新题目失败")
+    })?;
+
+    Ok(rows_affected > 0)
 }

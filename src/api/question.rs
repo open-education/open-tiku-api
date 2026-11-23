@@ -1,5 +1,5 @@
 use crate::api::req::question::{
-    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq,
+    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq, UndoReq,
 };
 use crate::api::resp::question::{CountQuestionResp, QuestionInfoResp, QuestionListResp};
 use crate::app::conf::WebAppState;
@@ -61,4 +61,13 @@ pub async fn count(
     user_info: UserInfo,
 ) -> ApiResponse<Vec<CountQuestionResp>> {
     ApiResponse::response(question::count(&app_state, user_info).await)
+}
+
+#[post("/undo")]
+pub async fn undo(
+    app_state: web::Data<WebAppState>,
+    req: web::Json<UndoReq>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(question::undo(&app_state, req.into_inner(), user_info).await)
 }
