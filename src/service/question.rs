@@ -7,7 +7,9 @@ use crate::api::resp::question::{
 use crate::app::conf::WebAppState;
 use crate::enums::question::{QuestionPageSource, QuestionRelationType, QuestionStatus};
 use crate::middleware::user::UserInfo;
-use crate::model::question::{CateAndTypeReq, Question, SimilarReq, TextbookPathInfo};
+use crate::model::question::{
+    CateAndTypeReq, Question, SimilarReq, TextbookPathInfo, UpdateQuestionReq,
+};
 use crate::model::question_relation::QuestionRelation;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
@@ -452,18 +454,19 @@ pub async fn undo(
         return Err(AppError::business_error("只有已发布的题目需要撤回"));
     }
 
-    let rows_affected = Question::update_status_by_id(
-        db,
-        req.id,
-        QuestionStatus::Draft as i16,
-        0,
-        Some(String::new()),
-    )
-    .await
-    .map_err(|e| {
-        error!("Update status by id: {} err: {e}", req.id);
-        AppError::db_error("更新题目失败")
-    })?;
+    let update_req: UpdateQuestionReq = UpdateQuestionReq {
+        id: req.id,
+        status: QuestionStatus::Draft as i16,
+        approve_id: user_info.user_id,
+        reject_reason: Some(String::new()), // 撤回草稿要把之前的审核信息清空
+        approve_at: None,
+    };
+    let rows_affected = Question::update_status_by_id(db, update_req)
+        .await
+        .map_err(|e| {
+            error!("Update status by id: {} err: {e}", req.id);
+            AppError::db_error("更新题目失败")
+        })?;
 
     Ok(rows_affected > 0)
 }

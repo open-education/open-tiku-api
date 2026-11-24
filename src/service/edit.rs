@@ -3,11 +3,14 @@ use crate::app::conf::WebAppState;
 use crate::enums::paper::PaperStatus;
 use crate::enums::question::QuestionStatus;
 use crate::middleware::user::TeacherUserInfo;
-use crate::model::paper::Paper;
-use crate::model::question::Question;
+use crate::model::paper::{Paper, UpdatePaperReq};
+use crate::model::question::{Question, UpdateQuestionReq};
 use crate::service::stat;
 use crate::util::error::AppError;
+use chrono::Utc;
 use tracing::error;
+
+// 审核等逻辑是不管什么状态都属于审核, 所以记录了审核相关的信息
 
 // 更新题目状态
 pub async fn question_status(
@@ -47,18 +50,19 @@ pub async fn question_status(
         }
     }
 
-    let rows_affected = Question::update_status_by_id(
-        db,
-        req.id,
-        req.status,
-        user_info.0.user_id,
-        req.reject_reason,
-    )
-    .await
-    .map_err(|e| {
-        error!("Update status by id: {} err: {e}", req.id);
-        AppError::db_error("更新题目失败")
-    })?;
+    let update_req: UpdateQuestionReq = UpdateQuestionReq {
+        id: req.id,
+        status: req.status,
+        approve_id: user_info.0.user_id,
+        reject_reason: req.reject_reason,
+        approve_at: Some(Utc::now()),
+    };
+    let rows_affected = Question::update_status_by_id(db, update_req)
+        .await
+        .map_err(|e| {
+            error!("Update status by id: {} err: {e}", req.id);
+            AppError::db_error("更新题目失败")
+        })?;
 
     // 审核通过后将题目追加到最新题目列表中
     if status == QuestionStatus::Published {
@@ -113,18 +117,19 @@ pub async fn paper_status(
         }
     }
 
-    let rows_affected = Paper::update_status_by_id(
-        db,
-        req.id,
-        req.status,
-        user_info.0.user_id,
-        req.reject_reason,
-    )
-    .await
-    .map_err(|e| {
-        error!("Update status by id: {} err: {e}", req.id);
-        AppError::db_error("更新试卷失败")
-    })?;
+    let update_req: UpdatePaperReq = UpdatePaperReq {
+        id: req.id,
+        status: req.status,
+        approve_id: user_info.0.user_id,
+        reject_reason: req.reject_reason,
+        approve_at: Some(Utc::now()),
+    };
+    let rows_affected = Paper::update_status_by_id(db, update_req)
+        .await
+        .map_err(|e| {
+            error!("Update status by id: {} err: {e}", req.id);
+            AppError::db_error("更新试卷失败")
+        })?;
 
     Ok(rows_affected > 0)
 }

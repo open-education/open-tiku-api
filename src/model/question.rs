@@ -155,6 +155,15 @@ pub struct ExtIdReq {
     pub mistake_tip_ids: Option<Vec<i32>>,
 }
 
+// 更新状态对象
+pub struct UpdateQuestionReq {
+    pub id: i64,
+    pub status: i16,
+    pub approve_id: i64,
+    pub reject_reason: Option<String>,
+    pub approve_at: Option<DateTime<Utc>>,
+}
+
 impl ExtIdReq {
     pub fn from_type_code(type_code: &TypeCode, row_id: i32) -> Self {
         match type_code {
@@ -369,6 +378,9 @@ impl Question {
             chapter_path = EXCLUDED.chapter_path,
             knowledge_id = EXCLUDED.knowledge_id,
             knowledge_path = EXCLUDED.knowledge_path,
+            approve_id = 0,
+            reject_reason = '',
+            approve_at = NULL,
             updated_at = CURRENT_TIMESTAMP
         RETURNING id
         ",
@@ -660,13 +672,8 @@ impl Question {
     // 更新状态
     pub async fn update_status_by_id(
         pool: &PgPool,
-        id: i64,
-        status: i16,
-        approve_id: i64,
-        reject_reason: Option<String>,
+        req: UpdateQuestionReq,
     ) -> Result<u64, sqlx::Error> {
-        let now = Utc::now();
-
         let result = sqlx::query(
             r"
         UPDATE question
@@ -674,15 +681,15 @@ impl Question {
             approve_id = $3,
             reject_reason = $4,
             approve_at = $5,
-            updated_at = $5
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         ",
         )
-        .bind(id)
-        .bind(status)
-        .bind(approve_id)
-        .bind(reject_reason)
-        .bind(now)
+        .bind(req.id)
+        .bind(req.status)
+        .bind(req.approve_id)
+        .bind(req.reject_reason.unwrap_or_default())
+        .bind(req.approve_at)
         .execute(pool)
         .await?;
 
