@@ -51,6 +51,15 @@ pub struct CountPaper {
     pub count: i64,
 }
 
+// 更新状态对象
+pub struct UpdatePaperReq {
+    pub id: i64,
+    pub status: i16,
+    pub approve_id: i64,
+    pub reject_reason: Option<String>,
+    pub approve_at: Option<DateTime<Utc>>,
+}
+
 trait QueryBuilderExt<'a> {
     fn push_list_where(self, req: &'a PaperListReq, author_id: Option<i64>) -> Self;
 }
@@ -247,13 +256,8 @@ impl Paper {
     // 更新状态
     pub async fn update_status_by_id(
         pool: &PgPool,
-        id: i64,
-        status: i16,
-        approve_id: i64,
-        reject_reason: Option<String>,
+        req: UpdatePaperReq,
     ) -> Result<u64, sqlx::Error> {
-        let now = Utc::now();
-
         let result = sqlx::query(
             r"
         UPDATE paper
@@ -261,15 +265,15 @@ impl Paper {
             approve_id = $3,
             reject_reason = $4,
             approve_at = $5,
-            updated_at = $5
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         ",
         )
-        .bind(id)
-        .bind(status)
-        .bind(approve_id)
-        .bind(reject_reason)
-        .bind(now)
+        .bind(req.id)
+        .bind(req.status)
+        .bind(req.approve_id)
+        .bind(req.reject_reason)
+        .bind(req.approve_at)
         .execute(pool)
         .await?;
 

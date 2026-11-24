@@ -10,6 +10,7 @@ use crate::enums::paper::{
 use crate::enums::user::PaperPageSource;
 use crate::middleware::user::UserInfo;
 use crate::model::paper::Paper;
+use crate::model::paper::UpdatePaperReq;
 use crate::service::user::get_user_map;
 use crate::util::error::AppError;
 use sqlx::PgPool;
@@ -290,18 +291,19 @@ pub async fn undo(
         return Err(AppError::business_error("只有已发布的试卷需要撤回"));
     }
 
-    let rows_affected = Paper::update_status_by_id(
-        db,
-        req.id,
-        PaperStatus::Draft as i16,
-        0,
-        Some(String::new()),
-    )
-    .await
-    .map_err(|e| {
-        error!("Update status by id: {} err: {e}", req.id);
-        AppError::db_error("更新试卷失败")
-    })?;
+    let update_req: UpdatePaperReq = UpdatePaperReq {
+        id: req.id,
+        status: PaperStatus::Draft as i16,
+        approve_id: 0,
+        reject_reason: Some(String::new()),
+        approve_at: None,
+    };
+    let rows_affected = Paper::update_status_by_id(db, update_req)
+        .await
+        .map_err(|e| {
+            error!("Update status by id: {} err: {e}", req.id);
+            AppError::db_error("更新试卷失败")
+        })?;
 
     Ok(rows_affected > 0)
 }
