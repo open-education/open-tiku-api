@@ -281,7 +281,7 @@ pub async fn pending(
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
     if paper.author_id != user_info.user_id {
-        return Err(AppError::permission_denied("只能撤回自己的试卷"));
+        return Err(AppError::permission_denied("只能提交自己的试卷审核"));
     }
     if paper.status != PaperStatus::Draft as i16 {
         return Err(AppError::business_error("只有草稿中的试卷需要提交审核"));
@@ -323,7 +323,7 @@ pub async fn undo(
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
     if paper.author_id != user_info.user_id {
-        return Err(AppError::permission_denied("只能撤回自己的题目"));
+        return Err(AppError::permission_denied("只能撤回自己的试卷"));
     }
     if paper.status != PaperStatus::Published as i16 {
         return Err(AppError::business_error("只有已发布的试卷需要撤回"));
