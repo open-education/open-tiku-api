@@ -87,6 +87,12 @@ pub struct DeleteReq {
     pub id: i64,
 }
 
+// 提交审核
+#[derive(Deserialize)]
+pub struct PendingReq {
+    pub id: i64,
+}
+
 // 撤回草稿
 #[derive(Deserialize)]
 pub struct UndoReq {

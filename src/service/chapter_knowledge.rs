@@ -1,10 +1,9 @@
-use crate::model::chapter_knowledge::ChapterKnowledge;
-use crate::model::question_cate::QuestionCate;
-
 use crate::api::req::chapter_knowledge::{CreateChapterKnowledgeReq, RemoveChapterKnowledgeReq};
 use crate::api::resp::chapter_knowledge::ChapterKnowledgeResp;
 use crate::app::conf::WebAppState;
 use crate::constant::cache::TEXTBOOK_CACHE_PREFIX;
+use crate::model::chapter_knowledge::ChapterKnowledge;
+use crate::model::question_cate::QuestionCate;
 use crate::util::cache;
 use crate::util::error::AppError;
 use sqlx::PgPool;

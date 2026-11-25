@@ -1,5 +1,4 @@
-use crate::api::req::paper::PaperAddReq;
-use crate::api::req::paper::PaperListReq;
+use crate::api::req::paper::{PaperAddReq, PaperListReq};
 use crate::enums::paper::PaperStatus;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -1,25 +1,24 @@
-use crate::model::user_identity::UserIdentity;
-use crate::model::user_session::UserSession;
-use crate::util::github::get_github_user;
-use crate::util::qq::get_qq_user;
-use crate::util::snowflake;
-use actix_web::{Error, HttpResponse, Result, error};
-use chrono::{Duration, Utc};
-use sqlx::PgPool;
-use tracing::error;
-use url::Url;
-use uuid::Uuid;
-
 use crate::api::req::callback::CallbackQueryReq;
 use crate::app::conf::WebAppState;
 use crate::constant::meta;
 use crate::enums::user::{ProviderType, RoleType, StatusType, UserSource};
+use crate::model::user_identity::UserIdentity;
+use crate::model::user_session::UserSession;
 use crate::util::error::AppError;
+use crate::util::github::get_github_user;
+use crate::util::qq::get_qq_user;
+use crate::util::snowflake;
+use actix_web::{Error, HttpResponse, Result, error};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use chrono::{Duration, Utc};
 use sha2::Digest;
 use sha2::Sha256;
+use sqlx::PgPool;
 use std::io::ErrorKind;
+use tracing::error;
+use url::Url;
+use uuid::Uuid;
 
 // 生成 state
 fn generate_state(secret: &str) -> String {

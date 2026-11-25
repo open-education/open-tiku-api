@@ -31,16 +31,15 @@ pub async fn question_status(
         error!("Select question id: {} err: {e}", req.id);
         AppError::db_error("查询题目失败")
     })?;
+    if question.status != QuestionStatus::Pending as i16 {
+        return Err(AppError::permission_denied("只有审核中的题目才需要审核"));
+    }
 
     // 权限校验
     match status {
-        // 作者提交审核
         QuestionStatus::Pending => {
-            if question.author_id != user_info.0.user_id {
-                return Err(AppError::permission_denied("只有题目作者才能提交审核"));
-            }
+            return Err(AppError::permission_denied("只有题目作者才能提交审核"));
         }
-        // 审核结果（通过/拒绝/退回草稿）——均需教师权限 拒绝时必须填写原因
         QuestionStatus::Published | QuestionStatus::Rejected | QuestionStatus::Draft => {
             if status == QuestionStatus::Rejected
                 && req.reject_reason.as_ref().is_none_or(String::is_empty)
@@ -50,13 +49,14 @@ pub async fn question_status(
         }
     }
 
-    let update_req: UpdateQuestionReq = UpdateQuestionReq {
+    let update_req = UpdateQuestionReq {
         id: req.id,
         status: req.status,
         approve_id: user_info.0.user_id,
         reject_reason: req.reject_reason,
         approve_at: Some(Utc::now()),
     };
+
     let rows_affected = Question::update_status_by_id(db, update_req)
         .await
         .map_err(|e| {
@@ -98,16 +98,14 @@ pub async fn paper_status(
             AppError::db_error("查询试卷失败")
         })?
         .ok_or_else(|| AppError::not_found("试卷不存在"))?;
+    if paper.status != PaperStatus::Pending as i16 {
+        return Err(AppError::permission_denied("只有审核中的试卷才需要审核"));
+    }
 
-    // 权限校验
     match status {
-        // 作者提交审核
         PaperStatus::Pending => {
-            if paper.author_id != user_info.0.user_id {
-                return Err(AppError::permission_denied("只有试卷作者才能提交审核"));
-            }
+            return Err(AppError::permission_denied("只有试卷作者才能提交审核"));
         }
-        // 审核结果（通过/拒绝/退回草稿）——均需教师权限 拒绝时必须填写原因
         PaperStatus::Published | PaperStatus::Rejected | PaperStatus::Draft => {
             if status == PaperStatus::Rejected
                 && req.reject_reason.as_ref().is_none_or(String::is_empty)

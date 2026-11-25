@@ -1,5 +1,5 @@
 use crate::api::req::question::{
-    CreateQuestionReq, DeleteReq, QuestionListReq, QuestionSimilarListReq, UndoReq,
+    CreateQuestionReq, DeleteReq, PendingReq, QuestionListReq, QuestionSimilarListReq, UndoReq,
 };
 use crate::api::resp::question::{
     CountQuestionResp, QuestionBaseResp, QuestionInfoResp, QuestionListResp,
@@ -432,6 +432,47 @@ pub async fn count(
     Ok(result)
 }
 
+// 提交审核
+pub async fn pending(
+    app_state: &WebAppState,
+    req: PendingReq,
+    user_info: UserInfo,
+) -> Result<bool, AppError> {
+    if req.id <= 0 {
+        return Err(AppError::param_error("题目标识不存在"));
+    }
+
+    let db = &app_state.db;
+
+    let question = Question::find_by_id(db, req.id).await.map_err(|e| {
+        error!("Select question id: {} err: {e}", req.id);
+        AppError::db_error("查询题目失败")
+    })?;
+    if question.author_id != user_info.user_id {
+        return Err(AppError::permission_denied("只能提交自己的题目审核"));
+    }
+    if question.status != QuestionStatus::Draft as i16 {
+        return Err(AppError::business_error("只有草稿中的题目需要提交审核"));
+    }
+
+    let update_req: UpdateQuestionReq = UpdateQuestionReq {
+        id: req.id,
+        status: QuestionStatus::Pending as i16,
+        approve_id: 0,
+        reject_reason: Some(String::new()),
+        approve_at: None,
+    };
+    let rows_affected = Question::update_status_by_id(db, update_req)
+        .await
+        .map_err(|e| {
+            error!("Update status by id: {} err: {e}", req.id);
+            AppError::db_error("更新题目失败")
+        })?;
+
+    Ok(rows_affected > 0)
+}
+
+// 撤回草稿
 pub async fn undo(
     app_state: &WebAppState,
     req: UndoReq,
@@ -457,8 +498,8 @@ pub async fn undo(
     let update_req: UpdateQuestionReq = UpdateQuestionReq {
         id: req.id,
         status: QuestionStatus::Draft as i16,
-        approve_id: user_info.user_id,
-        reject_reason: Some(String::new()), // 撤回草稿要把之前的审核信息清空
+        approve_id: 0,
+        reject_reason: Some(String::new()),
         approve_at: None,
     };
     let rows_affected = Question::update_status_by_id(db, update_req)

@@ -1,9 +1,5 @@
-use crate::api::req::paper::DeleteReq;
-use crate::api::req::paper::PaperAddReq;
-use crate::api::req::paper::PaperListReq;
-use crate::api::req::paper::UndoReq;
-use crate::api::resp::paper::PaperListResp;
-use crate::api::resp::paper::{CountPaperResp, PaperResp};
+use crate::api::req::paper::{DeleteReq, PaperAddReq, PaperListReq, PendingReq, UndoReq};
+use crate::api::resp::paper::{CountPaperResp, PaperListResp, PaperResp};
 use crate::app::conf::WebAppState;
 use crate::middleware::user::UserInfo;
 use crate::service::paper;
@@ -54,6 +50,15 @@ pub async fn delete(
     user_info: UserInfo,
 ) -> ApiResponse<bool> {
     ApiResponse::response(paper::delete(&app_state, req.into_inner(), user_info).await)
+}
+
+#[post("/pending")]
+pub async fn pending(
+    app_state: web::Data<WebAppState>,
+    req: web::Json<PendingReq>,
+    user_info: UserInfo,
+) -> ApiResponse<bool> {
+    ApiResponse::response(paper::pending(&app_state, req.into_inner(), user_info).await)
 }
 
 #[post("/undo")]
