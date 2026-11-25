@@ -1,17 +1,19 @@
+use crate::api::req::homework::{HomeworkAddReq, HomeworkListReq};
+use crate::api::resp::homework::HomeworkListResp;
 use crate::app::conf::WebAppState;
 use crate::middleware::user::TeacherUserInfo;
 use crate::service::homework;
 use crate::util::response::ApiResponse;
 use actix_web::{get, post, web};
 
-use crate::api::req::homework::{HomeworkAddReq, HomeworkListReq};
-use crate::api::resp::homework::HomeworkListResp;
-
 // 布置作业相关
 
 // 获取试卷作业批次号
 #[get("{paper_id}/batchNo")]
-pub async fn batch_no(app_state: web::Data<WebAppState>, path: web::Path<(i64,)>) -> ApiResponse<i32> {
+pub async fn batch_no(
+    app_state: web::Data<WebAppState>,
+    path: web::Path<(i64,)>,
+) -> ApiResponse<i32> {
     ApiResponse::response(homework::batch_no(&app_state, path.into_inner().0).await)
 }
 
