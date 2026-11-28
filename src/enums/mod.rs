@@ -2,6 +2,7 @@ pub mod custom;
 pub mod dict;
 pub mod paper;
 pub mod question;
+pub mod report;
 pub mod student;
 pub mod task;
 pub mod test;

@@ -812,3 +812,25 @@ VALUES ('1101', '11', '北京', 'b', 2),
        ('7127', '71', '澎湖', 'p', 2),
        ('8100', '81', '香港', 'x', 2),
        ('8200', '82', '澳门', 'a', 2);
+
+-- 11. 投诉
+CREATE TABLE report (
+    id          BIGSERIAL    PRIMARY KEY,
+    report_type SMALLINT     NOT NULL,                          -- 投诉类型 1 题目 2 试卷
+    report_id   BIGINT       NOT NULL,                          -- 原始对象 ID
+    value       TEXT         NOT NULL DEFAULT '',               -- 投诉内容标志
+    label       VARCHAR(500) NOT NULL DEFAULT '',               -- 投诉内容标签
+    label_desc  TEXT         NOT NULL DEFAULT '',               -- 投诉内容解释
+    content     TEXT         NOT NULL DEFAULT '',               -- 投诉内容描述
+    source_url  VARCHAR(500) NOT NULL DEFAULT '',               -- 投诉内容原始链接
+    file_list   JSONB        NOT NULL DEFAULT '[]'::jsonb,      -- 文件地址信息
+    status      SMALLINT     NOT NULL DEFAULT 0,           -- 0 草稿 1 审核中 2 审核通过 3 拒绝
+    approve_id      BIGINT       NOT NULL DEFAULT 0,           -- 审核人
+    reject_reason   TEXT,                                      -- 审核拒绝后的反馈意见
+    approve_at      TIMESTAMPTZ           DEFAULT NULL,        -- 审核时间
+    remark      TEXT         NOT NULL DEFAULT '',               -- 备注
+
+    -- 审计字段
+    created_at  TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ           DEFAULT CURRENT_TIMESTAMP
+);

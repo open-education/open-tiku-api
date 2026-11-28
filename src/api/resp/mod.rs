@@ -8,6 +8,7 @@ pub mod other_dict;
 pub mod paper;
 pub mod question;
 pub mod question_cate;
+pub mod report;
 pub mod stat;
 pub mod task;
 pub mod test;
